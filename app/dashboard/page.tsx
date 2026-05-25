@@ -1,20 +1,19 @@
-async function getStoreData() {
-  try {
-    const response = await fetch(
-      `${process.env.SHOPIFY_APP_URL}/api/shopify/store`,
-      {
-        cache: "no-store",
-      }
-    )
+"use client"
 
-    return response.json()
-  } catch {
-    return null
-  }
-}
+import { useEffect, useState } from "react"
+import Sidebar from "../components/Sidebar"
+import Topbar from "../components/Topbar"
 
-export default async function DashboardPage() {
-  const store = await getStoreData()
+export default function DashboardPage() {
+  const [store, setStore] = useState<any>(null)
+
+  useEffect(() => {
+    fetch("/api/shopify/store")
+      .then((res) => res.json())
+      .then((data) => {
+        setStore(data)
+      })
+  }, [])
 
   return (
     <main
@@ -22,86 +21,95 @@ export default async function DashboardPage() {
         minHeight: "100vh",
         background: "#020617",
         color: "white",
-        padding: "40px",
-        fontFamily: "Arial",
+        display: "flex",
       }}
     >
-      <h1 style={{ fontSize: "42px" }}>🚀 Boost Dashboard</h1>
+      <Sidebar />
 
-      <div
-        style={{
-          marginTop: "30px",
-          display: "grid",
-          gridTemplateColumns: "repeat(4,1fr)",
-          gap: "20px",
-        }}
-      >
-        <div
-          style={{
-            background: "#0f172a",
-            padding: "24px",
-            borderRadius: "20px",
-          }}
-        >
-          <h3>Boutique</h3>
-          <p>{store?.shop || "Non connectée"}</p>
+      <div style={{ flex: 1 }}>
+        <Topbar />
+
+        <div style={{ padding: "40px" }}>
+          <h1
+            style={{
+              fontSize: "48px",
+              fontWeight: "bold",
+              marginBottom: "10px",
+            }}
+          >
+            Dashboard
+          </h1>
+
+          <p
+            style={{
+              color: "#94a3b8",
+              marginBottom: "40px",
+            }}
+          >
+            Boutique :
+            {" "}
+            {store?.shop || "Chargement..."}
+          </p>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: "20px",
+            }}
+          >
+            <Card
+              title="Revenue"
+              value={store?.revenue || "0€"}
+            />
+
+            <Card
+              title="Commandes"
+              value={store?.orders || "0"}
+            />
+
+            <Card
+              title="Conversion"
+              value={store?.conversion || "0%"}
+            />
+
+            <Card
+              title="AOV"
+              value={store?.aov || "0€"}
+            />
+          </div>
         </div>
-
-        <div
-          style={{
-            background: "#0f172a",
-            padding: "24px",
-            borderRadius: "20px",
-          }}
-        >
-          <h3>Connexion</h3>
-          <p>{store?.connected ? "✅ Active" : "❌ Offline"}</p>
-        </div>
-
-        <div
-          style={{
-            background: "#0f172a",
-            padding: "24px",
-            borderRadius: "20px",
-          }}
-        >
-          <h3>Shopify</h3>
-          <p>{store?.data?.data?.shop?.name || "API inactive"}</p>
-        </div>
-
-        <div
-          style={{
-            background: "#0f172a",
-            padding: "24px",
-            borderRadius: "20px",
-          }}
-        >
-          <h3>Boost AI</h3>
-          <p>Ready</p>
-        </div>
-      </div>
-
-      <div
-        style={{
-          marginTop: "30px",
-          background: "#0f172a",
-          padding: "30px",
-          borderRadius: "24px",
-        }}
-      >
-        <h2>Données Shopify</h2>
-
-        <pre
-          style={{
-            marginTop: "20px",
-            color: "#94a3b8",
-            overflow: "auto",
-            fontSize: "14px",
-          }}
-        >
-          {JSON.stringify(store, null, 2)}
-        </pre>
       </div>
     </main>
+  )
+}
+
+function Card({
+  title,
+  value,
+}: {
+  title: string
+  value: string
+}) {
+  return (
+    <div
+      style={{
+        background: "#0f172a",
+        padding: "30px",
+        borderRadius: "24px",
+        border: "1px solid #1e293b",
+      }}
+    >
+      <p style={{ color: "#94a3b8" }}>{title}</p>
+
+      <h2
+        style={{
+          fontSize: "42px",
+          marginTop: "10px",
+        }}
+      >
+        {value}
+      </h2>
+    </div>
   )
 }
