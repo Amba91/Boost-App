@@ -30,7 +30,7 @@ export default function DashboardPage() {
       <Sidebar page={page} setPage={setPage} />
 
       <div style={styles.main}>
-        <Topbar />
+        <Topbar title="Dashboard" />
 
         <div style={styles.content}>
           <h1 style={styles.title}>Dashboard</h1>
