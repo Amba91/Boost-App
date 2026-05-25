@@ -1,11 +1,27 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Sidebar from "../components/Sidebar"
 import Topbar from "../components/Topbar"
 
+type StoreData = {
+  shop: string
+  revenue: string
+  orders: number
+  conversion: string
+  aov: string
+}
+
 export default function DashboardPage() {
   const [page, setPage] = useState("dashboard")
+
+  const [storeData, setStoreData] = useState<StoreData | null>(null)
+
+  useEffect(() => {
+    fetch("/api/shopify/store")
+      .then((res) => res.json())
+      .then((data) => setStoreData(data))
+  }, [])
 
   return (
     <main style={styles.app}>
@@ -15,7 +31,10 @@ export default function DashboardPage() {
         <Topbar title={title(page)} />
 
         <div style={styles.content}>
-          {page === "dashboard" && <Dashboard />}
+          {page === "dashboard" && (
+            <Dashboard storeData={storeData} />
+          )}
+
           {page === "widgets" && <Widgets />}
           {page === "analytics" && <Analytics />}
           {page === "ai" && <AI />}
@@ -46,44 +65,68 @@ function Card({ children }: { children: React.ReactNode }) {
   return <div style={styles.card}>{children}</div>
 }
 
-function Dashboard() {
+function Dashboard({
+  storeData,
+}: {
+  storeData: StoreData | null
+}) {
+  if (!storeData) {
+    return (
+      <div style={{ color: "white" }}>
+        Chargement Shopify...
+      </div>
+    )
+  }
+
   return (
     <div style={styles.grid}>
-      {["18 945€ Revenus", "1 259 Commandes", "3.62% Conversion", "65€ AOV"].map(
-        (item) => (
-          <Card key={item}>
-            <p style={styles.muted}>{item.split(" ").slice(1).join(" ")}</p>
-            <h2>{item.split(" ")[0]}</h2>
-            <p style={styles.green}>+18%</p>
-          </Card>
-        )
-      )}
+      <Card>
+        <p style={styles.muted}>Revenus</p>
+        <h2>{storeData.revenue}</h2>
+        <p style={styles.green}>+28%</p>
+      </Card>
 
       <Card>
-        <h3>Widgets actifs</h3>
+        <p style={styles.muted}>Commandes</p>
+        <h2>{storeData.orders}</h2>
+        <p style={styles.green}>+22%</p>
+      </Card>
 
-        {[
-          "Sticky Cart",
-          "Sales Popups",
-          "Wishlist",
-          "Reviews",
-          "Tracking",
-        ].map((w) => (
-          <p key={w} style={styles.row}>
-            {w}
-            <span style={styles.green}>Actif</span>
-          </p>
-        ))}
+      <Card>
+        <p style={styles.muted}>Conversion</p>
+        <h2>{storeData.conversion}</h2>
+        <p style={styles.green}>+18%</p>
+      </Card>
+
+      <Card>
+        <p style={styles.muted}>AOV</p>
+        <h2>{storeData.aov}</h2>
+        <p style={styles.green}>+7%</p>
+      </Card>
+
+      <Card>
+        <h3>🛒 Boutique connectée</h3>
+
+        <p style={styles.muted}>
+          {storeData.shop}
+        </p>
+
+        <div style={styles.connected}>
+          ✅ Shopify connecté
+        </div>
       </Card>
 
       <Card>
         <h3>🤖 Boost AI</h3>
 
         <p style={styles.muted}>
-          3 optimisations peuvent augmenter tes ventes cette semaine.
+          L’IA détecte actuellement 3 optimisations
+          capables d’augmenter les ventes.
         </p>
 
-        <button style={styles.button}>Voir les insights</button>
+        <button style={styles.button}>
+          Voir les insights
+        </button>
       </Card>
     </div>
   )
@@ -107,7 +150,9 @@ function Widgets() {
             Widget configurable pour Shopify.
           </p>
 
-          <button style={styles.button}>Configurer</button>
+          <button style={styles.button}>
+            Configurer
+          </button>
         </Card>
       ))}
     </div>
@@ -120,15 +165,17 @@ function Analytics() {
       <h3>📈 Revenus générés</h3>
 
       <div style={styles.chart}>
-        {[70, 120, 90, 160, 130, 180, 220].map((h, i) => (
-          <div
-            key={i}
-            style={{
-              ...styles.bar,
-              height: h,
-            }}
-          />
-        ))}
+        {[70, 120, 90, 160, 130, 180, 220].map(
+          (h, i) => (
+            <div
+              key={i}
+              style={{
+                ...styles.bar,
+                height: h,
+              }}
+            />
+          )
+        )}
       </div>
     </Card>
   )
@@ -158,24 +205,12 @@ function Shopify() {
       <h3>🛒 Connexion Shopify</h3>
 
       <p style={styles.muted}>
-        OAuth prêt pour installation réelle.
+        Shopify est connecté avec succès.
       </p>
 
-      <input
-        defaultValue="kiidiiz.myshopify.com"
-        style={styles.input}
-      />
-
-      <a
-        href="/login"
-        style={{
-          ...styles.button,
-          display: "inline-block",
-          textDecoration: "none",
-        }}
-      >
-        Connecter Shopify
-      </a>
+      <div style={styles.connected}>
+        ✅ Kiidiiz connecté
+      </div>
     </Card>
   )
 }
@@ -190,9 +225,13 @@ function Owner() {
         "Trials 62",
       ].map((s) => (
         <Card key={s}>
-          <p style={styles.muted}>{s.split(" ")[0]}</p>
+          <p style={styles.muted}>
+            {s.split(" ")[0]}
+          </p>
 
-          <h2>{s.split(" ").slice(1).join(" ")}</h2>
+          <h2>
+            {s.split(" ").slice(1).join(" ")}
+          </h2>
         </Card>
       ))}
 
@@ -275,13 +314,16 @@ const styles: Record<string, React.CSSProperties> = {
 
   green: {
     color: "#22c55e",
+    fontWeight: "bold",
   },
 
-  row: {
-    display: "flex",
-    justifyContent: "space-between",
-    borderBottom: "1px solid #1e293b",
-    paddingBottom: 12,
+  connected: {
+    marginTop: 16,
+    background: "#052e16",
+    color: "#4ade80",
+    padding: 14,
+    borderRadius: 14,
+    fontWeight: "bold",
   },
 
   button: {
@@ -292,6 +334,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "12px 16px",
     fontWeight: "bold",
     cursor: "pointer",
+    marginTop: 16,
   },
 
   greenButton: {
@@ -325,7 +368,8 @@ const styles: Record<string, React.CSSProperties> = {
 
   bar: {
     flex: 1,
-    background: "linear-gradient(180deg,#8b5cf6,#2563eb)",
+    background:
+      "linear-gradient(180deg,#8b5cf6,#2563eb)",
     borderRadius: "14px 14px 0 0",
   },
 
