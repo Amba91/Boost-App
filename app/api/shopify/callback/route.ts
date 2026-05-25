@@ -7,11 +7,40 @@ export async function GET(request: Request) {
   const code = searchParams.get("code")
 
   if (!shop || !code) {
-    return NextResponse.json(
-      { error: "Missing shop or code from Shopify" },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: "Missing shop or code" }, { status: 400 })
   }
 
-  return NextResponse.redirect(`/dashboard?shop=${shop}&connected=true`)
+  const response = await fetch(`https://${shop}/admin/oauth/access_token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      client_id: process.env.SHOPIFY_API_KEY,
+      client_secret: process.env.SHOPIFY_API_SECRET,
+      code,
+    }),
+  })
+
+  const data = await response.json()
+
+  const redirect = NextResponse.redirect(
+    `${process.env.SHOPIFY_APP_URL}/dashboard?shop=${shop}&connected=true`
+  )
+
+  redirect.cookies.set("boost_shop", shop, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    path: "/",
+  })
+
+  redirect.cookies.set("boost_token", data.access_token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    path: "/",
+  })
+
+  return redirect
 }
