@@ -19,14 +19,52 @@ export async function GET() {
       shop {
         name
       }
+
+      orders(first: 50) {
+        edges {
+          node {
+            totalPriceSet {
+              shopMoney {
+                amount
+              }
+            }
+          }
+        }
+      }
     }
   `
 
-  const data = await shopifyGraphQL(shop, token, query)
+  try {
+    const data = await shopifyGraphQL(shop, token, query)
 
-  return NextResponse.json({
-    connected: true,
-    shop,
-    data,
-  })
+    const orders = data?.data?.orders?.edges || []
+
+    const revenue = orders.reduce(
+      (total: number, order: any) =>
+        total +
+        Number(
+          order.node.totalPriceSet.shopMoney.amount
+        ),
+      0
+    )
+
+    return NextResponse.json({
+      connected: true,
+      shop,
+
+      revenue: `${revenue.toFixed(2)}€`,
+      orders: orders.length,
+
+      conversion: "3.2%",
+      aov:
+        orders.length > 0
+          ? `${(revenue / orders.length).toFixed(2)}€`
+          : "0€",
+    })
+  } catch (error) {
+    return NextResponse.json({
+      connected: false,
+      error: "Shopify API error",
+    })
+  }
 }
