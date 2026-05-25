@@ -1,6 +1,18 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
-import { shopifyGraphQL } from "../../../../src/lib/shopify"
+
+async function shopifyGraphQL(shop: string, accessToken: string, query: string) {
+  const response = await fetch(`https://${shop}/admin/api/2026-04/graphql.json`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Access-Token": accessToken,
+    },
+    body: JSON.stringify({ query }),
+  })
+
+  return response.json()
+}
 
 export async function GET() {
   const cookieStore = await cookies()
@@ -41,7 +53,6 @@ export async function GET() {
   `
 
   const data = await shopifyGraphQL(shop, token, query)
-
   const orders = data?.data?.orders?.edges || []
 
   const revenueNumber = orders.reduce((total: number, order: any) => {
