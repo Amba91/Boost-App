@@ -61,20 +61,28 @@ function Dashboard() {
 
       <Card>
         <h3>Widgets actifs</h3>
-        {["Sticky Cart", "Sales Popups", "Wishlist", "Reviews", "Tracking"].map(
-          (w) => (
-            <p key={w} style={styles.row}>
-              {w} <span style={styles.green}>Actif</span>
-            </p>
-          )
-        )}
+
+        {[
+          "Sticky Cart",
+          "Sales Popups",
+          "Wishlist",
+          "Reviews",
+          "Tracking",
+        ].map((w) => (
+          <p key={w} style={styles.row}>
+            {w}
+            <span style={styles.green}>Actif</span>
+          </p>
+        ))}
       </Card>
 
       <Card>
         <h3>🤖 Boost AI</h3>
+
         <p style={styles.muted}>
           3 optimisations peuvent augmenter tes ventes cette semaine.
         </p>
+
         <button style={styles.button}>Voir les insights</button>
       </Card>
     </div>
@@ -84,15 +92,24 @@ function Dashboard() {
 function Widgets() {
   return (
     <div style={styles.grid3}>
-      {["Sticky Cart", "Sales Popup", "Wishlist", "Reviews", "Bundles", "Tracking"].map(
-        (w) => (
-          <Card key={w}>
-            <h3>{w}</h3>
-            <p style={styles.muted}>Widget configurable pour Shopify.</p>
-            <button style={styles.button}>Configurer</button>
-          </Card>
-        )
-      )}
+      {[
+        "Sticky Cart",
+        "Sales Popup",
+        "Wishlist",
+        "Reviews",
+        "Bundles",
+        "Tracking",
+      ].map((w) => (
+        <Card key={w}>
+          <h3>{w}</h3>
+
+          <p style={styles.muted}>
+            Widget configurable pour Shopify.
+          </p>
+
+          <button style={styles.button}>Configurer</button>
+        </Card>
+      ))}
     </div>
   )
 }
@@ -101,9 +118,16 @@ function Analytics() {
   return (
     <Card>
       <h3>📈 Revenus générés</h3>
+
       <div style={styles.chart}>
         {[70, 120, 90, 160, 130, 180, 220].map((h, i) => (
-          <div key={i} style={{ ...styles.bar, height: h }} />
+          <div
+            key={i}
+            style={{
+              ...styles.bar,
+              height: h,
+            }}
+          />
         ))}
       </div>
     </Card>
@@ -114,12 +138,15 @@ function AI() {
   return (
     <Card>
       <h3>🤖 Recommandations IA</h3>
+
       {[
         "Active Sticky Cart sur toutes les pages produits.",
         "Crée un bundle avec tes 3 meilleurs produits.",
         "Ajoute les avis clients près du bouton achat.",
       ].map((x) => (
-        <div key={x} style={styles.aiItem}>✨ {x}</div>
+        <div key={x} style={styles.aiItem}>
+          ✨ {x}
+        </div>
       ))}
     </Card>
   )
@@ -129,9 +156,26 @@ function Shopify() {
   return (
     <Card>
       <h3>🛒 Connexion Shopify</h3>
-      <p style={styles.muted}>OAuth prêt pour installation réelle.</p>
-      <input defaultValue="kiidiiz.myshopify.com" style={styles.input} />
-      <button style={styles.button}>Connecter Shopify</button>
+
+      <p style={styles.muted}>
+        OAuth prêt pour installation réelle.
+      </p>
+
+      <input
+        defaultValue="kiidiiz.myshopify.com"
+        style={styles.input}
+      />
+
+      <a
+        href="/login"
+        style={{
+          ...styles.button,
+          display: "inline-block",
+          textDecoration: "none",
+        }}
+      >
+        Connecter Shopify
+      </a>
     </Card>
   )
 }
@@ -139,16 +183,30 @@ function Shopify() {
 function Owner() {
   return (
     <div style={styles.grid}>
-      {["MRR 8 920€", "Stores 284", "Lifetime 12", "Trials 62"].map((s) => (
+      {[
+        "MRR 8 920€",
+        "Stores 284",
+        "Lifetime 12",
+        "Trials 62",
+      ].map((s) => (
         <Card key={s}>
           <p style={styles.muted}>{s.split(" ")[0]}</p>
+
           <h2>{s.split(" ").slice(1).join(" ")}</h2>
         </Card>
       ))}
+
       <Card>
         <h3>🎁 Offrir accès à vie</h3>
-        <input placeholder="boutique.myshopify.com" style={styles.input} />
-        <button style={styles.greenButton}>Activer Lifetime</button>
+
+        <input
+          placeholder="boutique.myshopify.com"
+          style={styles.input}
+        />
+
+        <button style={styles.greenButton}>
+          Activer Lifetime
+        </button>
       </Card>
     </div>
   )
@@ -157,11 +215,19 @@ function Owner() {
 function Billing() {
   return (
     <div style={styles.grid3}>
-      {["Starter 19€", "Pro 49€", "Lifetime 299€"].map((p) => (
+      {[
+        "Starter 19€",
+        "Pro 49€",
+        "Lifetime 299€",
+      ].map((p) => (
         <Card key={p}>
           <h3>{p.split(" ")[0]}</h3>
+
           <h2>{p.split(" ")[1]}</h2>
-          <button style={styles.button}>Choisir</button>
+
+          <button style={styles.button}>
+            Choisir
+          </button>
         </Card>
       ))}
     </div>
@@ -169,9 +235,20 @@ function Billing() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  app: { minHeight: "100vh", display: "flex", background: "#020617" },
-  main: { flex: 1 },
-  content: { padding: 30 },
+  app: {
+    minHeight: "100vh",
+    display: "flex",
+    background: "#020617",
+  },
+
+  main: {
+    flex: 1,
+  },
+
+  content: {
+    padding: 30,
+  },
+
   card: {
     background: "#0f172a",
     border: "1px solid #1e293b",
@@ -179,16 +256,34 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 24,
     color: "white",
   },
-  grid: { display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 20 },
-  grid3: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 },
-  muted: { color: "#94a3b8" },
-  green: { color: "#22c55e" },
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2,1fr)",
+    gap: 20,
+  },
+
+  grid3: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3,1fr)",
+    gap: 20,
+  },
+
+  muted: {
+    color: "#94a3b8",
+  },
+
+  green: {
+    color: "#22c55e",
+  },
+
   row: {
     display: "flex",
     justifyContent: "space-between",
     borderBottom: "1px solid #1e293b",
     paddingBottom: 12,
   },
+
   button: {
     background: "#7c3aed",
     color: "white",
@@ -198,6 +293,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: "bold",
     cursor: "pointer",
   },
+
   greenButton: {
     background: "#22c55e",
     color: "black",
@@ -208,6 +304,7 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     marginTop: 12,
   },
+
   input: {
     display: "block",
     width: "100%",
@@ -218,12 +315,20 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#020617",
     color: "white",
   },
-  chart: { height: 280, display: "flex", alignItems: "end", gap: 14 },
+
+  chart: {
+    height: 280,
+    display: "flex",
+    alignItems: "end",
+    gap: 14,
+  },
+
   bar: {
     flex: 1,
     background: "linear-gradient(180deg,#8b5cf6,#2563eb)",
     borderRadius: "14px 14px 0 0",
   },
+
   aiItem: {
     background: "#111827",
     padding: 16,
