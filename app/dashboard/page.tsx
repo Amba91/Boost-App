@@ -52,7 +52,7 @@ export default function DashboardPage() {
             </p>
 
             <a
-              href="/api/shopify/install?shop=kiidiiz.myshopify.com"
+              href="/api/auth/shopify?shop=kiidiiz.myshopify.com"
               style={styles.button}
             >
               Connecter Shopify
