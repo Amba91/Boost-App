@@ -66,7 +66,7 @@ export default async function DashboardPage() {
           }}
         >
           <h3>Shopify</h3>
-          <p>API connectée</p>
+          <p>{store?.data?.data?.shop?.name || "API inactive"}</p>
         </div>
 
         <div
@@ -89,13 +89,14 @@ export default async function DashboardPage() {
           borderRadius: "24px",
         }}
       >
-        <h2>Informations Shopify</h2>
+        <h2>Données Shopify</h2>
 
         <pre
           style={{
             marginTop: "20px",
             color: "#94a3b8",
             overflow: "auto",
+            fontSize: "14px",
           }}
         >
           {JSON.stringify(store, null, 2)}
