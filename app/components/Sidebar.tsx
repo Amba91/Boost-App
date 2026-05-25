@@ -1,58 +1,62 @@
+"use client"
+
 const items = [
-  "Dashboard",
-  "Widgets",
-  "Analytics",
-  "Boost AI",
-  "Shopify Connect",
-  "Owner",
-  "Billing",
-  "Settings",
+  ["dashboard", "Dashboard", "📊"],
+  ["widgets", "Widgets", "🧩"],
+  ["analytics", "Analytics", "📈"],
+  ["ai", "Boost AI", "🤖"],
+  ["shopify", "Shopify", "🛒"],
+  ["owner", "Owner", "👑"],
+  ["billing", "Billing", "💳"],
 ]
 
-export default function Sidebar() {
+export default function Sidebar({
+  page,
+  setPage,
+}: {
+  page: string
+  setPage: (page: string) => void
+}) {
   return (
-    <div
-      style={{
-        width: "260px",
-        background: "#020617",
-        borderRight: "1px solid #1e293b",
-        padding: "24px",
-      }}
-    >
-      <h1
-        style={{
-          color: "white",
-          marginBottom: "40px",
-        }}
-      >
-        🚀 BOOST
-      </h1>
+    <aside style={styles.sidebar}>
+      <h1 style={styles.logo}>🚀 BOOST</h1>
+      <p style={styles.sub}>Shopify SaaS</p>
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "14px",
-        }}
-      >
-        {items.map((item) => (
-          <div
-            key={item}
+      <nav style={styles.nav}>
+        {items.map(([id, label, icon]) => (
+          <button
+            key={id}
+            onClick={() => setPage(id)}
             style={{
-              padding: "14px",
-              borderRadius: "14px",
-              background:
-                item === "Dashboard"
-                  ? "#7c3aed"
-                  : "transparent",
-              color: "white",
-              cursor: "pointer",
+              ...styles.item,
+              background: page === id ? "#7c3aed" : "transparent",
             }}
           >
-            {item}
-          </div>
+            {icon} {label}
+          </button>
         ))}
-      </div>
-    </div>
+      </nav>
+    </aside>
   )
+}
+
+const styles: Record<string, React.CSSProperties> = {
+  sidebar: {
+    width: "260px",
+    background: "#020617",
+    borderRight: "1px solid #1e293b",
+    padding: "24px",
+  },
+  logo: { color: "white", margin: 0 },
+  sub: { color: "#94a3b8", marginBottom: "34px" },
+  nav: { display: "grid", gap: "12px" },
+  item: {
+    color: "white",
+    border: "1px solid #1e293b",
+    padding: "14px",
+    borderRadius: "14px",
+    textAlign: "left",
+    cursor: "pointer",
+    fontWeight: "bold",
+  },
 }
