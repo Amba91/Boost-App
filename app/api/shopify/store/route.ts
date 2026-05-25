@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
-import { shopifyGraphQL } from "@/src/lib/shopify"
+import { shopifyGraphQL } from "@/lib/shopify"
 
 export async function GET() {
   const cookieStore = await cookies()
