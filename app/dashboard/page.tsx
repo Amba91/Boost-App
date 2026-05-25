@@ -16,6 +16,8 @@ type StoreData = {
 export default function DashboardPage() {
   const [store, setStore] = useState<StoreData | null>(null)
 
+  const [page, setPage] = useState("dashboard")
+
   useEffect(() => {
     fetch("/api/shopify/store")
       .then((res) => res.json())
@@ -25,7 +27,7 @@ export default function DashboardPage() {
 
   return (
     <main style={styles.app}>
-      <Sidebar />
+      <Sidebar page={page} setPage={setPage} />
 
       <div style={styles.main}>
         <Topbar />
@@ -65,7 +67,9 @@ export default function DashboardPage() {
             <div style={styles.actions}>
               <button
                 style={styles.secondaryButton}
-                onClick={() => alert("Configuration des widgets bientôt disponible")}
+                onClick={() =>
+                  alert("Configuration des widgets bientôt disponible")
+                }
               >
                 Configurer les widgets
               </button>
@@ -113,39 +117,48 @@ const styles: Record<string, React.CSSProperties> = {
     color: "white",
     display: "flex",
   },
+
   main: {
     flex: 1,
   },
+
   content: {
     padding: "40px",
   },
+
   title: {
     fontSize: "48px",
     fontWeight: "bold",
     marginBottom: "10px",
   },
+
   subtitle: {
     color: "#94a3b8",
     marginBottom: "40px",
   },
+
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(4, 1fr)",
     gap: "20px",
   },
+
   card: {
     background: "#0f172a",
     padding: "30px",
     borderRadius: "24px",
     border: "1px solid #1e293b",
   },
+
   muted: {
     color: "#94a3b8",
   },
+
   value: {
     fontSize: "42px",
     marginTop: "10px",
   },
+
   panel: {
     marginTop: "30px",
     background: "#0f172a",
@@ -153,6 +166,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "24px",
     border: "1px solid #1e293b",
   },
+
   button: {
     marginTop: "16px",
     background: "#7c3aed",
@@ -163,12 +177,14 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: "bold",
     display: "inline-block",
   },
+
   actions: {
     display: "flex",
     gap: "14px",
     flexWrap: "wrap",
     marginTop: "18px",
   },
+
   secondaryButton: {
     background: "#7c3aed",
     color: "white",
@@ -178,6 +194,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: "bold",
     cursor: "pointer",
   },
+
   greenButton: {
     background: "#22c55e",
     color: "black",
