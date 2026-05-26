@@ -3,11 +3,11 @@
 import { useState } from "react"
 
 export default function LoginPage() {
-  const [shop, setShop] = useState("kiidiiz.myshopify.com")
+  const [shop, setShop] = useState("hy4nf1-dt.myshopify.com")
 
   function connectShopify() {
     if (!shop.includes(".myshopify.com")) {
-      alert("Entre une boutique valide, exemple : kiidiiz.myshopify.com")
+      alert("Entre une boutique valide, exemple : hy4nf1-dt.myshopify.com")
       return
     }
 
