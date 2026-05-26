@@ -1,79 +1,48 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import Link from "next/link"
 
-const API_URL =
-  "https://boost-app-9e6w.vercel.app/api/widgets/sticky-cart"
+const widgets = [
+  {
+    name: "Sticky Cart",
+    slug: "sticky-cart",
+  },
+  {
+    name: "Sales Popups",
+    slug: "sales-popups",
+  },
+  {
+    name: "Wishlist",
+    slug: "wishlist",
+  },
+  {
+    name: "Reviews",
+    slug: "reviews",
+  },
+  {
+    name: "Bundles",
+    slug: "bundles",
+  },
+  {
+    name: "Tracking",
+    slug: "tracking",
+  },
+]
 
 export default function HomePage() {
-  const [loading, setLoading] = useState(false)
-  const [active, setActive] = useState(false)
-
-  async function loadState() {
-    try {
-      const res = await fetch(API_URL)
-      const data = await res.json()
-
-      if (data.success && data.data) {
-        setActive(data.data.active)
-      }
-    } catch (error) {
-      console.error(error)
-    }
-  }
-
-  async function toggleStickyCart() {
-    try {
-      setLoading(true)
-
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          active: !active,
-        }),
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        setActive(!active)
-
-        alert(
-          !active
-            ? "✅ Sticky Cart activé"
-            : "❌ Sticky Cart désactivé"
-        )
-      } else {
-        alert("Erreur : " + data.error)
-      }
-    } catch (error) {
-      alert("Erreur serveur")
-      console.error(error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadState()
-  }, [])
-
   return (
     <main
       style={{
         minHeight: "100vh",
         background: "#050816",
         color: "white",
-        padding: "60px",
-        fontFamily: "Arial, sans-serif",
+        padding: "40px",
+        fontFamily: "Arial",
       }}
     >
       <h1
         style={{
-          fontSize: "56px",
+          fontSize: "58px",
           fontWeight: "bold",
           marginBottom: "50px",
         }}
@@ -83,70 +52,57 @@ export default function HomePage() {
 
       <div
         style={{
-          background: "#111827",
-          padding: "40px",
-          borderRadius: "24px",
-          maxWidth: "460px",
-          boxShadow: "0 0 30px rgba(0,0,0,0.3)",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))",
+          gap: "24px",
         }}
       >
-        <h2
-          style={{
-            fontSize: "32px",
-            marginBottom: "12px",
-          }}
-        >
-          Sticky Cart
-        </h2>
-
-        <p
-          style={{
-            color: "#94a3b8",
-            marginBottom: "20px",
-          }}
-        >
-          Widget panier flottant intelligent Shopify.
-        </p>
-
-        <div
-          style={{
-            marginBottom: "24px",
-            fontSize: "18px",
-          }}
-        >
-          Statut :{" "}
-          <strong
+        {widgets.map((widget) => (
+          <div
+            key={widget.slug}
             style={{
-              color: active ? "#22c55e" : "#ef4444",
+              background: "#111827",
+              borderRadius: "24px",
+              padding: "30px",
             }}
           >
-            {active ? "ACTIF" : "INACTIF"}
-          </strong>
-        </div>
+            <h2
+              style={{
+                fontSize: "30px",
+                marginBottom: "12px",
+              }}
+            >
+              {widget.name}
+            </h2>
 
-        <button
-          onClick={toggleStickyCart}
-          disabled={loading}
-          style={{
-            width: "100%",
-            background: active ? "#dc2626" : "#7c3aed",
-            color: "white",
-            border: "none",
-            padding: "16px",
-            borderRadius: "14px",
-            fontSize: "16px",
-            fontWeight: "bold",
-            cursor: "pointer",
-            transition: "0.2s",
-            opacity: loading ? 0.7 : 1,
-          }}
-        >
-          {loading
-            ? "Chargement..."
-            : active
-            ? "Désactiver Sticky Cart"
-            : "Activer Sticky Cart"}
-        </button>
+            <p
+              style={{
+                color: "#94a3b8",
+                marginBottom: "24px",
+              }}
+            >
+              Widget Shopify intelligent.
+            </p>
+
+            <Link href={`/widgets/${widget.slug}`}>
+              <button
+                style={{
+                  width: "100%",
+                  background: "#7c3aed",
+                  color: "white",
+                  border: "none",
+                  padding: "16px",
+                  borderRadius: "14px",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                }}
+              >
+                Configurer
+              </button>
+            </Link>
+          </div>
+        ))}
       </div>
     </main>
   )
