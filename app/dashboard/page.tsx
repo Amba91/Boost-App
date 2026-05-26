@@ -2,143 +2,96 @@
 
 import { useEffect, useState } from "react"
 
+const API_URL =
+  "https://boost-app-9e6w.vercel.app/api/widgets/sticky-cart"
+
 export default function HomePage() {
   const [loading, setLoading] = useState(false)
   const [active, setActive] = useState(false)
 
-  async function loadWidgetState() {
-    try {
-      const response = await fetch(
-        "https://boost-app-9e6w.vercel.app/api/widgets/sticky-cart"
-      )
+  async function loadState() {
+    const res = await fetch(API_URL)
+    const data = await res.json()
 
-      const data = await response.json()
-
-      if (data.success) {
-        setActive(data.active)
-      }
-    } catch (error) {
-      console.error(error)
+    if (data.success) {
+      setActive(data.active)
     }
   }
 
   async function toggleStickyCart() {
-    try {
-      setLoading(true)
+    setLoading(true)
 
-      const response = await fetch(
-        "https://boost-app-9e6w.vercel.app/api/widgets/sticky-cart",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            active: !active,
-          }),
-        }
-      )
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        active: !active,
+      }),
+    })
 
-      const data = await response.json()
+    const data = await res.json()
 
-      if (data.success) {
-        setActive(data.active)
-
-        alert(
-          data.active
-            ? "✅ Sticky Cart activé"
-            : "❌ Sticky Cart désactivé"
-        )
-      }
-    } catch (error) {
-      console.error(error)
-      alert("Erreur serveur")
-    } finally {
-      setLoading(false)
+    if (data.success) {
+      setActive(data.active)
+      alert(data.active ? "✅ Sticky Cart activé" : "❌ Sticky Cart désactivé")
+    } else {
+      alert("Erreur : " + data.error)
     }
+
+    setLoading(false)
   }
 
   useEffect(() => {
-    loadWidgetState()
+    loadState()
   }, [])
 
   return (
     <main
       style={{
-        background: "#050816",
         minHeight: "100vh",
+        background: "#050816",
         color: "white",
-        padding: "40px",
-        fontFamily: "sans-serif",
+        padding: "60px",
+        fontFamily: "Arial, sans-serif",
       }}
     >
-      <h1
-        style={{
-          fontSize: "48px",
-          fontWeight: "bold",
-          marginBottom: "40px",
-        }}
-      >
-        🚀 BOOST
-      </h1>
+      <h1 style={{ fontSize: "48px", marginBottom: "40px" }}>🚀 BOOST</h1>
 
       <div
         style={{
           background: "#111827",
-          padding: "30px",
-          borderRadius: "20px",
-          width: "400px",
+          padding: "32px",
+          borderRadius: "24px",
+          maxWidth: "420px",
         }}
       >
-        <h2
-          style={{
-            fontSize: "28px",
-            marginBottom: "10px",
-          }}
-        >
-          Sticky Cart
-        </h2>
+        <h2>Sticky Cart</h2>
 
-        <p
-          style={{
-            opacity: 0.7,
-            marginBottom: "20px",
-          }}
-        >
+        <p style={{ color: "#94a3b8" }}>
           Widget panier flottant intelligent.
         </p>
 
-        <div
-          style={{
-            marginBottom: "20px",
-            fontSize: "18px",
-          }}
-        >
-          Status :
-          <span
-            style={{
-              color: active ? "#22c55e" : "#ef4444",
-              marginLeft: "10px",
-              fontWeight: "bold",
-            }}
-          >
+        <p>
+          Statut :{" "}
+          <strong style={{ color: active ? "#22c55e" : "#ef4444" }}>
             {active ? "ACTIF" : "INACTIF"}
-          </span>
-        </div>
+          </strong>
+        </p>
 
         <button
           onClick={toggleStickyCart}
           disabled={loading}
           style={{
+            width: "100%",
             background: active ? "#dc2626" : "#7c3aed",
+            color: "white",
             border: "none",
             padding: "14px 20px",
-            borderRadius: "12px",
-            color: "white",
-            cursor: "pointer",
-            width: "100%",
-            fontSize: "16px",
+            borderRadius: "14px",
             fontWeight: "bold",
+            cursor: "pointer",
           }}
         >
           {loading
