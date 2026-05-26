@@ -50,7 +50,7 @@ export default function HomePage() {
         <div style={styles.topBar}>
           <div>
             <h2 style={styles.title}>{getPageTitle(page)}</h2>
-            <p style={styles.muted}>Boutique : kiidiiz.myshopify.com</p>
+            <p style={styles.muted}>Boutique : hy4nf1-dt.myshopify.com</p>
           </div>
 
           <div style={styles.topActions}>
@@ -147,8 +147,14 @@ function Dashboard() {
 
 async function installStickyCart() {
   try {
-    const response = await fetch("/api/shopify/inject-widget", {
+    const response = await fetch("/api/widgets/sticky-cart", {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        shop: "hy4nf1-dt.myshopify.com",
+      }),
     })
 
     const data = await response.json()
@@ -156,9 +162,10 @@ async function installStickyCart() {
     if (data.success) {
       alert("✅ Sticky Cart installé sur Shopify")
     } else {
-      alert("❌ Erreur : " + (data.error || "installation impossible"))
+      alert("❌ " + (data.error || "installation impossible"))
     }
-  } catch {
+  } catch (error) {
+    console.error(error)
     alert("❌ Impossible d’installer le Sticky Cart")
   }
 }
@@ -234,7 +241,7 @@ function AI() {
 function ShopifyConnect() {
   function connectShopify() {
     const url =
-      "https://boost-app-9e6w.vercel.app/api/shopify/install?shop=kiidiiz.myshopify.com"
+      "https://boost-app-9e6w.vercel.app/api/shopify/install?shop=hy4nf1-dt.myshopify.com"
 
     if (window.top) {
       window.top.location.href = url
@@ -254,7 +261,7 @@ function ShopifyConnect() {
 
         <div style={{ marginTop: "24px" }}>
           <label>Nom de la boutique Shopify</label>
-          <input defaultValue="kiidiiz.myshopify.com" style={styles.input} />
+          <input defaultValue="hy4nf1-dt.myshopify.com" style={styles.input} />
         </div>
 
         <button
