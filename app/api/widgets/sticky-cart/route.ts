@@ -1,15 +1,32 @@
 import { NextResponse } from "next/server"
+import { sql } from "@vercel/postgres"
 
-export async function GET() {
-  const script = `
-    const s = document.createElement("script")
-    s.src = "/widgets/sticky-cart.js"
-    document.body.appendChild(s)
-  `
+export async function POST(req: Request) {
+  try {
+    const body = await req.json()
+    const { shop } = body
 
-  return new NextResponse(script, {
-    headers: {
-      "Content-Type": "application/javascript",
-    },
-  })
+    if (!shop) {
+      return NextResponse.json({
+        success: false,
+        error: "Shop manquant",
+      })
+    }
+
+    await sql`
+      INSERT INTO widgets (shop, widget, active)
+      VALUES (${shop}, 'sticky-cart', true)
+    `
+
+    return NextResponse.json({
+      success: true,
+    })
+  } catch (error) {
+    console.error(error)
+
+    return NextResponse.json({
+      success: false,
+      error: "Erreur serveur",
+    })
+  }
 }
