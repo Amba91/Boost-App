@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server"
-import { createTables } from "@/lib/db"
+import { sql } from "@vercel/postgres"
 
 export async function GET() {
   try {
-    await createTables()
+    await sql`
+      CREATE TABLE IF NOT EXISTS widgets (
+        id SERIAL PRIMARY KEY,
+        shop TEXT NOT NULL,
+        widget TEXT NOT NULL,
+        active BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `
 
     return NextResponse.json({
       success: true,
