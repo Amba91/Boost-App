@@ -1,103 +1,201 @@
 "use client"
 
 import { useState } from "react"
+import Sidebar from "./components/Sidebar"
+import Topbar from "./components/Topbar"
 
-export default function LoginPage() {
-  const [shop, setShop] = useState("hy4nf1-dt.myshopify.com")
-
-  function connectShopify() {
-    if (!shop.includes(".myshopify.com")) {
-      alert("Entre une boutique valide, exemple : hy4nf1-dt.myshopify.com")
-      return
-    }
-
-    window.location.href = `/api/shopify/install?shop=${shop}`
-  }
+export default function DashboardPage() {
+  const [page, setPage] = useState("dashboard")
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top left, #7c3aed 0, transparent 35%), #020617",
-        color: "white",
-        fontFamily: "Arial, sans-serif",
-        display: "grid",
-        placeItems: "center",
-        padding: "32px",
-      }}
-    >
-      <section
-        style={{
-          width: "100%",
-          maxWidth: "460px",
-          background: "rgba(15,23,42,0.92)",
-          border: "1px solid #1e293b",
-          borderRadius: "32px",
-          padding: "36px",
-          boxShadow: "0 30px 80px rgba(0,0,0,0.45)",
-        }}
-      >
-        <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <h1 style={{ fontSize: "42px", margin: 0 }}>🚀 BOOST</h1>
-          <p style={{ color: "#94a3b8", marginTop: "10px" }}>
-            Connecte ta boutique Shopify
-          </p>
-        </div>
+    <main style={styles.app}>
+      <Sidebar page={page} setPage={setPage} />
 
-        <div style={{ marginBottom: "22px" }}>
-          <label style={{ fontWeight: "bold" }}>Boutique Shopify</label>
-          <input
-            value={shop}
-            onChange={(event) => setShop(event.target.value)}
-            placeholder="votre-boutique.myshopify.com"
-            style={{
-              width: "100%",
-              marginTop: "10px",
-              padding: "15px",
-              borderRadius: "16px",
-              border: "1px solid #334155",
-              background: "#020617",
-              color: "white",
-              fontSize: "15px",
-            }}
-          />
-        </div>
+      <div style={styles.main}>
+        <Topbar title="Dashboard" />
 
-        <button
-          onClick={connectShopify}
-          style={{
-            width: "100%",
-            background: "linear-gradient(135deg,#7c3aed,#2563eb)",
-            color: "white",
-            border: "none",
-            padding: "16px",
-            borderRadius: "16px",
-            fontWeight: "bold",
-            fontSize: "16px",
-            cursor: "pointer",
-          }}
-        >
-          Continuer avec Shopify
-        </button>
+        <div style={styles.content}>
+          <h1 style={styles.title}>Dashboard</h1>
 
-        <div
-          style={{
-            marginTop: "28px",
-            background: "#111827",
-            border: "1px solid #1e293b",
-            borderRadius: "20px",
-            padding: "18px",
-          }}
-        >
-          <p style={{ margin: 0, color: "#22c55e", fontWeight: "bold" }}>
-            ● Sécurisé avec Shopify OAuth
+          <p style={styles.subtitle}>
+            Boutique : hy4nf1-dt.myshopify.com
           </p>
-          <p style={{ color: "#94a3b8", marginBottom: 0 }}>
-            Boost demandera uniquement les permissions nécessaires.
-          </p>
+
+          <div style={styles.statsGrid}>
+            <div style={styles.card}>
+              <p style={styles.cardLabel}>Revenus</p>
+              <h2 style={styles.cardValue}>18 945€</h2>
+              <span style={styles.green}>+28%</span>
+            </div>
+
+            <div style={styles.card}>
+              <p style={styles.cardLabel}>Commandes</p>
+              <h2 style={styles.cardValue}>1 259</h2>
+              <span style={styles.green}>+22%</span>
+            </div>
+
+            <div style={styles.card}>
+              <p style={styles.cardLabel}>Conversion</p>
+              <h2 style={styles.cardValue}>3.62%</h2>
+              <span style={styles.green}>+18%</span>
+            </div>
+
+            <div style={styles.card}>
+              <p style={styles.cardLabel}>AOV</p>
+              <h2 style={styles.cardValue}>65€</h2>
+              <span style={styles.green}>+7%</span>
+            </div>
+          </div>
+
+          <div style={styles.largeGrid}>
+            <div style={styles.largeCard}>
+              <h2 style={styles.largeTitle}>Widgets actifs</h2>
+
+              <div style={styles.widgetRow}>
+                <span>Sticky Add To Cart</span>
+                <span style={styles.green}>Actif</span>
+              </div>
+
+              <div style={styles.widgetRow}>
+                <span>Sales Popups</span>
+                <span style={styles.green}>Actif</span>
+              </div>
+
+              <div style={styles.widgetRow}>
+                <span>Wishlist</span>
+                <span style={styles.green}>Actif</span>
+              </div>
+
+              <div style={styles.widgetRow}>
+                <span>Reviews</span>
+                <span style={styles.green}>Actif</span>
+              </div>
+
+              <div style={styles.widgetRow}>
+                <span>Order Tracking</span>
+                <span style={styles.green}>Actif</span>
+              </div>
+            </div>
+
+            <div style={styles.largeCard}>
+              <h2 style={styles.largeTitle}>🤖 Boost AI</h2>
+
+              <p style={styles.aiText}>
+                Votre boutique pourrait générer entre 2 156€ et 3 421€
+                de revenus supplémentaires avec les optimisations
+                recommandées.
+              </p>
+
+              <a
+                href="https://boost-app-9e6w.vercel.app/api/shopify/install?shop=hy4nf1-dt.myshopify.com"
+                style={styles.button}
+              >
+                Connecter Shopify
+              </a>
+            </div>
+          </div>
         </div>
-      </section>
+      </div>
     </main>
   )
+}
+
+const styles: Record<string, React.CSSProperties> = {
+  app: {
+    minHeight: "100vh",
+    background: "#020617",
+    color: "white",
+    display: "flex",
+  },
+
+  main: {
+    flex: 1,
+  },
+
+  content: {
+    padding: "40px",
+  },
+
+  title: {
+    fontSize: "52px",
+    fontWeight: "bold",
+    marginBottom: "8px",
+  },
+
+  subtitle: {
+    color: "#94a3b8",
+    marginBottom: "40px",
+  },
+
+  statsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: "20px",
+  },
+
+  card: {
+    background: "#0f172a",
+    border: "1px solid #1e293b",
+    borderRadius: "24px",
+    padding: "28px",
+  },
+
+  cardLabel: {
+    color: "#94a3b8",
+    marginBottom: "12px",
+  },
+
+  cardValue: {
+    fontSize: "42px",
+    fontWeight: "bold",
+    marginBottom: "10px",
+  },
+
+  green: {
+    color: "#22c55e",
+    fontWeight: "bold",
+  },
+
+  largeGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "20px",
+    marginTop: "24px",
+  },
+
+  largeCard: {
+    background: "#0f172a",
+    border: "1px solid #1e293b",
+    borderRadius: "24px",
+    padding: "32px",
+  },
+
+  largeTitle: {
+    fontSize: "34px",
+    marginBottom: "24px",
+    fontWeight: "bold",
+  },
+
+  widgetRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    padding: "16px 0",
+    borderBottom: "1px solid #1e293b",
+  },
+
+  aiText: {
+    color: "#cbd5e1",
+    lineHeight: 1.8,
+    marginBottom: "24px",
+  },
+
+  button: {
+    display: "inline-block",
+    background: "#7c3aed",
+    color: "white",
+    padding: "14px 22px",
+    borderRadius: "14px",
+    textDecoration: "none",
+    fontWeight: "bold",
+  },
 }
