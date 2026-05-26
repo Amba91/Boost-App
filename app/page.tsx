@@ -174,19 +174,15 @@ function Widgets() {
         </button>
       </Card>
 
-      {[
-        "Sales Popups",
-        "Wishlist",
-        "Reviews",
-        "Bundles",
-        "Tracking",
-      ].map((item) => (
-        <Card key={item}>
-          <h3>{item}</h3>
-          <p style={styles.muted}>Widget actif et personnalisable.</p>
-          <button style={styles.primaryButton}>Configurer</button>
-        </Card>
-      ))}
+      {["Sales Popups", "Wishlist", "Reviews", "Bundles", "Tracking"].map(
+        (item) => (
+          <Card key={item}>
+            <h3>{item}</h3>
+            <p style={styles.muted}>Widget actif et personnalisable.</p>
+            <button style={styles.primaryButton}>Configurer</button>
+          </Card>
+        )
+      )}
     </div>
   )
 }
@@ -236,13 +232,24 @@ function AI() {
 }
 
 function ShopifyConnect() {
+  function connectShopify() {
+    const url =
+      "https://boost-app-9e6w.vercel.app/api/shopify/install?shop=kiidiiz.myshopify.com"
+
+    if (window.top) {
+      window.top.location.href = url
+    } else {
+      window.location.href = url
+    }
+  }
+
   return (
     <div style={styles.twoColumns}>
       <Card>
         <h3>🛒 Shopify Connect</h3>
         <p style={styles.paragraph}>
-          Connecte Boost à ta boutique Shopify pour activer les widgets,
-          les analytics, les webhooks et le billing.
+          Connecte Boost à ta boutique Shopify pour activer les widgets, les
+          analytics, les webhooks et le billing.
         </p>
 
         <div style={{ marginTop: "24px" }}>
@@ -250,17 +257,12 @@ function ShopifyConnect() {
           <input defaultValue="kiidiiz.myshopify.com" style={styles.input} />
         </div>
 
-        <a
-          href="/api/shopify/install?shop=kiidiiz.myshopify.com"
-          style={{
-            ...styles.primaryButton,
-            marginTop: "24px",
-            display: "inline-block",
-            textDecoration: "none",
-          }}
+        <button
+          onClick={connectShopify}
+          style={{ ...styles.primaryButton, marginTop: "24px" }}
         >
           Connecter Shopify
-        </a>
+        </button>
       </Card>
 
       <Card>
