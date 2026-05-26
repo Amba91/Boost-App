@@ -251,7 +251,7 @@ function ShopifyConnect() {
         </div>
 
         <a
-          href="/api/auth/shopify?shop=kiidiiz.myshopify.com"
+          href="/api/shopify/install?shop=kiidiiz.myshopify.com"
           style={{
             ...styles.primaryButton,
             marginTop: "24px",
