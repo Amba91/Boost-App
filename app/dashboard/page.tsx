@@ -39,6 +39,24 @@ export default function DashboardPage() {
     }))
   }
 
+  async function installStickyCart() {
+    try {
+      const res = await fetch("/api/shopify/inject-widget", {
+        method: "POST",
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        alert("✅ Sticky Cart installé sur Shopify")
+      } else {
+        alert("❌ Erreur installation widget")
+      }
+    } catch (error) {
+      alert("❌ Impossible d’installer le widget")
+    }
+  }
+
   return (
     <main style={styles.app}>
       <Sidebar page={page} setPage={setPage} />
@@ -64,10 +82,15 @@ export default function DashboardPage() {
 
               <div style={styles.panel}>
                 <h2>Boost AI</h2>
+
                 <p style={styles.muted}>
                   Votre boutique pourrait générer plus de revenus avec des optimisations automatiques.
                 </p>
-                <button style={styles.buttonAsButton} onClick={() => setPage("boost-ai")}>
+
+                <button
+                  style={styles.buttonAsButton}
+                  onClick={() => setPage("boost-ai")}
+                >
                   Voir les insights IA
                 </button>
               </div>
@@ -76,11 +99,42 @@ export default function DashboardPage() {
 
           {page === "widgets" && (
             <Panel title="Widgets Shopify">
-              <WidgetRow title="Sticky Add To Cart" active={widgets.stickyCart} onClick={() => toggleWidget("stickyCart")} />
-              <WidgetRow title="Sales Popups" active={widgets.salesPopup} onClick={() => toggleWidget("salesPopup")} />
-              <WidgetRow title="Wishlist" active={widgets.wishlist} onClick={() => toggleWidget("wishlist")} />
-              <WidgetRow title="Reviews" active={widgets.reviews} onClick={() => toggleWidget("reviews")} />
-              <WidgetRow title="Order Tracking" active={widgets.orderTracking} onClick={() => toggleWidget("orderTracking")} />
+              <WidgetRow
+                title="Sticky Add To Cart"
+                active={widgets.stickyCart}
+                onClick={() => toggleWidget("stickyCart")}
+              />
+
+              <button
+                style={styles.buttonAsButton}
+                onClick={installStickyCart}
+              >
+                Installer Sticky Cart
+              </button>
+
+              <WidgetRow
+                title="Sales Popups"
+                active={widgets.salesPopup}
+                onClick={() => toggleWidget("salesPopup")}
+              />
+
+              <WidgetRow
+                title="Wishlist"
+                active={widgets.wishlist}
+                onClick={() => toggleWidget("wishlist")}
+              />
+
+              <WidgetRow
+                title="Reviews"
+                active={widgets.reviews}
+                onClick={() => toggleWidget("reviews")}
+              />
+
+              <WidgetRow
+                title="Order Tracking"
+                active={widgets.orderTracking}
+                onClick={() => toggleWidget("orderTracking")}
+              />
             </Panel>
           )}
 
@@ -103,6 +157,7 @@ export default function DashboardPage() {
 
               <div style={styles.aiBox}>
                 <h3>Recommandation IA</h3>
+
                 <p>
                   Activez les widgets Sticky Add To Cart, Sales Popups et Reviews pour améliorer la conversion.
                 </p>
@@ -131,7 +186,10 @@ export default function DashboardPage() {
 
           {page === "billing" && (
             <Panel title="Billing">
-              <p style={styles.muted}>Plan actuel : Lifetime Access Kiidiiz</p>
+              <p style={styles.muted}>
+                Plan actuel : Lifetime Access Kiidiiz
+              </p>
+
               <button style={styles.greenButton}>
                 Préparer l’abonnement Premium
               </button>
@@ -165,7 +223,13 @@ function getPageTitle(page: string) {
   return titles[page] || "Dashboard"
 }
 
-function Card({ title, value }: { title: string; value: string }) {
+function Card({
+  title,
+  value,
+}: {
+  title: string
+  value: string
+}) {
   return (
     <div style={styles.card}>
       <p style={styles.muted}>{title}</p>
@@ -174,7 +238,13 @@ function Card({ title, value }: { title: string; value: string }) {
   )
 }
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function Panel({
+  title,
+  children,
+}: {
+  title: string
+  children: React.ReactNode
+}) {
   return (
     <div style={styles.panel}>
       <h1 style={styles.title}>{title}</h1>
@@ -195,6 +265,7 @@ function WidgetRow({
   return (
     <div style={styles.widgetRow}>
       <span>{title}</span>
+
       <button
         style={active ? styles.greenButton : styles.secondaryButton}
         onClick={onClick}
@@ -212,39 +283,48 @@ const styles: Record<string, React.CSSProperties> = {
     color: "white",
     display: "flex",
   },
+
   main: {
     flex: 1,
   },
+
   content: {
     padding: "40px",
   },
+
   title: {
     fontSize: "42px",
     fontWeight: "bold",
     marginBottom: "20px",
   },
+
   subtitle: {
     color: "#94a3b8",
     marginBottom: "40px",
   },
+
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(4, 1fr)",
     gap: "20px",
   },
+
   card: {
     background: "#0f172a",
     padding: "30px",
     borderRadius: "24px",
     border: "1px solid #1e293b",
   },
+
   muted: {
     color: "#94a3b8",
   },
+
   value: {
     fontSize: "42px",
     marginTop: "10px",
   },
+
   panel: {
     marginTop: "30px",
     background: "#0f172a",
@@ -252,6 +332,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "24px",
     border: "1px solid #1e293b",
   },
+
   button: {
     marginTop: "16px",
     background: "#7c3aed",
@@ -262,6 +343,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: "bold",
     display: "inline-block",
   },
+
   buttonAsButton: {
     marginTop: "16px",
     background: "#7c3aed",
@@ -272,6 +354,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: "bold",
     cursor: "pointer",
   },
+
   secondaryButton: {
     background: "#334155",
     color: "white",
@@ -281,6 +364,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: "bold",
     cursor: "pointer",
   },
+
   greenButton: {
     background: "#22c55e",
     color: "black",
@@ -290,6 +374,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: "bold",
     cursor: "pointer",
   },
+
   widgetRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -297,6 +382,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderBottom: "1px solid #1e293b",
     padding: "18px 0",
   },
+
   aiBox: {
     background: "#020617",
     border: "1px solid #1e293b",
