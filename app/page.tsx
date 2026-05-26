@@ -145,11 +145,36 @@ function Dashboard() {
   )
 }
 
+async function installStickyCart() {
+  try {
+    const response = await fetch("/api/shopify/inject-widget", {
+      method: "POST",
+    })
+
+    const data = await response.json()
+
+    if (data.success) {
+      alert("✅ Sticky Cart installé sur Shopify")
+    } else {
+      alert("❌ Erreur : " + (data.error || "installation impossible"))
+    }
+  } catch {
+    alert("❌ Impossible d’installer le Sticky Cart")
+  }
+}
+
 function Widgets() {
   return (
     <div style={styles.threeColumns}>
+      <Card>
+        <h3>Sticky Cart</h3>
+        <p style={styles.muted}>Widget actif et personnalisable.</p>
+        <button style={styles.primaryButton} onClick={installStickyCart}>
+          Installer Sticky Cart
+        </button>
+      </Card>
+
       {[
-        "Sticky Cart",
         "Sales Popups",
         "Wishlist",
         "Reviews",
@@ -225,9 +250,17 @@ function ShopifyConnect() {
           <input defaultValue="kiidiiz.myshopify.com" style={styles.input} />
         </div>
 
-        <button style={{ ...styles.primaryButton, marginTop: "24px" }}>
+        <a
+          href="/api/auth/shopify?shop=kiidiiz.myshopify.com"
+          style={{
+            ...styles.primaryButton,
+            marginTop: "24px",
+            display: "inline-block",
+            textDecoration: "none",
+          }}
+        >
           Connecter Shopify
-        </button>
+        </a>
       </Card>
 
       <Card>
