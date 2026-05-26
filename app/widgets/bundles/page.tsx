@@ -1,8 +1,53 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 
 export default function BundlesPage() {
+  const [active, setActive] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  async function loadWidget() {
+    try {
+      const res = await fetch("/api/widgets/bundles")
+      const data = await res.json()
+
+      setActive(data.active)
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function toggleWidget() {
+    try {
+      setLoading(true)
+
+      const newState = !active
+
+      await fetch("/api/widgets/bundles", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          active: newState,
+        }),
+      })
+
+      setActive(newState)
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadWidget()
+  }, [])
+
   return (
     <main
       style={{
@@ -42,22 +87,41 @@ export default function BundlesPage() {
         }}
       >
         <p style={{ color: "#94a3b8" }}>
-          Configuration du widget Bundles
+          Widget Shopify intelligent.
+        </p>
+
+        <p
+          style={{
+            marginTop: "20px",
+            fontSize: "22px",
+            fontWeight: "bold",
+            color: active ? "#22c55e" : "#ef4444",
+          }}
+        >
+          Statut : {active ? "ACTIF" : "INACTIF"}
         </p>
 
         <button
+          onClick={toggleWidget}
+          disabled={loading}
           style={{
             width: "100%",
             marginTop: "24px",
-            background: "#7c3aed",
+            background: active ? "#dc2626" : "#7c3aed",
             color: "white",
             border: "none",
             padding: "16px",
             borderRadius: "14px",
             fontWeight: "bold",
+            cursor: "pointer",
+            fontSize: "18px",
           }}
         >
-          Bientôt disponible
+          {loading
+            ? "Chargement..."
+            : active
+            ? "Désactiver Bundles"
+            : "Activer Bundles"}
         </button>
       </div>
     </main>
