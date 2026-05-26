@@ -1,18 +1,21 @@
 "use client"
 
+import { useState } from "react"
 import Sidebar from "../components/Sidebar"
 import Topbar from "../components/Topbar"
 
 export default function WidgetsPage() {
+  const [page, setPage] = useState("shopify-connect")
+
   return (
     <main style={styles.app}>
-      <Sidebar />
+      <Sidebar page={page} setPage={setPage} />
 
       <div style={styles.main}>
-        <Topbar title="Widgets" />
+        <Topbar title="Shopify Connect" />
 
         <div style={styles.content}>
-          <h1 style={styles.title}>Widgets</h1>
+          <h1 style={styles.title}>Shopify Connect</h1>
 
           <p style={styles.subtitle}>
             Boutique : hy4nf1-dt.myshopify.com
@@ -41,26 +44,21 @@ const styles: Record<string, React.CSSProperties> = {
     color: "white",
     display: "flex",
   },
-
   main: {
     flex: 1,
   },
-
   content: {
     padding: "40px",
   },
-
   title: {
     fontSize: "48px",
     fontWeight: "bold",
     marginBottom: "10px",
   },
-
   subtitle: {
     color: "#94a3b8",
     marginBottom: "30px",
   },
-
   panel: {
     background: "#0f172a",
     padding: "30px",
@@ -68,7 +66,6 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid #1e293b",
     marginTop: "20px",
   },
-
   button: {
     display: "inline-block",
     marginTop: "20px",
