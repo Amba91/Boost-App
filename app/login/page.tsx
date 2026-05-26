@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import Sidebar from "./components/Sidebar"
-import Topbar from "./components/Topbar"
+import Sidebar from "../components/Sidebar"
+import Topbar from "../components/Topbar"
 
 export default function DashboardPage() {
   const [page, setPage] = useState("dashboard")
