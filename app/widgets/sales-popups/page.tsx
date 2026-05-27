@@ -6,70 +6,47 @@ import Link from "next/link"
 export default function SalesPopupsPage() {
   const [active, setActive] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [installing, setInstalling] = useState(false)
 
   async function loadWidget() {
-    try {
-      const res = await fetch("/api/widgets/sales-popups")
-      const data = await res.json()
-
-      if (data.data?.active) {
-        setActive(true)
-      } else {
-        setActive(false)
-      }
-    } catch (error) {
-      console.error(error)
-    } finally {
-      setLoading(false)
-    }
+    const res = await fetch("/api/widgets/sales-popups")
+    const data = await res.json()
+    setActive(data.active)
+    setLoading(false)
   }
 
   async function toggleWidget() {
-    try {
-      setLoading(true)
+    setLoading(true)
+    const newState = !active
 
-      const newState = !active
+    await fetch("/api/widgets/sales-popups", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ active: newState }),
+    })
 
-      await fetch("/api/widgets/sales-popups", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          active: newState,
-        }),
-      })
+    setActive(newState)
+    setLoading(false)
+  }
 
-      if (newState) {
-        const script = document.createElement("script")
-        script.src =
-          "https://boost-app-9e6w.vercel.app/api/widgets/sales-popups/script"
-        script.async = true
-        script.id = "boost-sales-popups-script"
+  async function installOnShopify() {
+    setInstalling(true)
 
-        document.body.appendChild(script)
-      } else {
-        const existing = document.getElementById(
-          "boost-sales-popups-script"
-        )
+    const res = await fetch("/api/shopify/inject-sales-popups", {
+      method: "POST",
+    })
 
-        if (existing) {
-          existing.remove()
-        }
+    const data = await res.json()
 
-        const popup = document.getElementById("boost-sales-popup")
-
-        if (popup) {
-          popup.remove()
-        }
-      }
-
-      setActive(newState)
-    } catch (error) {
-      console.error(error)
-    } finally {
-      setLoading(false)
+    if (data.success) {
+      alert("✅ Sales Popups installé sur la boutique client")
+    } else {
+      alert("❌ Erreur : " + JSON.stringify(data.error))
     }
+
+    setInstalling(false)
   }
 
   useEffect(() => {
@@ -86,7 +63,7 @@ export default function SalesPopupsPage() {
 
       <div style={styles.card}>
         <p style={styles.muted}>
-          Notifications intelligentes Shopify.
+          Notifications d’achat visibles sur la boutique client.
         </p>
 
         <p
@@ -110,7 +87,21 @@ export default function SalesPopupsPage() {
             ? "Chargement..."
             : active
             ? "Désactiver Sales Popups"
-            : "Installer Sales Popups sur Shopify"}
+            : "Activer Sales Popups"}
+        </button>
+
+        <button
+          onClick={installOnShopify}
+          disabled={installing}
+          style={{
+            ...styles.button,
+            background: "#22c55e",
+            color: "#020617",
+          }}
+        >
+          {installing
+            ? "Installation..."
+            : "Installer sur la boutique client"}
         </button>
       </div>
     </main>
@@ -137,7 +128,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#111827",
     padding: "32px",
     borderRadius: "24px",
-    maxWidth: "500px",
+    maxWidth: "520px",
     marginTop: "30px",
   },
   muted: {

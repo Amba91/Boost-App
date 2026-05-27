@@ -15,7 +15,7 @@ export async function POST() {
   }
 
   const scriptUrl =
-    "https://boost-app-9e6w.vercel.app/widgets/sales-popups.js"
+    "https://boost-app-9e6w.vercel.app/api/widgets/sales-popups/script"
 
   const response = await fetch(
     `https://${shop}/admin/api/2026-04/script_tags.json`,
@@ -45,6 +45,7 @@ export async function POST() {
 
   return NextResponse.json({
     success: true,
+    message: "Sales Popups injecté dans Shopify",
     data,
   })
 }
