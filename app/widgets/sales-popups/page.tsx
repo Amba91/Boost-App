@@ -11,7 +11,12 @@ export default function SalesPopupsPage() {
     try {
       const res = await fetch("/api/widgets/sales-popups")
       const data = await res.json()
-      setActive(data.active)
+
+      if (data.data?.active) {
+        setActive(true)
+      } else {
+        setActive(false)
+      }
     } catch (error) {
       console.error(error)
     } finally {
@@ -22,6 +27,7 @@ export default function SalesPopupsPage() {
   async function toggleWidget() {
     try {
       setLoading(true)
+
       const newState = !active
 
       await fetch("/api/widgets/sales-popups", {
@@ -33,6 +39,30 @@ export default function SalesPopupsPage() {
           active: newState,
         }),
       })
+
+      if (newState) {
+        const script = document.createElement("script")
+        script.src =
+          "https://boost-app-9e6w.vercel.app/api/widgets/sales-popups/script"
+        script.async = true
+        script.id = "boost-sales-popups-script"
+
+        document.body.appendChild(script)
+      } else {
+        const existing = document.getElementById(
+          "boost-sales-popups-script"
+        )
+
+        if (existing) {
+          existing.remove()
+        }
+
+        const popup = document.getElementById("boost-sales-popup")
+
+        if (popup) {
+          popup.remove()
+        }
+      }
 
       setActive(newState)
     } catch (error) {
@@ -55,7 +85,9 @@ export default function SalesPopupsPage() {
       <h1 style={styles.title}>Sales Popups</h1>
 
       <div style={styles.card}>
-        <p style={styles.muted}>Widget Shopify intelligent.</p>
+        <p style={styles.muted}>
+          Notifications intelligentes Shopify.
+        </p>
 
         <p
           style={{
@@ -78,7 +110,7 @@ export default function SalesPopupsPage() {
             ? "Chargement..."
             : active
             ? "Désactiver Sales Popups"
-            : "Activer Sales Popups"}
+            : "Installer Sales Popups sur Shopify"}
         </button>
       </div>
     </main>
