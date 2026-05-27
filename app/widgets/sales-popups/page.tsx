@@ -6,47 +6,53 @@ import Link from "next/link"
 export default function SalesPopupsPage() {
   const [active, setActive] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [installing, setInstalling] = useState(false)
 
   async function loadWidget() {
-    const res = await fetch("/api/widgets/sales-popups")
-    const data = await res.json()
-    setActive(data.active)
-    setLoading(false)
+    try {
+      const res = await fetch("/api/widgets/sales-popups")
+      const data = await res.json()
+      setActive(data.active)
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function toggleWidget() {
-    setLoading(true)
-    const newState = !active
+    try {
+      setLoading(true)
 
-    await fetch("/api/widgets/sales-popups", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ active: newState }),
-    })
+      const newState = !active
 
-    setActive(newState)
-    setLoading(false)
-  }
+      const res = await fetch("/api/widgets/sales-popups", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          active: newState,
+        }),
+      })
 
-  async function installOnShopify() {
-    setInstalling(true)
+      const data = await res.json()
 
-    const res = await fetch("/api/shopify/inject-sales-popups", {
-      method: "POST",
-    })
-
-    const data = await res.json()
-
-    if (data.success) {
-      alert("✅ Sales Popups installé sur la boutique client")
-    } else {
-      alert("❌ Erreur : " + JSON.stringify(data.error))
+      if (data.success) {
+        setActive(data.active)
+        alert(
+          data.active
+            ? "✅ Sales Popups activé"
+            : "❌ Sales Popups désactivé"
+        )
+      } else {
+        alert("Erreur : " + data.error)
+      }
+    } catch (error) {
+      console.error(error)
+      alert("Erreur serveur")
+    } finally {
+      setLoading(false)
     }
-
-    setInstalling(false)
   }
 
   useEffect(() => {
@@ -63,7 +69,7 @@ export default function SalesPopupsPage() {
 
       <div style={styles.card}>
         <p style={styles.muted}>
-          Notifications d’achat visibles sur la boutique client.
+          Active ou désactive les notifications Sales Popups dans Boost.
         </p>
 
         <p
@@ -90,19 +96,10 @@ export default function SalesPopupsPage() {
             : "Activer Sales Popups"}
         </button>
 
-        <button
-          onClick={installOnShopify}
-          disabled={installing}
-          style={{
-            ...styles.button,
-            background: "#22c55e",
-            color: "#020617",
-          }}
-        >
-          {installing
-            ? "Installation..."
-            : "Installer sur la boutique client"}
-        </button>
+        <p style={styles.note}>
+          L’installation automatique sur la boutique client sera ajoutée après
+          la sauvegarde du token Shopify.
+        </p>
       </div>
     </main>
   )
@@ -133,6 +130,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   muted: {
     color: "#94a3b8",
+    lineHeight: 1.6,
   },
   status: {
     marginTop: "20px",
@@ -149,5 +147,11 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: "bold",
     cursor: "pointer",
     fontSize: "18px",
+  },
+  note: {
+    marginTop: "18px",
+    color: "#94a3b8",
+    fontSize: "14px",
+    lineHeight: 1.6,
   },
 }
