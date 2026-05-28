@@ -10,6 +10,12 @@ const widgets = [
   { name: "Reviews", slug: "reviews" },
   { name: "Bundles", slug: "bundles" },
   { name: "Tracking", slug: "tracking" },
+  { name: "Trust Badges", slug: "trust-badges" },
+  { name: "Announcement Bar", slug: "announcement-bar" },
+  { name: "Countdown Timer", slug: "countdown-timer" },
+  { name: "Free Shipping Bar", slug: "free-shipping-bar" },
+  { name: "Related Products", slug: "related-products" },
+  { name: "Recently Viewed", slug: "recently-viewed" },
 ]
 
 export default function HomePage() {
