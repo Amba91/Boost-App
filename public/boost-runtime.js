@@ -1,5 +1,5 @@
 (function () {
-  const shop = window.BOOST_SHOP || window.location.hostname
+  const shop = "hy4nf1-dt.myshopify.com"
 
   async function loadBoostWidgets() {
     try {

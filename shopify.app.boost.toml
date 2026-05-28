@@ -16,5 +16,4 @@ scopes = "read_customers,read_inventory,read_orders,read_products,write_orders"
 redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
 
 [build]
-include_config_on_deploy = true
 automatically_update_urls_on_dev = true
