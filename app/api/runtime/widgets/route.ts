@@ -5,8 +5,12 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
 
+    const requestedShop = searchParams.get("shop") || ""
+
     const shop =
-      searchParams.get("shop") || "hy4nf1-dt.myshopify.com"
+      requestedShop === "kiidiiz.com"
+        ? "hy4nf1-dt.myshopify.com"
+        : requestedShop || "hy4nf1-dt.myshopify.com"
 
     const result = await sql`
       SELECT widget, active FROM widgets
@@ -21,6 +25,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
+      requestedShop,
       shop,
       widgets,
     })
