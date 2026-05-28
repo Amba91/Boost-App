@@ -1,59 +1,51 @@
-import { NextResponse } from "next/server"
-
 export async function GET() {
   const script = `
     (() => {
-      const messages = [
-        "🔥 Sarah vient d’acheter un produit",
-        "🛍️ Ahmed a commandé sur Kiidiiz",
-        "✨ Nouvelle commande depuis Lyon",
-        "🚀 Produit populaire acheté",
-        "🎉 Commande confirmée sur Kiidiiz"
-      ]
+      const popup = document.createElement("div")
 
-      let index = 0
+      popup.innerHTML = \`
+        <div id="boost-sales-popup">
+          🔥 Quelqu’un vient d’acheter un produit sur cette boutique
+        </div>
+      \`
 
-      function createPopup() {
-        const old = document.getElementById("boost-sales-popup")
-        if (old) old.remove()
+      document.body.appendChild(popup)
 
-        const popup = document.createElement("div")
-        popup.id = "boost-sales-popup"
+      const style = document.createElement("style")
 
-        popup.innerHTML = messages[index]
+      style.innerHTML = \`
+        #boost-sales-popup{
+          position:fixed;
+          bottom:20px;
+          left:20px;
+          background:#111827;
+          color:white;
+          padding:16px 22px;
+          border-radius:14px;
+          z-index:999999;
+          font-family:Arial;
+          box-shadow:0 10px 30px rgba(0,0,0,0.4);
+          animation:boostPopup 0.5s ease;
+        }
 
-        popup.style.position = "fixed"
-        popup.style.bottom = "20px"
-        popup.style.left = "20px"
-        popup.style.background = "#111827"
-        popup.style.color = "white"
-        popup.style.padding = "14px 18px"
-        popup.style.borderRadius = "12px"
-        popup.style.zIndex = "999999"
-        popup.style.boxShadow = "0 8px 25px rgba(0,0,0,0.35)"
-        popup.style.fontFamily = "Arial"
-        popup.style.fontSize = "14px"
-        popup.style.transition = "all .3s ease"
+        @keyframes boostPopup{
+          from{
+            transform:translateY(30px);
+            opacity:0;
+          }
 
-        document.body.appendChild(popup)
+          to{
+            transform:translateY(0);
+            opacity:1;
+          }
+        }
+      \`
 
-        setTimeout(() => {
-          popup.remove()
-        }, 4000)
-
-        index++
-        if (index >= messages.length) index = 0
-      }
-
-      createPopup()
-
-      setInterval(() => {
-        createPopup()
-      }, 7000)
+      document.head.appendChild(style)
     })();
   `
 
-  return new NextResponse(script, {
+  return new Response(script, {
     headers: {
       "Content-Type": "application/javascript",
     },
