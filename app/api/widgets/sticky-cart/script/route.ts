@@ -7,9 +7,7 @@ export async function GET() {
 
   if (!addToCartButton) return
 
-  const title =
-    document.querySelector("h1")?.innerText ||
-    "Produit"
+  const title = document.querySelector("h1")?.innerText || "Produit"
 
   const price =
     document.querySelector('[class*="price"]')?.innerText ||
@@ -27,11 +25,11 @@ export async function GET() {
   sticky.id = "boost-sticky-cart"
 
   sticky.innerHTML = \`
-    <div style="display:flex;align-items:center;gap:12px;">
-      \${image ? \`<img src="\${image}" style="width:54px;height:54px;object-fit:cover;border-radius:10px;" />\` : ""}
-      <div>
-        <div style="font-weight:700;font-size:14px;line-height:1.3;">\${title}</div>
-        <div style="opacity:.85;font-size:13px;margin-top:3px;">\${price}</div>
+    <div class="boost-sticky-left">
+      \${image ? \`<img src="\${image}" class="boost-sticky-img" />\` : ""}
+      <div class="boost-sticky-info">
+        <div class="boost-sticky-title">\${title}</div>
+        <div class="boost-sticky-price">\${price}</div>
       </div>
     </div>
 
@@ -40,36 +38,129 @@ export async function GET() {
     </button>
   \`
 
-  sticky.style.position = "fixed"
-  sticky.style.left = "16px"
-  sticky.style.right = "16px"
-  sticky.style.bottom = "16px"
-  sticky.style.background = "#111827"
-  sticky.style.color = "white"
-  sticky.style.padding = "14px"
-  sticky.style.borderRadius = "18px"
-  sticky.style.zIndex = "999999"
-  sticky.style.boxShadow = "0 10px 35px rgba(0,0,0,.35)"
-  sticky.style.display = "none"
-  sticky.style.alignItems = "center"
-  sticky.style.justifyContent = "space-between"
-  sticky.style.gap = "14px"
-  sticky.style.fontFamily = "Arial, sans-serif"
+  const style = document.createElement("style")
+  style.innerHTML = \`
+    #boost-sticky-cart {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%) translateY(120%);
+      width: calc(100% - 32px);
+      max-width: 760px;
+      background: rgba(17, 24, 39, 0.96);
+      color: white;
+      padding: 10px 12px;
+      border-radius: 18px;
+      z-index: 999998;
+      box-shadow: 0 12px 35px rgba(0,0,0,.28);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      font-family: Arial, sans-serif;
+      opacity: 0;
+      transition: all .28s ease;
+      backdrop-filter: blur(10px);
+    }
 
+    #boost-sticky-cart.boost-show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .boost-sticky-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .boost-sticky-img {
+      width: 46px;
+      height: 46px;
+      object-fit: cover;
+      border-radius: 12px;
+      flex-shrink: 0;
+    }
+
+    .boost-sticky-info {
+      min-width: 0;
+    }
+
+    .boost-sticky-title {
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 360px;
+    }
+
+    .boost-sticky-price {
+      font-size: 13px;
+      opacity: .8;
+      margin-top: 2px;
+    }
+
+    #boost-sticky-add {
+      background: #7c3aed;
+      color: white;
+      border: none;
+      padding: 11px 18px;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      font-size: 14px;
+    }
+
+    #boost-sticky-add:hover {
+      opacity: .92;
+    }
+
+    @media (max-width: 600px) {
+      #boost-sticky-cart {
+        left: 10px;
+        right: 10px;
+        bottom: 14px;
+        transform: translateY(120%);
+        width: auto;
+        max-width: none;
+        border-radius: 16px;
+      }
+
+      #boost-sticky-cart.boost-show {
+        transform: translateY(0);
+      }
+
+      .boost-sticky-title {
+        max-width: 170px;
+        font-size: 13px;
+      }
+
+      .boost-sticky-img {
+        width: 42px;
+        height: 42px;
+      }
+
+      #boost-sticky-add {
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+    }
+  \`
+
+  document.head.appendChild(style)
   document.body.appendChild(sticky)
 
   const stickyButton = document.getElementById("boost-sticky-add")
-  stickyButton.style.background = "#7c3aed"
-  stickyButton.style.color = "white"
-  stickyButton.style.border = "none"
-  stickyButton.style.padding = "12px 18px"
-  stickyButton.style.borderRadius = "12px"
-  stickyButton.style.fontWeight = "700"
-  stickyButton.style.cursor = "pointer"
-  stickyButton.style.whiteSpace = "nowrap"
 
   function toggleSticky() {
-    sticky.style.display = window.scrollY > 450 ? "flex" : "none"
+    if (window.scrollY > 450) {
+      sticky.classList.add("boost-show")
+    } else {
+      sticky.classList.remove("boost-show")
+    }
   }
 
   window.addEventListener("scroll", toggleSticky)
