@@ -38,7 +38,7 @@
       if (data.widgets["free-shipping-bar"]) {
         const script = document.createElement("script")
         script.src =
-          "https://boost-app-9e6w.vercel.app/api/widgets/free-shipping-bar/script?v=1"
+          "https://boost-app-9e6w.vercel.app/api/widgets/free-shipping-bar/script?v=2"
         script.defer = true
         document.body.appendChild(script)
       }
