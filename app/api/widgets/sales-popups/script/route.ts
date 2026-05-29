@@ -1,53 +1,100 @@
 export async function GET() {
   const script = `
     (() => {
-      const popup = document.createElement("div")
+      const names = ["Sarah", "Amadou", "Camille", "Nadia", "Yanis", "Emma", "Lucas", "Inès"];
 
-      popup.innerHTML = \`
-        <div id="boost-sales-popup">
-          🔥 Quelqu’un vient d’acheter un produit sur cette boutique
-        </div>
-      \`
-
-      document.body.appendChild(popup)
-
-      const style = document.createElement("style")
-
-      style.innerHTML = \`
-        #boost-sales-popup{
-          position:fixed;
-          bottom:20px;
-          left:20px;
-          background:#111827;
-          color:white;
-          padding:16px 22px;
-          border-radius:14px;
-          z-index:999999;
-          font-family:Arial;
-          box-shadow:0 10px 30px rgba(0,0,0,0.4);
-          animation:boostPopup 0.5s ease;
+      async function loadProducts() {
+        try {
+          const res = await fetch("/products.json?limit=20");
+          const data = await res.json();
+          return data.products || [];
+        } catch (error) {
+          console.error("Boost Sales Popup products error:", error);
+          return [];
         }
+      }
 
-        @keyframes boostPopup{
-          from{
-            transform:translateY(30px);
-            opacity:0;
+      function randomItem(items) {
+        return items[Math.floor(Math.random() * items.length)];
+      }
+
+      function showPopup(product) {
+        const old = document.getElementById("boost-sales-popup");
+        if (old) old.remove();
+
+        const name = randomItem(names);
+        const title = product?.title || "un produit";
+        const image = product?.images?.[0]?.src || "";
+
+        const popup = document.createElement("div");
+        popup.id = "boost-sales-popup";
+
+        popup.innerHTML = \`
+          <div style="display:flex;align-items:center;gap:12px;">
+            \${image ? \`<img src="\${image}" style="width:54px;height:54px;object-fit:cover;border-radius:10px;" />\` : ""}
+            <div>
+              <div style="font-weight:bold;font-size:14px;">
+                🔥 \${name} a acheté
+              </div>
+              <div style="font-size:13px;opacity:.9;margin-top:3px;">
+                "\${title}"
+              </div>
+            </div>
+          </div>
+        \`;
+
+        popup.style.position = "fixed";
+        popup.style.bottom = "20px";
+        popup.style.left = "20px";
+        popup.style.background = "#111827";
+        popup.style.color = "white";
+        popup.style.padding = "14px 16px";
+        popup.style.borderRadius = "14px";
+        popup.style.zIndex = "999999";
+        popup.style.fontFamily = "Arial, sans-serif";
+        popup.style.boxShadow = "0 10px 30px rgba(0,0,0,0.35)";
+        popup.style.maxWidth = "360px";
+        popup.style.animation = "boostPopupIn .4s ease";
+
+        const style = document.createElement("style");
+        style.innerHTML = \`
+          @keyframes boostPopupIn {
+            from { transform: translateY(25px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
           }
+        \`;
 
-          to{
-            transform:translateY(0);
-            opacity:1;
-          }
-        }
-      \`
+        document.head.appendChild(style);
+        document.body.appendChild(popup);
 
-      document.head.appendChild(style)
+        setTimeout(() => {
+          popup.remove();
+        }, 5000);
+      }
+
+      async function start() {
+        const products = await loadProducts();
+
+        if (!products.length) return;
+
+        setTimeout(() => {
+          showPopup(randomItem(products));
+        }, 4000);
+
+        setInterval(() => {
+          showPopup(randomItem(products));
+        }, 30000);
+      }
+
+      start();
     })();
   `
 
   return new Response(script, {
     headers: {
       "Content-Type": "application/javascript",
+      "Access-Control-Allow-Origin": "*",
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
     },
   })
 }

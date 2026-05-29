@@ -1,5 +1,5 @@
 (function () {
-  const shop = "hy4nf1-dt.myshopify.com"
+  const shop = window.BOOST_SHOP || "hy4nf1-dt.myshopify.com"
 
   async function loadBoostWidgets() {
     try {
@@ -14,7 +14,7 @@
       if (data.widgets["sales-popups"]) {
         const script = document.createElement("script")
         script.src =
-          "https://boost-app-9e6w.vercel.app/api/widgets/sales-popups/script"
+          "https://boost-app-9e6w.vercel.app/api/widgets/sales-popups/script?v=2"
         script.defer = true
         document.body.appendChild(script)
       }
