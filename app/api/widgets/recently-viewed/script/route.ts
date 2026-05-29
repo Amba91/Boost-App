@@ -2,6 +2,8 @@ export async function GET() {
   const script = `
 (() => {
   const STORAGE_KEY = "boost_recently_viewed_products"
+  const DISPLAY_DURATION = 7000
+  const POPUP_INTERVAL = 120000
 
   function getProductHandle() {
     const match = window.location.pathname.match(/\\/products\\/([^/?#]+)/)
@@ -53,7 +55,11 @@ export async function GET() {
     })
   }
 
-  function renderRecentlyViewed() {
+  function randomItem(items) {
+    return items[Math.floor(Math.random() * items.length)]
+  }
+
+  function showPopup() {
     let products = []
 
     try {
@@ -62,140 +68,112 @@ export async function GET() {
       products = []
     }
 
-    if (products.length < 2) return
-
     const currentHandle = getProductHandle()
-    const items = products.filter((p) => p.handle !== currentHandle).slice(0, 4)
+    const items = products.filter((p) => p.handle !== currentHandle)
 
     if (!items.length) return
 
-    const old = document.getElementById("boost-recently-viewed")
+    const product = randomItem(items)
+
+    const old = document.getElementById("boost-recently-popup")
     if (old) old.remove()
 
-    const section = document.createElement("section")
-    section.id = "boost-recently-viewed"
+    const popup = document.createElement("div")
+    popup.id = "boost-recently-popup"
 
-    section.innerHTML = \`
-      <div class="boost-rv-container">
-        <h2 class="boost-rv-title">Produits récemment consultés</h2>
-
-        <div class="boost-rv-grid">
-          \${items
-            .map(
-              (product) => \`
-                <a href="\${product.url}" class="boost-rv-card">
-                  <div class="boost-rv-image-wrap">
-                    \${product.image ? \`<img src="\${product.image}" class="boost-rv-image" />\` : ""}
-                  </div>
-
-                  <div class="boost-rv-product-title">
-                    \${product.title}
-                  </div>
-
-                  <div class="boost-rv-price">
-                    \${formatPrice(product.price)}
-                  </div>
-                </a>
-              \`
-            )
-            .join("")}
+    popup.innerHTML = \`
+      <a href="\${product.url}" class="boost-rv-popup-link">
+        \${product.image ? \`<img src="\${product.image}" class="boost-rv-popup-img" />\` : ""}
+        <div>
+          <div class="boost-rv-popup-label">Vu récemment</div>
+          <div class="boost-rv-popup-title">\${product.title}</div>
+          <div class="boost-rv-popup-price">\${formatPrice(product.price)}</div>
         </div>
-      </div>
+      </a>
     \`
 
     const style = document.createElement("style")
     style.innerHTML = \`
-      #boost-recently-viewed {
-        margin: 48px auto 24px;
-        padding: 0 16px;
-        max-width: 1200px;
+      #boost-recently-popup {
+        position: fixed;
+        right: 18px;
+        bottom: 90px;
+        width: 330px;
+        max-width: calc(100% - 36px);
+        background: #111827;
+        color: white;
+        border-radius: 18px;
+        z-index: 999999;
+        box-shadow: 0 14px 38px rgba(0,0,0,.35);
+        overflow: hidden;
+        animation: boostRvIn .35s ease;
         font-family: Arial, sans-serif;
       }
 
-      .boost-rv-title {
-        font-size: 24px;
-        font-weight: 800;
-        margin-bottom: 18px;
-        color: #111827;
-      }
-
-      .boost-rv-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 18px;
-      }
-
-      .boost-rv-card {
-        text-decoration: none;
-        color: inherit;
-        background: white;
-        border: 1px solid rgba(15,23,42,0.08);
-        border-radius: 18px;
+      .boost-rv-popup-link {
+        display: flex;
+        gap: 12px;
+        align-items: center;
         padding: 12px;
-        box-shadow: 0 8px 24px rgba(15,23,42,0.08);
-        transition: transform .2s ease, box-shadow .2s ease;
+        color: white;
+        text-decoration: none;
       }
 
-      .boost-rv-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 12px 30px rgba(15,23,42,0.14);
-      }
-
-      .boost-rv-image-wrap {
-        width: 100%;
-        aspect-ratio: 1 / 1;
-        background: #f8fafc;
-        border-radius: 14px;
-        overflow: hidden;
-        margin-bottom: 10px;
-      }
-
-      .boost-rv-image {
-        width: 100%;
-        height: 100%;
+      .boost-rv-popup-img {
+        width: 62px;
+        height: 62px;
         object-fit: cover;
+        border-radius: 12px;
+        flex-shrink: 0;
       }
 
-      .boost-rv-product-title {
-        font-size: 14px;
-        font-weight: 700;
-        color: #111827;
-        line-height: 1.35;
-        min-height: 38px;
+      .boost-rv-popup-label {
+        font-size: 12px;
+        opacity: .75;
+        margin-bottom: 3px;
       }
 
-      .boost-rv-price {
-        margin-top: 6px;
+      .boost-rv-popup-title {
         font-size: 14px;
         font-weight: 800;
-        color: #7c3aed;
+        line-height: 1.3;
       }
 
-      @media (max-width: 800px) {
-        .boost-rv-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+      .boost-rv-popup-price {
+        margin-top: 4px;
+        font-size: 13px;
+        font-weight: 800;
+        color: #a78bfa;
+      }
+
+      @keyframes boostRvIn {
+        from {
+          transform: translateX(30px);
+          opacity: 0;
+        }
+
+        to {
+          transform: translateX(0);
+          opacity: 1;
         }
       }
 
-      @media (max-width: 480px) {
-        #boost-recently-viewed {
-          margin-top: 32px;
-        }
-
-        .boost-rv-title {
-          font-size: 20px;
+      @media (max-width: 600px) {
+        #boost-recently-popup {
+          right: 12px;
+          left: 12px;
+          bottom: 88px;
+          width: auto;
         }
       }
     \`
 
     document.head.appendChild(style)
+    document.body.appendChild(popup)
 
-    const productForm =
-      document.querySelector('form[action*="/cart/add"]') ||
-      document.querySelector("main") ||
-      document.body
-
-    productForm.parentNode.insertBefore(section, productForm.nextSibling)
+    setTimeout(() => {
+      popup.remove()
+    }, DISPLAY_DURATION)
   }
 
   async function start() {
@@ -206,7 +184,9 @@ export async function GET() {
       saveProduct(product)
     }
 
-    renderRecentlyViewed()
+    setTimeout(showPopup, 5000)
+
+    setInterval(showPopup, POPUP_INTERVAL)
   }
 
   start()

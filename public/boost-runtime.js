@@ -30,7 +30,7 @@
       if (data.widgets["recently-viewed"]) {
         const script = document.createElement("script")
         script.src =
-          "https://boost-app-9e6w.vercel.app/api/widgets/recently-viewed/script?v=2"
+          "https://boost-app-9e6w.vercel.app/api/widgets/recently-viewed/script?v=3"
         script.defer = true
         document.body.appendChild(script)
       }
