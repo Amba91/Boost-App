@@ -20,10 +20,7 @@ export async function GET() {
     })
   } catch (error) {
     return NextResponse.json(
-      {
-        success: false,
-        error: String(error),
-      },
+      { success: false, active: false, error: String(error) },
       { status: 500 }
     )
   }
@@ -32,15 +29,29 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
+    const active = typeof body.active === "boolean" ? body.active : true
 
-    const active = Boolean(body.active)
-
-    await sql`
-      INSERT INTO widgets (shop, widget, active)
-      VALUES (${SHOP}, ${WIDGET}, ${active})
-      ON CONFLICT (shop, widget)
-      DO UPDATE SET active = ${active}
+    const existing = await sql`
+      SELECT id
+      FROM widgets
+      WHERE shop = ${SHOP}
+      AND widget = ${WIDGET}
+      LIMIT 1
     `
+
+    if (existing.rows.length === 0) {
+      await sql`
+        INSERT INTO widgets (shop, widget, active)
+        VALUES (${SHOP}, ${WIDGET}, ${active})
+      `
+    } else {
+      await sql`
+        UPDATE widgets
+        SET active = ${active}
+        WHERE shop = ${SHOP}
+        AND widget = ${WIDGET}
+      `
+    }
 
     return NextResponse.json({
       success: true,
@@ -48,10 +59,7 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     return NextResponse.json(
-      {
-        success: false,
-        error: String(error),
-      },
+      { success: false, active: false, error: String(error) },
       { status: 500 }
     )
   }
