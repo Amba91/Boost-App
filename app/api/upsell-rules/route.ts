@@ -12,14 +12,26 @@ export async function GET() {
       ORDER BY id DESC
     `
 
-    return NextResponse.json({
-      success: true,
-      rules: result.rows,
-    })
+    return NextResponse.json(
+      {
+        success: true,
+        rules: result.rows,
+      },
+      {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+      }
+    )
   } catch (error) {
     return NextResponse.json(
       { success: false, error: String(error) },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+      }
     )
   }
 }

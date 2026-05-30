@@ -4,10 +4,11 @@ export async function GET() {
   window.BOOST_UPSELL_LOADED = true
 
   let productsCache = []
+  let rulesCache = []
 
   async function getProducts() {
     try {
-      const res = await fetch("/products.json?limit=20")
+      const res = await fetch("/products.json?limit=50")
       const data = await res.json()
       productsCache = data.products || []
       return productsCache
@@ -17,8 +18,41 @@ export async function GET() {
     }
   }
 
+  async function getRules() {
+    try {
+      const res = await fetch("https://boost-app-9e6w.vercel.app/api/upsell-rules")
+      const data = await res.json()
+      rulesCache = data.rules || []
+      return rulesCache
+    } catch {
+      rulesCache = []
+      return []
+    }
+  }
+
+  async function getCurrentProduct() {
+    try {
+      const handle = window.location.pathname.split("/products/")[1]?.split("?")[0]
+      if (!handle) return null
+
+      const res = await fetch("/products/" + handle + ".js")
+      if (!res.ok) return null
+
+      return await res.json()
+    } catch {
+      return null
+    }
+  }
+
   function randomItem(items) {
     return items[Math.floor(Math.random() * items.length)]
+  }
+
+  function normalize(text) {
+    return String(text || "")
+      .toLowerCase()
+      .trim()
+      .replace(/\\s+/g, " ")
   }
 
   function formatPrice(price) {
@@ -32,10 +66,26 @@ export async function GET() {
 
   function getProductPrice(product) {
     const variant = product.variants?.[0]
-
     if (!variant) return ""
-
     return formatPrice(variant.price)
+  }
+
+  function findUpsellProduct(currentProduct, products, rules) {
+    if (!currentProduct) return null
+
+    const currentTitle = normalize(currentProduct.title)
+
+    const matchingRule = rules.find((rule) => {
+      return normalize(rule.source_product) === currentTitle
+    })
+
+    if (!matchingRule) return null
+
+    const targetTitle = normalize(matchingRule.target_product)
+
+    return products.find((product) => {
+      return normalize(product.title) === targetTitle
+    })
   }
 
   function createPopup(product) {
@@ -197,13 +247,18 @@ export async function GET() {
 
   async function showUpsell() {
     const products = productsCache.length ? productsCache : await getProducts()
+    const rules = rulesCache.length ? rulesCache : await getRules()
+    const currentProduct = await getCurrentProduct()
 
     if (products.length < 2) return
 
-    const currentHandle = window.location.pathname.split("/products/")[1]?.split("?")[0]
-    const filtered = products.filter((product) => product.handle !== currentHandle)
+    let product = findUpsellProduct(currentProduct, products, rules)
 
-    const product = randomItem(filtered.length ? filtered : products)
+    if (!product) {
+      const currentHandle = window.location.pathname.split("/products/")[1]?.split("?")[0]
+      const filtered = products.filter((item) => item.handle !== currentHandle)
+      product = randomItem(filtered.length ? filtered : products)
+    }
 
     setTimeout(() => {
       createPopup(product)
@@ -223,6 +278,7 @@ export async function GET() {
   })
 
   getProducts()
+  getRules()
 })()
 `
 
