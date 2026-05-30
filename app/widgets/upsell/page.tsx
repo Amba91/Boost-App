@@ -6,21 +6,24 @@ import Link from "next/link"
 export default function UpsellPage() {
   const [active, setActive] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [sourceProduct, setSourceProduct] = useState("")
+  const [targetProduct, setTargetProduct] = useState("")
+  const [rules, setRules] = useState<any[]>([])
 
   async function loadWidget() {
-    try {
-      const res = await fetch("/api/widgets/upsell")
-      const data = await res.json()
-      setActive(data.active)
-    } finally {
-      setLoading(false)
-    }
+    const res = await fetch("/api/widgets/upsell")
+    const data = await res.json()
+    setActive(data.active || false)
+  }
+
+  async function loadRules() {
+    const res = await fetch("/api/upsell-rules")
+    const data = await res.json()
+    setRules(data.rules || [])
   }
 
   async function toggleWidget() {
     setLoading(true)
-
-    const newState = !active
 
     const res = await fetch("/api/widgets/upsell", {
       method: "POST",
@@ -28,7 +31,7 @@ export default function UpsellPage() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        active: newState,
+        active: !active,
       }),
     })
 
@@ -37,8 +40,33 @@ export default function UpsellPage() {
     setLoading(false)
   }
 
+  async function saveRule() {
+    if (!sourceProduct || !targetProduct) return
+
+    await fetch("/api/upsell-rules", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sourceProduct,
+        targetProduct,
+      }),
+    })
+
+    setSourceProduct("")
+    setTargetProduct("")
+    loadRules()
+  }
+
   useEffect(() => {
-    loadWidget()
+    async function init() {
+      await loadWidget()
+      await loadRules()
+      setLoading(false)
+    }
+
+    init()
   }, [])
 
   return (
@@ -51,7 +79,7 @@ export default function UpsellPage() {
 
       <div style={styles.card}>
         <p style={styles.muted}>
-          Propose automatiquement un produit complémentaire après l’ajout au panier.
+          Propose un produit complémentaire après l’ajout au panier.
         </p>
 
         <p
@@ -73,6 +101,46 @@ export default function UpsellPage() {
         >
           {loading ? "Chargement..." : active ? "Désactiver Upsell" : "Activer Upsell"}
         </button>
+      </div>
+
+      <div style={styles.card}>
+        <h2>Règle d’upsell</h2>
+
+        <input
+          placeholder="Produit principal"
+          value={sourceProduct}
+          onChange={(e) => setSourceProduct(e.target.value)}
+          style={styles.input}
+        />
+
+        <input
+          placeholder="Produit recommandé"
+          value={targetProduct}
+          onChange={(e) => setTargetProduct(e.target.value)}
+          style={styles.input}
+        />
+
+        <button onClick={saveRule} style={styles.button}>
+          Ajouter une règle
+        </button>
+      </div>
+
+      <div style={styles.card}>
+        <h2>Règles existantes</h2>
+
+        {rules.length === 0 && (
+          <p style={styles.muted}>Aucune règle configurée.</p>
+        )}
+
+        {rules.map((rule) => (
+          <div key={rule.id} style={styles.rule}>
+            <strong>{rule.source_product}</strong>
+            <br />
+            ↓
+            <br />
+            <strong>{rule.target_product}</strong>
+          </div>
+        ))}
       </div>
     </main>
   )
@@ -96,10 +164,10 @@ const styles: Record<string, React.CSSProperties> = {
   },
   card: {
     background: "#111827",
-    padding: "32px",
+    padding: "28px",
     borderRadius: "24px",
-    maxWidth: "520px",
-    marginTop: "30px",
+    maxWidth: "720px",
+    marginTop: "28px",
   },
   muted: {
     color: "#94a3b8",
@@ -112,13 +180,29 @@ const styles: Record<string, React.CSSProperties> = {
   },
   button: {
     width: "100%",
-    marginTop: "24px",
+    marginTop: "16px",
+    background: "#7c3aed",
     color: "white",
     border: "none",
     padding: "16px",
     borderRadius: "14px",
     fontWeight: "bold",
     cursor: "pointer",
-    fontSize: "18px",
+    fontSize: "16px",
+  },
+  input: {
+    width: "100%",
+    padding: "14px",
+    marginTop: "12px",
+    borderRadius: "12px",
+    border: "none",
+    fontSize: "16px",
+  },
+  rule: {
+    background: "#050816",
+    padding: "18px",
+    borderRadius: "16px",
+    marginTop: "12px",
+    lineHeight: 1.8,
   },
 }
