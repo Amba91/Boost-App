@@ -39,6 +39,9 @@ export async function GET() {
   }
 
   function createPopup(product) {
+    if (window.BOOST_CAN_SHOW_POPUP && !window.BOOST_CAN_SHOW_POPUP()) return
+    if (window.BOOST_OPEN_POPUP) window.BOOST_OPEN_POPUP()
+
     const old = document.getElementById("boost-upsell-popup")
     if (old) old.remove()
 
@@ -46,7 +49,10 @@ export async function GET() {
     const variantId = product.variants?.[0]?.id
     const price = getProductPrice(product)
 
-    if (!variantId) return
+    if (!variantId) {
+      if (window.BOOST_CLOSE_POPUP) window.BOOST_CLOSE_POPUP()
+      return
+    }
 
     const popup = document.createElement("div")
     popup.id = "boost-upsell-popup"
@@ -154,6 +160,7 @@ export async function GET() {
 
     document.getElementById("boost-upsell-close")?.addEventListener("click", () => {
       popup.remove()
+      if (window.BOOST_CLOSE_POPUP) window.BOOST_CLOSE_POPUP()
     })
 
     document.getElementById("boost-upsell-add")?.addEventListener("click", async () => {
@@ -174,14 +181,17 @@ export async function GET() {
 
         setTimeout(() => {
           popup.remove()
+          if (window.BOOST_CLOSE_POPUP) window.BOOST_CLOSE_POPUP()
         }, 2000)
       } catch (error) {
         console.error("Boost upsell add error:", error)
+        if (window.BOOST_CLOSE_POPUP) window.BOOST_CLOSE_POPUP()
       }
     })
 
     setTimeout(() => {
       popup.remove()
+      if (window.BOOST_CLOSE_POPUP) window.BOOST_CLOSE_POPUP()
     }, 12000)
   }
 

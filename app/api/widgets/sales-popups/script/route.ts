@@ -1,106 +1,87 @@
 export async function GET() {
   const script = `
 (() => {
+  const names = ["Sarah", "Amadou", "Camille", "Nadia", "Yanis", "Emma", "Lucas", "Inès"];
 
-const names = [
-  "Sarah",
-  "Emma",
-  "Lucas",
-  "Nadia",
-  "Camille",
-  "Yanis",
-  "Lina",
-  "Adam"
-]
-
-function randomItem(items){
-  return items[Math.floor(Math.random()*items.length)]
-}
-
-async function loadProducts(){
-  try{
-    const res = await fetch("/products.json?limit=20")
-    const data = await res.json()
-    return data.products || []
-  }catch(error){
-    console.error(error)
-    return []
+  async function loadProducts() {
+    try {
+      const res = await fetch("/products.json?limit=20");
+      const data = await res.json();
+      return data.products || [];
+    } catch (error) {
+      console.error("Boost Sales Popup products error:", error);
+      return [];
+    }
   }
-}
 
-function createPopup(product){
+  function randomItem(items) {
+    return items[Math.floor(Math.random() * items.length)];
+  }
 
-  const old = document.getElementById("boost-sales-popup")
-  if(old) old.remove()
+  function showPopup(product) {
+    if (window.BOOST_CAN_SHOW_POPUP && !window.BOOST_CAN_SHOW_POPUP()) return;
+    if (window.BOOST_OPEN_POPUP) window.BOOST_OPEN_POPUP();
 
-  const popup = document.createElement("div")
+    const old = document.getElementById("boost-sales-popup");
+    if (old) old.remove();
 
-  popup.id = "boost-sales-popup"
+    const name = randomItem(names);
+    const title = product?.title || "un produit";
+    const image = product?.images?.[0]?.src || "";
 
-  const customer = randomItem(names)
+    const popup = document.createElement("div");
+    popup.id = "boost-sales-popup";
 
-  popup.innerHTML = \`
-    <div style="display:flex;gap:12px;align-items:center;">
-      <img
-        src="\${product.images?.[0]?.src || ""}"
-        style="
-          width:60px;
-          height:60px;
-          object-fit:cover;
-          border-radius:10px;
-        "
-      />
-
-      <div>
-        <div style="font-weight:bold">
-          🔥 \${customer} a acheté
-        </div>
-
-        <div style="font-size:13px;margin-top:4px;">
-          \${product.title}
+    popup.innerHTML = \`
+      <div style="display:flex;align-items:center;gap:12px;">
+        \${image ? \`<img src="\${image}" style="width:54px;height:54px;object-fit:cover;border-radius:10px;" />\` : ""}
+        <div>
+          <div style="font-weight:bold;font-size:14px;">
+            🔥 \${name} a acheté
+          </div>
+          <div style="font-size:13px;opacity:.9;margin-top:3px;">
+            \${title}
+          </div>
         </div>
       </div>
-    </div>
-  \`
+    \`;
 
-  popup.style.position = "fixed"
-  popup.style.bottom = "20px"
-  popup.style.left = "20px"
-  popup.style.background = "#111827"
-  popup.style.color = "white"
-  popup.style.padding = "14px"
-  popup.style.borderRadius = "14px"
-  popup.style.zIndex = "999999"
-  popup.style.maxWidth = "360px"
-  popup.style.boxShadow = "0 10px 30px rgba(0,0,0,.35)"
+    popup.style.position = "fixed";
+    popup.style.bottom = "20px";
+    popup.style.left = "20px";
+    popup.style.background = "#111827";
+    popup.style.color = "white";
+    popup.style.padding = "14px 16px";
+    popup.style.borderRadius = "14px";
+    popup.style.zIndex = "999999";
+    popup.style.fontFamily = "Arial, sans-serif";
+    popup.style.boxShadow = "0 10px 30px rgba(0,0,0,0.35)";
+    popup.style.maxWidth = "360px";
 
-  document.body.appendChild(popup)
+    document.body.appendChild(popup);
 
-  setTimeout(() => {
-    popup.remove()
-  }, 5000)
-}
-
-async function start(){
-
-  const products = await loadProducts()
-
-  if(!products.length){
-    return
+    setTimeout(() => {
+      popup.remove();
+      if (window.BOOST_CLOSE_POPUP) window.BOOST_CLOSE_POPUP();
+    }, 5000);
   }
 
-  setTimeout(() => {
-    createPopup(randomItem(products))
-  }, 3000)
+  async function start() {
+    const products = await loadProducts();
 
-  setInterval(() => {
-    createPopup(randomItem(products))
-  }, 30000)
-}
+    if (!products.length) return;
 
-start()
+    setTimeout(() => {
+      showPopup(randomItem(products));
+    }, 5000);
 
-})()
+    setInterval(() => {
+      showPopup(randomItem(products));
+    }, 30000);
+  }
+
+  start();
+})();
 `
 
   return new Response(script, {

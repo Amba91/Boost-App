@@ -1,6 +1,20 @@
 (function () {
   const shop = window.BOOST_SHOP || "hy4nf1-dt.myshopify.com"
 
+  window.BOOST_POPUP_ACTIVE = false
+
+  window.BOOST_CAN_SHOW_POPUP = function () {
+    return window.BOOST_POPUP_ACTIVE !== true
+  }
+
+  window.BOOST_OPEN_POPUP = function () {
+    window.BOOST_POPUP_ACTIVE = true
+  }
+
+  window.BOOST_CLOSE_POPUP = function () {
+    window.BOOST_POPUP_ACTIVE = false
+  }
+
   async function loadBoostWidgets() {
     try {
       const response = await fetch(
@@ -8,13 +22,12 @@
       )
 
       const data = await response.json()
-
       if (!data.success) return
 
       if (data.widgets["sales-popups"]) {
         const script = document.createElement("script")
         script.src =
-          "https://boost-app-9e6w.vercel.app/api/widgets/sales-popups/script?v=5"
+          "https://boost-app-9e6w.vercel.app/api/widgets/sales-popups/script?v=6"
         script.defer = true
         document.body.appendChild(script)
       }
@@ -30,7 +43,7 @@
       if (data.widgets["recently-viewed"]) {
         const script = document.createElement("script")
         script.src =
-          "https://boost-app-9e6w.vercel.app/api/widgets/recently-viewed/script?v=3"
+          "https://boost-app-9e6w.vercel.app/api/widgets/recently-viewed/script?v=4"
         script.defer = true
         document.body.appendChild(script)
       }
@@ -46,7 +59,7 @@
       if (data.widgets["upsell"]) {
         const script = document.createElement("script")
         script.src =
-          "https://boost-app-9e6w.vercel.app/api/widgets/upsell/script?v=2"
+          "https://boost-app-9e6w.vercel.app/api/widgets/upsell/script?v=4"
         script.defer = true
         document.body.appendChild(script)
       }

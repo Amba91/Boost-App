@@ -60,6 +60,9 @@ export async function GET() {
   }
 
   function showPopup() {
+    if (window.BOOST_CAN_SHOW_POPUP && !window.BOOST_CAN_SHOW_POPUP()) return
+    if (window.BOOST_OPEN_POPUP) window.BOOST_OPEN_POPUP()
+
     let products = []
 
     try {
@@ -71,7 +74,10 @@ export async function GET() {
     const currentHandle = getProductHandle()
     const items = products.filter((p) => p.handle !== currentHandle)
 
-    if (!items.length) return
+    if (!items.length) {
+      if (window.BOOST_CLOSE_POPUP) window.BOOST_CLOSE_POPUP()
+      return
+    }
 
     const product = randomItem(items)
 
@@ -173,6 +179,7 @@ export async function GET() {
 
     setTimeout(() => {
       popup.remove()
+      if (window.BOOST_CLOSE_POPUP) window.BOOST_CLOSE_POPUP()
     }, DISPLAY_DURATION)
   }
 
