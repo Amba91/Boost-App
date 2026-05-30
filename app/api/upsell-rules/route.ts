@@ -13,25 +13,13 @@ export async function GET() {
     `
 
     return NextResponse.json(
-      {
-        success: true,
-        rules: result.rows,
-      },
-      {
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-        },
-      }
+      { success: true, rules: result.rows },
+      { headers: { "Access-Control-Allow-Origin": "*" } }
     )
   } catch (error) {
     return NextResponse.json(
       { success: false, error: String(error) },
-      {
-        status: 500,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-        },
-      }
+      { status: 500, headers: { "Access-Control-Allow-Origin": "*" } }
     )
   }
 }
@@ -44,12 +32,14 @@ export async function POST(request: Request) {
       INSERT INTO upsell_rules (
         shop,
         source_product,
-        target_product
+        target_product,
+        upsell_price
       )
       VALUES (
         ${SHOP},
         ${body.sourceProduct},
-        ${body.targetProduct}
+        ${body.targetProduct},
+        ${body.upsellPrice || null}
       )
     `
 

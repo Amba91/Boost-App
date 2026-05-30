@@ -64,14 +64,17 @@ export async function GET() {
     })
   }
 
-  function getProductPrice(product) {
+  function getProductPrice(product, rule) {
+    if (rule?.upsell_price) return rule.upsell_price
+
     const variant = product.variants?.[0]
     if (!variant) return ""
+
     return formatPrice(variant.price)
   }
 
   function findUpsellProduct(currentProduct, products, rules) {
-    if (!currentProduct) return null
+    if (!currentProduct) return { product: null, rule: null }
 
     const currentTitle = normalize(currentProduct.title)
 
@@ -79,16 +82,18 @@ export async function GET() {
       return normalize(rule.source_product) === currentTitle
     })
 
-    if (!matchingRule) return null
+    if (!matchingRule) return { product: null, rule: null }
 
     const targetTitle = normalize(matchingRule.target_product)
 
-    return products.find((product) => {
-      return normalize(product.title) === targetTitle
+    const product = products.find((item) => {
+      return normalize(item.title) === targetTitle
     })
+
+    return { product: product || null, rule: matchingRule }
   }
 
-  function createPopup(product) {
+  function createPopup(product, rule) {
     if (window.BOOST_CAN_SHOW_POPUP && !window.BOOST_CAN_SHOW_POPUP()) return
     if (window.BOOST_OPEN_POPUP) window.BOOST_OPEN_POPUP()
 
@@ -97,7 +102,7 @@ export async function GET() {
 
     const image = product.images?.[0]?.src || ""
     const variantId = product.variants?.[0]?.id
-    const price = getProductPrice(product)
+    const price = getProductPrice(product, rule)
 
     if (!variantId) {
       if (window.BOOST_CLOSE_POPUP) window.BOOST_CLOSE_POPUP()
@@ -252,16 +257,20 @@ export async function GET() {
 
     if (products.length < 2) return
 
-    let product = findUpsellProduct(currentProduct, products, rules)
+    const result = findUpsellProduct(currentProduct, products, rules)
+
+    let product = result.product
+    let rule = result.rule
 
     if (!product) {
       const currentHandle = window.location.pathname.split("/products/")[1]?.split("?")[0]
       const filtered = products.filter((item) => item.handle !== currentHandle)
       product = randomItem(filtered.length ? filtered : products)
+      rule = null
     }
 
     setTimeout(() => {
-      createPopup(product)
+      createPopup(product, rule)
     }, 1200)
   }
 

@@ -8,6 +8,7 @@ export default function UpsellPage() {
   const [loading, setLoading] = useState(true)
   const [sourceProduct, setSourceProduct] = useState("")
   const [targetProduct, setTargetProduct] = useState("")
+  const [upsellPrice, setUpsellPrice] = useState("")
   const [rules, setRules] = useState<any[]>([])
 
   async function loadWidget() {
@@ -27,12 +28,8 @@ export default function UpsellPage() {
 
     const res = await fetch("/api/widgets/upsell", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        active: !active,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active: !active }),
     })
 
     const data = await res.json()
@@ -45,17 +42,17 @@ export default function UpsellPage() {
 
     await fetch("/api/upsell-rules", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         sourceProduct,
         targetProduct,
+        upsellPrice,
       }),
     })
 
     setSourceProduct("")
     setTargetProduct("")
+    setUpsellPrice("")
     loadRules()
   }
 
@@ -120,6 +117,13 @@ export default function UpsellPage() {
           style={styles.input}
         />
 
+        <input
+          placeholder="Prix spécial affiché, ex : 19,99€"
+          value={upsellPrice}
+          onChange={(e) => setUpsellPrice(e.target.value)}
+          style={styles.input}
+        />
+
         <button onClick={saveRule} style={styles.button}>
           Ajouter une règle
         </button>
@@ -128,9 +132,7 @@ export default function UpsellPage() {
       <div style={styles.card}>
         <h2>Règles existantes</h2>
 
-        {rules.length === 0 && (
-          <p style={styles.muted}>Aucune règle configurée.</p>
-        )}
+        {rules.length === 0 && <p style={styles.muted}>Aucune règle configurée.</p>}
 
         {rules.map((rule) => (
           <div key={rule.id} style={styles.rule}>
@@ -139,6 +141,12 @@ export default function UpsellPage() {
             ↓
             <br />
             <strong>{rule.target_product}</strong>
+            <br />
+            {rule.upsell_price ? (
+              <span style={styles.price}>Prix affiché : {rule.upsell_price}</span>
+            ) : (
+              <span style={styles.muted}>Prix Shopify normal</span>
+            )}
           </div>
         ))}
       </div>
@@ -204,5 +212,9 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "16px",
     marginTop: "12px",
     lineHeight: 1.8,
+  },
+  price: {
+    color: "#a78bfa",
+    fontWeight: "bold",
   },
 }
