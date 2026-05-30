@@ -21,12 +21,30 @@ export async function GET() {
     return items[Math.floor(Math.random() * items.length)]
   }
 
+  function formatPrice(price) {
+    if (!price) return ""
+
+    return Number(price).toLocaleString("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+    })
+  }
+
+  function getProductPrice(product) {
+    const variant = product.variants?.[0]
+
+    if (!variant) return ""
+
+    return formatPrice(variant.price)
+  }
+
   function createPopup(product) {
     const old = document.getElementById("boost-upsell-popup")
     if (old) old.remove()
 
     const image = product.images?.[0]?.src || ""
     const variantId = product.variants?.[0]?.id
+    const price = getProductPrice(product)
 
     if (!variantId) return
 
@@ -44,6 +62,7 @@ export async function GET() {
 
         <div class="boost-upsell-info">
           <div class="boost-upsell-title">\${product.title}</div>
+          <div class="boost-upsell-price">\${price}</div>
           <button id="boost-upsell-add">Ajouter à ma commande</button>
         </div>
       </div>
@@ -55,7 +74,7 @@ export async function GET() {
         position: fixed;
         right: 18px;
         bottom: 18px;
-        width: 340px;
+        width: 350px;
         max-width: calc(100% - 36px);
         background: #111827;
         color: white;
@@ -103,6 +122,13 @@ export async function GET() {
         font-size: 14px;
         font-weight: 700;
         line-height: 1.35;
+        margin-bottom: 4px;
+      }
+
+      .boost-upsell-price {
+        font-size: 14px;
+        font-weight: 800;
+        color: #a78bfa;
         margin-bottom: 10px;
       }
 
