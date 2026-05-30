@@ -1,12 +1,18 @@
 export async function GET() {
   const script = `
 (function () {
+  window.BOOST_UPSELL_LOADED = true
+
+  let productsCache = []
+
   async function getProducts() {
     try {
       const res = await fetch("/products.json?limit=20")
       const data = await res.json()
-      return data.products || []
+      productsCache = data.products || []
+      return productsCache
     } catch {
+      productsCache = []
       return []
     }
   }
@@ -112,77 +118,75 @@ export async function GET() {
       }
 
       @keyframes boostUpsellIn {
-        from {
-          transform: translateY(25px);
-          opacity: 0;
-        }
-
-        to {
-          transform: translateY(0);
-          opacity: 1;
-        }
+        from { transform: translateY(25px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
       }
     \`
 
     document.head.appendChild(style)
     document.body.appendChild(popup)
 
-    document
-      .getElementById("boost-upsell-close")
-      ?.addEventListener("click", () => popup.remove())
+    document.getElementById("boost-upsell-close")?.addEventListener("click", () => {
+      popup.remove()
+    })
 
-    document
-      .getElementById("boost-upsell-add")
-      ?.addEventListener("click", async () => {
-        try {
-          await fetch("/cart/add.js", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              id: variantId,
-              quantity: 1,
-            }),
-          })
+    document.getElementById("boost-upsell-add")?.addEventListener("click", async () => {
+      try {
+        await fetch("/cart/add.js", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: variantId,
+            quantity: 1,
+          }),
+        })
 
-          popup.innerHTML =
-            '<div style="padding:18px;font-weight:800;">✅ Produit ajouté au panier</div>'
+        popup.innerHTML =
+          '<div style="padding:18px;font-weight:800;">✅ Produit ajouté au panier</div>'
 
-          setTimeout(() => {
-            popup.remove()
-          }, 2000)
-        } catch (error) {
-          console.error("Boost upsell add error:", error)
-        }
-      })
+        setTimeout(() => {
+          popup.remove()
+        }, 2000)
+      } catch (error) {
+        console.error("Boost upsell add error:", error)
+      }
+    })
 
     setTimeout(() => {
       popup.remove()
     }, 12000)
   }
 
-  async function start() {
-    const products = await getProducts()
+  async function showUpsell() {
+    const products = productsCache.length ? productsCache : await getProducts()
 
     if (products.length < 2) return
 
-    const buttons = document.querySelectorAll(
-      'form[action*="/cart/add"] button, button[name="add"]'
-    )
+    const currentHandle = window.location.pathname.split("/products/")[1]?.split("?")[0]
+    const filtered = products.filter((product) => product.handle !== currentHandle)
 
-    buttons.forEach((button) => {
-      button.addEventListener("click", () => {
-        const product = randomItem(products)
+    const product = randomItem(filtered.length ? filtered : products)
 
-        setTimeout(() => {
-          createPopup(product)
-        }, 1500)
-      })
-    })
+    setTimeout(() => {
+      createPopup(product)
+    }, 1200)
   }
 
-  start()
+  document.addEventListener("click", function (event) {
+    const target = event.target
+
+    const button = target.closest(
+      'form[action*="/cart/add"] button, button[name="add"], .product-form__submit, .sticky-atc-button'
+    )
+
+    if (!button) return
+
+    showUpsell()
+  })
+
+  getProducts()
 })()
 `
 

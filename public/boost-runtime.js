@@ -46,7 +46,7 @@
       if (data.widgets["upsell"]) {
         const script = document.createElement("script")
         script.src =
-          "https://boost-app-9e6w.vercel.app/api/widgets/upsell/script?v=1"
+          "https://boost-app-9e6w.vercel.app/api/widgets/upsell/script?v=2"
         script.defer = true
         document.body.appendChild(script)
       }
