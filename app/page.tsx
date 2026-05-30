@@ -16,6 +16,7 @@ const widgets = [
   { name: "Free Shipping Bar", slug: "free-shipping-bar" },
   { name: "Related Products", slug: "related-products" },
   { name: "Recently Viewed", slug: "recently-viewed" },
+  { name: "Upsell", slug: "upsell" },
 ]
 
 export default function HomePage() {
@@ -28,7 +29,6 @@ export default function HomePage() {
       try {
         const res = await fetch(`/api/widgets/${widget.slug}`)
         const data = await res.json()
-
         results[widget.slug] = data.active || false
       } catch {
         results[widget.slug] = false
@@ -70,9 +70,7 @@ export default function HomePage() {
             <div key={widget.slug} style={styles.card}>
               <h2 style={styles.title}>{widget.name}</h2>
 
-              <p style={styles.text}>
-                Widget Shopify intelligent.
-              </p>
+              <p style={styles.text}>Widget Shopify intelligent.</p>
 
               <p
                 style={{
@@ -94,9 +92,7 @@ export default function HomePage() {
               </button>
 
               <Link href={`/widgets/${widget.slug}`}>
-                <button style={styles.button}>
-                  Configurer
-                </button>
+                <button style={styles.button}>Configurer</button>
               </Link>
             </div>
           )
@@ -114,41 +110,34 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "40px",
     fontFamily: "Arial",
   },
-
   logo: {
     fontSize: "58px",
     fontWeight: "bold",
     marginBottom: "50px",
   },
-
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))",
     gap: "24px",
   },
-
   card: {
     background: "#111827",
     borderRadius: "24px",
     padding: "30px",
   },
-
   title: {
     fontSize: "30px",
     marginBottom: "12px",
   },
-
   text: {
     color: "#94a3b8",
     marginBottom: "18px",
   },
-
   status: {
     fontSize: "18px",
     fontWeight: "bold",
     marginBottom: "20px",
   },
-
   toggleButton: {
     width: "100%",
     color: "white",
@@ -160,7 +149,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "16px",
     marginBottom: "14px",
   },
-
   button: {
     width: "100%",
     background: "#7c3aed",
