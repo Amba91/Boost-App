@@ -1,22 +1,18 @@
 export async function GET() {
   const script = `
 (function () {
-
   const FREE_SHIPPING_GOAL = 50
 
-  function getThemeColor() {
+  function getThemeAnnouncementColor() {
+    const elements = Array.from(document.querySelectorAll("div, section, header"))
 
-    const addButton =
-      document.querySelector('button[name="add"]') ||
-      document.querySelector('form[action*="/cart/add"] button[type="submit"]') ||
-      document.querySelector('.product-form__submit') ||
-      document.querySelector('button[type="submit"]')
+    const announcement = elements.find((el) =>
+      el.innerText &&
+      el.innerText.toLowerCase().includes("livraison")
+    )
 
-    if (addButton) {
-
-      const styles = window.getComputedStyle(addButton)
-
-      const bg = styles.backgroundColor
+    if (announcement) {
+      const bg = window.getComputedStyle(announcement).backgroundColor
 
       if (
         bg &&
@@ -27,7 +23,7 @@ export async function GET() {
       }
     }
 
-    return "#111827"
+    return "#66cdbf"
   }
 
   async function getCart() {
@@ -40,105 +36,68 @@ export async function GET() {
   }
 
   function createBar() {
-
-    let bar = document.getElementById(
-      "boost-free-shipping-bar"
-    )
-
+    let bar = document.getElementById("boost-free-shipping-bar")
     if (bar) return bar
 
     bar = document.createElement("div")
-
     bar.id = "boost-free-shipping-bar"
 
-    bar.style.position = "fixed"
-
-    bar.style.top = "15px"
-
-    bar.style.left = "50%"
-
-    bar.style.transform =
-      "translateX(-50%)"
-
-    bar.style.zIndex = "999998"
-
-    bar.style.padding = "12px 22px"
-
-    bar.style.borderRadius = "999px"
-
-    bar.style.color = "white"
-
-    bar.style.fontWeight = "700"
-
+    bar.style.width = "100%"
+    bar.style.background = getThemeAnnouncementColor()
+    bar.style.color = "#111827"
+    bar.style.textAlign = "center"
+    bar.style.fontWeight = "800"
     bar.style.fontSize = "14px"
+    bar.style.letterSpacing = "0.8px"
+    bar.style.padding = "9px 12px"
+    bar.style.fontFamily = "Arial, sans-serif"
+    bar.style.zIndex = "9999"
+    bar.style.boxSizing = "border-box"
 
-    bar.style.fontFamily =
-      "Arial, sans-serif"
+    const header =
+      document.querySelector("header") ||
+      document.querySelector(".shopify-section-header") ||
+      document.body.firstElementChild
 
-    bar.style.boxShadow =
-      "0 8px 25px rgba(0,0,0,.15)"
-
-    bar.style.maxWidth = "500px"
-
-    bar.style.width = "auto"
-
-    bar.style.transition =
-      "all .3s ease"
-
-    document.body.appendChild(bar)
+    if (header && header.parentNode) {
+      header.parentNode.insertBefore(bar, header)
+    } else {
+      document.body.prepend(bar)
+    }
 
     return bar
   }
 
   async function updateBar() {
-
     const cart = await getCart()
-
     if (!cart) return
 
-    const total =
-      cart.total_price / 100
-
-    const remaining =
-      FREE_SHIPPING_GOAL - total
+    const total = cart.total_price / 100
+    const remaining = FREE_SHIPPING_GOAL - total
 
     const bar = createBar()
 
     if (remaining <= 0) {
-
-      bar.innerHTML =
-        "🎉 Livraison gratuite débloquée"
-
-      bar.style.background =
-        "#16a34a"
-
+      bar.innerHTML = "🎉 LIVRAISON GRATUITE DÉBLOQUÉE !"
+      bar.style.background = getThemeAnnouncementColor()
     } else {
-
       bar.innerHTML =
-        "🚚 Plus que " +
-        remaining
-          .toFixed(2)
-          .replace(".", ",") +
-        "€ pour profiter de la livraison gratuite"
-
-      bar.style.background =
-        getThemeColor()
+        "🚚 PLUS QUE " +
+        remaining.toFixed(2).replace(".", ",") +
+        "€ POUR PROFITER DE LA LIVRAISON GRATUITE"
+      bar.style.background = getThemeAnnouncementColor()
     }
   }
 
   updateBar()
-
   setInterval(updateBar, 5000)
-
 })()
 `
 
   return new Response(script, {
     headers: {
-      "Content-Type":
-        "application/javascript",
-      "Access-Control-Allow-Origin":
-        "*",
+      "Content-Type": "application/javascript",
+      "Access-Control-Allow-Origin": "*",
       "Cache-Control": "no-store",
     },
   })
