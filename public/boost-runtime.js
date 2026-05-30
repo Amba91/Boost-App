@@ -42,6 +42,14 @@
         script.defer = true
         document.body.appendChild(script)
       }
+
+      if (data.widgets["upsell"]) {
+        const script = document.createElement("script")
+        script.src =
+          "https://boost-app-9e6w.vercel.app/api/widgets/upsell/script?v=1"
+        script.defer = true
+        document.body.appendChild(script)
+      }
     } catch (error) {
       console.error("Boost runtime error:", error)
     }
