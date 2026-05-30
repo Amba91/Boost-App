@@ -3,22 +3,23 @@ export async function GET() {
 (function () {
   const FREE_SHIPPING_GOAL = 50
 
-  function getThemeAnnouncementColor() {
-    const elements = Array.from(document.querySelectorAll("div, section, header"))
+  function findExistingShippingBar() {
+    const elements = Array.from(document.querySelectorAll("div, section, announcement-bar"))
 
-    const announcement = elements.find((el) =>
-      el.innerText &&
-      el.innerText.toLowerCase().includes("livraison")
-    )
+    return elements.find((el) => {
+      const text = el.innerText || ""
+      return (
+        text.toLowerCase().includes("livraison offerte") ||
+        text.toLowerCase().includes("livraison gratuite")
+      )
+    })
+  }
 
-    if (announcement) {
-      const bg = window.getComputedStyle(announcement).backgroundColor
+  function getThemeAnnouncementColor(existingBar) {
+    if (existingBar) {
+      const bg = window.getComputedStyle(existingBar).backgroundColor
 
-      if (
-        bg &&
-        bg !== "rgba(0, 0, 0, 0)" &&
-        bg !== "transparent"
-      ) {
+      if (bg && bg !== "rgba(0, 0, 0, 0)" && bg !== "transparent") {
         return bg
       }
     }
@@ -39,11 +40,14 @@ export async function GET() {
     let bar = document.getElementById("boost-free-shipping-bar")
     if (bar) return bar
 
+    const existingBar = findExistingShippingBar()
+    const color = getThemeAnnouncementColor(existingBar)
+
     bar = document.createElement("div")
     bar.id = "boost-free-shipping-bar"
 
     bar.style.width = "100%"
-    bar.style.background = getThemeAnnouncementColor()
+    bar.style.background = color
     bar.style.color = "#111827"
     bar.style.textAlign = "center"
     bar.style.fontWeight = "800"
@@ -54,15 +58,20 @@ export async function GET() {
     bar.style.zIndex = "9999"
     bar.style.boxSizing = "border-box"
 
-    const header =
-      document.querySelector("header") ||
-      document.querySelector(".shopify-section-header") ||
-      document.body.firstElementChild
-
-    if (header && header.parentNode) {
-      header.parentNode.insertBefore(bar, header)
+    if (existingBar && existingBar.parentNode) {
+      existingBar.parentNode.insertBefore(bar, existingBar)
+      existingBar.style.display = "none"
     } else {
-      document.body.prepend(bar)
+      const header =
+        document.querySelector("header") ||
+        document.querySelector(".shopify-section-header") ||
+        document.body.firstElementChild
+
+      if (header && header.parentNode) {
+        header.parentNode.insertBefore(bar, header)
+      } else {
+        document.body.prepend(bar)
+      }
     }
 
     return bar
@@ -79,13 +88,11 @@ export async function GET() {
 
     if (remaining <= 0) {
       bar.innerHTML = "🎉 LIVRAISON GRATUITE DÉBLOQUÉE !"
-      bar.style.background = getThemeAnnouncementColor()
     } else {
       bar.innerHTML =
         "🚚 PLUS QUE " +
         remaining.toFixed(2).replace(".", ",") +
         "€ POUR PROFITER DE LA LIVRAISON GRATUITE"
-      bar.style.background = getThemeAnnouncementColor()
     }
   }
 
