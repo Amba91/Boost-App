@@ -17,6 +17,7 @@ type Review = {
   verified_parent: boolean
   verified_purchase: boolean
   visible: boolean
+  merchant_reply: string
 }
 
 export default function ReviewsPage() {
@@ -25,6 +26,7 @@ export default function ReviewsPage() {
   const [uploading, setUploading] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importMessage, setImportMessage] = useState("")
+  const [search, setSearch] = useState("")
   const [reviews, setReviews] = useState<Review[]>([])
 
   const [form, setForm] = useState({
@@ -33,11 +35,24 @@ export default function ReviewsPage() {
     customer_last_name: "",
     rating: 5,
     review: "",
+    merchant_reply: "",
     image_url: "",
     video_url: "",
     verified: true,
     verified_parent: true,
     verified_purchase: true,
+  })
+
+  const filteredReviews = reviews.filter((item) => {
+    const query = search.toLowerCase()
+
+    return (
+      String(item.id).includes(query) ||
+      item.product_handle?.toLowerCase().includes(query) ||
+      item.customer_first_name?.toLowerCase().includes(query) ||
+      item.customer_last_name?.toLowerCase().includes(query) ||
+      item.review?.toLowerCase().includes(query)
+    )
   })
 
   async function loadWidget() {
@@ -155,6 +170,7 @@ export default function ReviewsPage() {
       customer_last_name: "",
       rating: 5,
       review: "",
+      merchant_reply: "",
       image_url: "",
       video_url: "",
       verified: true,
@@ -314,6 +330,15 @@ export default function ReviewsPage() {
           style={styles.textarea}
         />
 
+        <textarea
+          placeholder="Réponse du marchand"
+          value={form.merchant_reply}
+          onChange={(e) =>
+            setForm({ ...form, merchant_reply: e.target.value })
+          }
+          style={styles.textarea}
+        />
+
         <input
           placeholder="URL image client"
           value={form.image_url}
@@ -340,18 +365,27 @@ export default function ReviewsPage() {
       <div style={styles.cardWide}>
         <h2>Avis existants</h2>
 
-        {reviews.length === 0 && (
-          <p style={styles.muted}>Aucun avis pour le moment.</p>
+        <input
+          placeholder="Rechercher par numéro, prénom, nom, produit ou texte..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={styles.input}
+        />
+
+        {filteredReviews.length === 0 && (
+          <p style={styles.muted}>Aucun avis trouvé.</p>
         )}
 
-        {reviews.map((item) => (
+        {filteredReviews.map((item) => (
           <div key={item.id} style={styles.reviewCard}>
             <div style={styles.reviewHeader}>
-                <span>Avis #{item.id}</span>
-                <span>
-                    {item.customer_first_name} {item.customer_last_name}
-                </span>
+              <span>Avis #{item.id}</span>
+              <span>
+                {item.visible ? "Visible" : "Masqué"} ·{" "}
+                {item.customer_first_name} {item.customer_last_name}
+              </span>
             </div>
+
             <input
               value={item.product_handle || ""}
               onChange={(e) =>
@@ -404,6 +438,15 @@ export default function ReviewsPage() {
               value={item.review || ""}
               onChange={(e) =>
                 updateLocalReview(item.id, "review", e.target.value)
+              }
+              style={styles.textarea}
+            />
+
+            <textarea
+              placeholder="Réponse du marchand"
+              value={item.merchant_reply || ""}
+              onChange={(e) =>
+                updateLocalReview(item.id, "merchant_reply", e.target.value)
               }
               style={styles.textarea}
             />
@@ -612,28 +655,27 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "18px",
     marginTop: "18px",
   },
+  reviewHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "16px",
+    paddingBottom: "12px",
+    borderBottom: "1px solid #1e293b",
+    color: "#a78bfa",
+    fontWeight: "bold",
+    fontSize: "15px",
+  },
   row: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
     gap: "12px",
   },
- checkboxRow: {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: "16px",
-  marginTop: "16px",
-  color: "#cbd5e1",
-},
-
-reviewHeader: {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginBottom: "16px",
-  paddingBottom: "12px",
-  borderBottom: "1px solid #1e293b",
-  color: "#a78bfa",
-  fontWeight: "bold",
-  fontSize: "15px",
-},
+  checkboxRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "16px",
+    marginTop: "16px",
+    color: "#cbd5e1",
+  },
 }

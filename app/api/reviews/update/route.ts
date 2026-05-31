@@ -7,6 +7,7 @@ export async function POST(req: Request) {
 
     const {
       id,
+      product_handle,
       customer_first_name,
       customer_last_name,
       rating,
@@ -17,14 +18,12 @@ export async function POST(req: Request) {
       verified_parent,
       verified_purchase,
       visible,
+      merchant_reply,
     } = body
 
     if (!id) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "id obligatoire",
-        },
+        { success: false, error: "id obligatoire" },
         { status: 400 }
       )
     }
@@ -32,17 +31,19 @@ export async function POST(req: Request) {
     const result = await sql`
       UPDATE product_reviews
       SET
-        customer_first_name = ${customer_first_name},
-        customer_last_name = ${customer_last_name},
-        rating = ${rating},
-        review = ${review},
-        image_url = ${image_url},
-        video_url = ${video_url},
-        verified = ${verified},
-        verified_parent = ${verified_parent},
-        verified_purchase = ${verified_purchase},
-        visible = ${visible}
-      WHERE id = ${id}
+        product_handle = ${product_handle},
+        customer_first_name = ${customer_first_name || ""},
+        customer_last_name = ${customer_last_name || ""},
+        rating = ${Number(rating || 5)},
+        review = ${review || ""},
+        image_url = ${image_url || ""},
+        video_url = ${video_url || ""},
+        verified = ${verified ?? false},
+        verified_parent = ${verified_parent ?? false},
+        verified_purchase = ${verified_purchase ?? false},
+        visible = ${visible ?? true},
+        merchant_reply = ${merchant_reply || ""}
+      WHERE id = ${Number(id)}
       RETURNING *
     `
 
@@ -52,10 +53,7 @@ export async function POST(req: Request) {
     })
   } catch (error) {
     return NextResponse.json(
-      {
-        success: false,
-        error: String(error),
-      },
+      { success: false, error: String(error) },
       { status: 500 }
     )
   }

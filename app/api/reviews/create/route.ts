@@ -1,25 +1,11 @@
-import { NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
+import { NextResponse } from "next/server"
+import { sql } from "@vercel/postgres"
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const body = await req.json();
+    const body = await request.json()
 
-    const {
-      shop,
-      product_handle,
-      customer_first_name,
-      customer_last_name,
-      rating,
-      review,
-      image_url,
-      video_url,
-      verified,
-      verified_parent,
-      verified_purchase,
-    } = body;
-
-    const result = await sql`
+    await sql`
       INSERT INTO product_reviews (
         shop,
         product_handle,
@@ -31,37 +17,32 @@ export async function POST(req: Request) {
         video_url,
         verified,
         verified_parent,
-        verified_purchase
+        verified_purchase,
+        visible,
+        merchant_reply
       )
       VALUES (
-        ${shop},
-        ${product_handle},
-        ${customer_first_name},
-        ${customer_last_name},
-        ${rating},
-        ${review},
-        ${image_url},
-        ${video_url},
-        ${verified || false},
-        ${verified_parent || false},
-        ${verified_purchase || false}
+        ${body.shop || "kiidiiz.com"},
+        ${body.product_handle},
+        ${body.customer_first_name || ""},
+        ${body.customer_last_name || ""},
+        ${Number(body.rating || 5)},
+        ${body.review || ""},
+        ${body.image_url || ""},
+        ${body.video_url || ""},
+        ${body.verified ?? true},
+        ${body.verified_parent ?? true},
+        ${body.verified_purchase ?? true},
+        ${body.visible ?? true},
+        ${body.merchant_reply || ""}
       )
-      RETURNING *;
-    `;
+    `
 
-    return NextResponse.json({
-      success: true,
-      review: result.rows[0],
-    });
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error(error);
-
     return NextResponse.json(
-      {
-        success: false,
-        error: "Erreur lors de la création de l'avis",
-      },
+      { success: false, error: String(error) },
       { status: 500 }
-    );
+    )
   }
 }
