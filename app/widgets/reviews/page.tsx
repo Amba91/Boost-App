@@ -22,6 +22,7 @@ type Review = {
 export default function ReviewsPage() {
   const [active, setActive] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
   const [reviews, setReviews] = useState<Review[]>([])
 
   const [form, setForm] = useState({
@@ -66,6 +67,56 @@ export default function ReviewsPage() {
 
     setActive(newState)
     setLoading(false)
+  }
+
+  async function uploadImage(file: File) {
+    const formData = new FormData()
+    formData.append("file", file)
+
+    const res = await fetch("/api/reviews/upload-image", {
+      method: "POST",
+      body: formData,
+    })
+
+    const data = await res.json()
+
+    if (!data.success) {
+      alert("Erreur upload image")
+      return ""
+    }
+
+    return data.url
+  }
+
+  async function handleNewImageUpload(file?: File) {
+    if (!file) return
+
+    setUploading(true)
+
+    const url = await uploadImage(file)
+
+    if (url) {
+      setForm({
+        ...form,
+        image_url: url,
+      })
+    }
+
+    setUploading(false)
+  }
+
+  async function handleExistingImageUpload(id: number, file?: File) {
+    if (!file) return
+
+    setUploading(true)
+
+    const url = await uploadImage(file)
+
+    if (url) {
+      updateLocalReview(id, "image_url", url)
+    }
+
+    setUploading(false)
   }
 
   async function createReview() {
@@ -232,8 +283,19 @@ export default function ReviewsPage() {
           style={styles.input}
         />
 
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => handleNewImageUpload(e.target.files?.[0])}
+          style={styles.file}
+        />
+
+        {form.image_url && (
+          <img src={form.image_url} alt="Aperçu" style={styles.preview} />
+        )}
+
         <button onClick={createReview} style={styles.button}>
-          Ajouter l’avis
+          {uploading ? "Upload en cours..." : "Ajouter l’avis"}
         </button>
       </div>
 
@@ -310,6 +372,23 @@ export default function ReviewsPage() {
               }
               style={styles.input}
             />
+
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) =>
+                handleExistingImageUpload(item.id, e.target.files?.[0])
+              }
+              style={styles.file}
+            />
+
+            {item.image_url && (
+              <img
+                src={item.image_url}
+                alt="Avis client"
+                style={styles.preview}
+              />
+            )}
 
             <div style={styles.checkboxRow}>
               <label>
@@ -441,6 +520,18 @@ const styles: Record<string, React.CSSProperties> = {
     border: "none",
     fontSize: "15px",
     minHeight: "100px",
+  },
+  file: {
+    width: "100%",
+    marginTop: "12px",
+    color: "#cbd5e1",
+  },
+  preview: {
+    width: "90px",
+    height: "90px",
+    objectFit: "cover",
+    borderRadius: "12px",
+    marginTop: "12px",
   },
   reviewCard: {
     background: "#050816",
