@@ -175,6 +175,20 @@ export default function ReviewsPage() {
     loadReviews()
   }
 
+  async function deleteReview(id: number) {
+    if (!confirm("Supprimer cet avis définitivement ?")) return
+
+    await fetch("/api/reviews/delete", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id }),
+    })
+
+    loadReviews()
+  }
+
   function updateLocalReview(id: number, field: keyof Review, value: any) {
     setReviews((items) =>
       items.map((item) =>
@@ -470,6 +484,17 @@ export default function ReviewsPage() {
 
             <button onClick={() => updateReview(item)} style={styles.button}>
               Enregistrer les modifications
+            </button>
+
+            <button
+              onClick={() => deleteReview(item.id)}
+              style={{
+                ...styles.button,
+                background: "#dc2626",
+                marginTop: "10px",
+              }}
+            >
+              Supprimer l’avis
             </button>
           </div>
         ))}
