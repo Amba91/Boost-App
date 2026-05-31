@@ -346,6 +346,12 @@ export default function ReviewsPage() {
 
         {reviews.map((item) => (
           <div key={item.id} style={styles.reviewCard}>
+            <div style={styles.reviewHeader}>
+                <span>Avis #{item.id}</span>
+                <span>
+                    {item.customer_first_name} {item.customer_last_name}
+                </span>
+            </div>
             <input
               value={item.product_handle || ""}
               onChange={(e) =>
@@ -611,11 +617,23 @@ const styles: Record<string, React.CSSProperties> = {
     gridTemplateColumns: "1fr 1fr",
     gap: "12px",
   },
-  checkboxRow: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "16px",
-    marginTop: "16px",
-    color: "#cbd5e1",
-  },
+ checkboxRow: {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "16px",
+  marginTop: "16px",
+  color: "#cbd5e1",
+},
+
+reviewHeader: {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: "16px",
+  paddingBottom: "12px",
+  borderBottom: "1px solid #1e293b",
+  color: "#a78bfa",
+  fontWeight: "bold",
+  fontSize: "15px",
+},
 }
