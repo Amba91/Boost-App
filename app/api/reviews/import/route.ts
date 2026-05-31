@@ -3,7 +3,14 @@ import { sql } from "@vercel/postgres"
 
 const SHOP = "kiidiiz.com"
 
-function parseCSVLine(line: string) {
+function detectDelimiter(line: string) {
+  const semicolonCount = (line.match(/;/g) || []).length
+  const commaCount = (line.match(/,/g) || []).length
+
+  return semicolonCount > commaCount ? ";" : ","
+}
+
+function parseCSVLine(line: string, delimiter: string) {
   const result: string[] = []
   let current = ""
   let insideQuotes = false
@@ -17,20 +24,22 @@ function parseCSVLine(line: string) {
       i++
     } else if (char === '"') {
       insideQuotes = !insideQuotes
-    } else if (char === "," && !insideQuotes) {
-      result.push(current)
+    } else if (char === delimiter && !insideQuotes) {
+      result.push(current.trim())
       current = ""
     } else {
       current += char
     }
   }
 
-  result.push(current)
+  result.push(current.trim())
   return result
 }
 
 function toBoolean(value: string) {
-  return ["true", "1", "yes", "oui"].includes(String(value).toLowerCase())
+  return ["true", "1", "yes", "oui", "vrai"].includes(
+    String(value || "").toLowerCase().trim()
+  )
 }
 
 export async function POST(request: Request) {
@@ -46,14 +55,22 @@ export async function POST(request: Request) {
     }
 
     const text = await file.text()
-    const lines = text.split(/\r?\n/).filter(Boolean)
+    const lines = text.split(/\r?\n/).filter((line) => line.trim())
 
-    const headers = parseCSVLine(lines[0]).map((h) => h.trim())
+    if (lines.length < 2) {
+      return NextResponse.json({
+        success: false,
+        error: "CSV vide ou sans données",
+      })
+    }
+
+    const delimiter = detectDelimiter(lines[0])
+    const headers = parseCSVLine(lines[0], delimiter).map((h) => h.trim())
 
     let imported = 0
 
     for (const line of lines.slice(1)) {
-      const values = parseCSVLine(line)
+      const values = parseCSVLine(line, delimiter)
 
       const row: Record<string, string> = {}
 
