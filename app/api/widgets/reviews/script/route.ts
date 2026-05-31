@@ -26,9 +26,9 @@ export async function GET() {
       )
 
       const data = await response.json()
-      if (!data.success) return
+      if (!data.success || !data.reviews?.length) return
 
-      renderReviews(data.reviews || [])
+      renderReviews(data.reviews)
     } catch (error) {
       console.error("Boost Reviews Error", error)
     }
@@ -38,12 +38,16 @@ export async function GET() {
     const oldWidget = document.getElementById("boost-reviews-widget")
     if (oldWidget) oldWidget.remove()
 
-    if (!reviews.length) return
-
-    const target =
+    const form =
       document.querySelector('form[action*="/cart/add"]') ||
       document.querySelector(".product-form") ||
       document.querySelector("product-form")
+
+    const target =
+      form ||
+      document.querySelector(".product__info-container") ||
+      document.querySelector(".product__info-wrapper") ||
+      document.querySelector("main")
 
     if (!target || !target.parentNode) return
 
@@ -66,25 +70,23 @@ export async function GET() {
         </button>
 
         <div class="boost-reviews-details">
-          <div class="boost-review-item">
-            <div class="boost-review-top">
-              <strong>
-                \${firstReview.customer_first_name || ""}
-                \${firstReview.customer_last_name || ""}
-              </strong>
+          <div class="boost-review-top">
+            <strong>
+              \${firstReview.customer_first_name || ""}
+              \${firstReview.customer_last_name || ""}
+            </strong>
 
-              <span class="boost-review-stars">
-                \${"★".repeat(Number(firstReview.rating || 5))}
-              </span>
-            </div>
+            <span class="boost-review-stars">
+              \${"★".repeat(Number(firstReview.rating || 5))}
+            </span>
+          </div>
 
-            <p>\${firstReview.review || ""}</p>
+          <p>\${firstReview.review || ""}</p>
 
-            <div class="boost-review-badges">
-              \${firstReview.verified ? "<span>✓ Vérifié</span>" : ""}
-              \${firstReview.verified_parent ? "<span>✓ Parent vérifié</span>" : ""}
-              \${firstReview.verified_purchase ? "<span>✓ Achat confirmé</span>" : ""}
-            </div>
+          <div class="boost-review-badges">
+            \${firstReview.verified ? "<span>✓ Vérifié</span>" : ""}
+            \${firstReview.verified_parent ? "<span>✓ Parent vérifié</span>" : ""}
+            \${firstReview.verified_purchase ? "<span>✓ Achat confirmé</span>" : ""}
           </div>
         </div>
       </div>
@@ -93,13 +95,14 @@ export async function GET() {
     const style = document.createElement("style")
     style.innerHTML = \`
       #boost-reviews-widget {
-        margin: 14px 0 18px;
+        margin: 12px 0 16px;
         font-family: inherit;
+        width: 100%;
       }
 
       .boost-reviews-compact {
         border: 1px solid rgba(15, 23, 42, 0.10);
-        border-radius: 14px;
+        border-radius: 12px;
         background: #fff;
         overflow: hidden;
       }
@@ -107,8 +110,8 @@ export async function GET() {
       .boost-reviews-summary {
         width: 100%;
         border: none;
-        background: transparent;
-        padding: 12px 14px;
+        background: #fff;
+        padding: 11px 13px;
         display: flex;
         align-items: center;
         gap: 7px;
@@ -120,7 +123,7 @@ export async function GET() {
       }
 
       .boost-star {
-        font-size: 18px;
+        font-size: 17px;
       }
 
       .boost-chevron {
@@ -132,7 +135,7 @@ export async function GET() {
       .boost-reviews-details {
         display: none;
         border-top: 1px solid rgba(15, 23, 42, 0.08);
-        padding: 12px 14px;
+        padding: 12px 13px;
       }
 
       .boost-reviews-compact.boost-open .boost-reviews-details {
@@ -147,18 +150,16 @@ export async function GET() {
         display: flex;
         justify-content: space-between;
         gap: 12px;
-        align-items: center;
         color: #111827;
         font-size: 14px;
       }
 
       .boost-review-stars {
         color: #f59e0b;
-        letter-spacing: 1px;
         white-space: nowrap;
       }
 
-      .boost-review-item p {
+      .boost-reviews-details p {
         margin: 7px 0 10px;
         color: #374151;
         line-height: 1.45;
@@ -182,13 +183,18 @@ export async function GET() {
     \`
 
     document.head.appendChild(style)
-    target.parentNode.insertBefore(container, target)
+
+    if (form && form.parentNode) {
+      form.parentNode.insertBefore(container, form)
+    } else {
+      target.appendChild(container)
+    }
 
     const box = container.querySelector(".boost-reviews-compact")
     const button = container.querySelector(".boost-reviews-summary")
 
-    button.addEventListener("click", function () {
-      box.classList.toggle("boost-open")
+    button?.addEventListener("click", function () {
+      box?.classList.toggle("boost-open")
     })
   }
 
