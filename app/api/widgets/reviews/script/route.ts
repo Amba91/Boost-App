@@ -3,7 +3,6 @@ import { NextResponse } from "next/server"
 export async function GET() {
   const script = `
 (function () {
-  if (window.BOOST_REVIEWS_LOADED) return
   window.BOOST_REVIEWS_LOADED = true
 
   const shop = window.BOOST_SHOP || window.location.hostname
@@ -13,7 +12,7 @@ export async function GET() {
     return match ? match[1] : null
   }
 
-  async function loadReviews() {
+  async function loadReviews(attempt = 0) {
     const productHandle = getProductHandle()
     if (!productHandle) return
 
@@ -26,9 +25,16 @@ export async function GET() {
       )
 
       const data = await response.json()
-      if (!data.success || !data.reviews?.length) return
 
-      renderReviews(data.reviews)
+      if (!data.success) return
+
+      if (!data.reviews || data.reviews.length === 0) return
+
+      const rendered = renderReviews(data.reviews)
+
+      if (!rendered && attempt < 10) {
+        setTimeout(() => loadReviews(attempt + 1), 700)
+      }
     } catch (error) {
       console.error("Boost Reviews Error", error)
     }
@@ -49,7 +55,7 @@ export async function GET() {
       document.querySelector(".product__info-wrapper") ||
       document.querySelector("main")
 
-    if (!target || !target.parentNode) return
+    if (!target || !target.parentNode) return false
 
     const total = reviews.length
     const average =
@@ -61,32 +67,29 @@ export async function GET() {
     container.id = "boost-reviews-widget"
 
     container.innerHTML = \`
-      <div class="boost-reviews-compact">
+      <div class="boost-reviews-mini">
         <button class="boost-reviews-summary" type="button">
-          <span class="boost-star">⭐</span>
+          <span>⭐</span>
           <strong>\${average.toFixed(1)} / 5</strong>
           <span>(\${total} avis)</span>
           <span class="boost-chevron">⌄</span>
         </button>
 
-        <div class="boost-reviews-details">
-          <div class="boost-review-top">
+        <div class="boost-reviews-detail">
+          <div class="boost-review-name">
             <strong>
               \${firstReview.customer_first_name || ""}
               \${firstReview.customer_last_name || ""}
             </strong>
-
-            <span class="boost-review-stars">
-              \${"★".repeat(Number(firstReview.rating || 5))}
-            </span>
+            <span>\${"★".repeat(Number(firstReview.rating || 5))}</span>
           </div>
 
           <p>\${firstReview.review || ""}</p>
 
           <div class="boost-review-badges">
-            \${firstReview.verified ? "<span>✓ Vérifié</span>" : ""}
-            \${firstReview.verified_parent ? "<span>✓ Parent vérifié</span>" : ""}
-            \${firstReview.verified_purchase ? "<span>✓ Achat confirmé</span>" : ""}
+            \${firstReview.verified ? "<small>✓ Vérifié</small>" : ""}
+            \${firstReview.verified_parent ? "<small>✓ Parent vérifié</small>" : ""}
+            \${firstReview.verified_purchase ? "<small>✓ Achat confirmé</small>" : ""}
           </div>
         </div>
       </div>
@@ -100,85 +103,79 @@ export async function GET() {
         width: 100%;
       }
 
-      .boost-reviews-compact {
-        border: 1px solid rgba(15, 23, 42, 0.10);
-        border-radius: 12px;
+      .boost-reviews-mini {
         background: #fff;
+        border: 1px solid rgba(0,0,0,.10);
+        border-radius: 12px;
         overflow: hidden;
       }
 
       .boost-reviews-summary {
         width: 100%;
-        border: none;
+        padding: 10px 12px;
+        border: 0;
         background: #fff;
-        padding: 11px 13px;
         display: flex;
         align-items: center;
         gap: 7px;
         cursor: pointer;
-        color: #111827;
         font: inherit;
-        font-size: 15px;
+        color: #111827;
         text-align: left;
-      }
-
-      .boost-star {
-        font-size: 17px;
       }
 
       .boost-chevron {
         margin-left: auto;
         font-size: 18px;
-        opacity: .7;
       }
 
-      .boost-reviews-details {
+      .boost-reviews-detail {
         display: none;
-        border-top: 1px solid rgba(15, 23, 42, 0.08);
-        padding: 12px 13px;
+        padding: 10px 12px;
+        border-top: 1px solid rgba(0,0,0,.08);
       }
 
-      .boost-reviews-compact.boost-open .boost-reviews-details {
+      .boost-reviews-mini.open .boost-reviews-detail {
         display: block;
       }
 
-      .boost-reviews-compact.boost-open .boost-chevron {
+      .boost-reviews-mini.open .boost-chevron {
         transform: rotate(180deg);
       }
 
-      .boost-review-top {
+      .boost-review-name {
         display: flex;
         justify-content: space-between;
-        gap: 12px;
-        color: #111827;
+        gap: 10px;
         font-size: 14px;
+        color: #111827;
       }
 
-      .boost-review-stars {
+      .boost-review-name span {
         color: #f59e0b;
         white-space: nowrap;
       }
 
-      .boost-reviews-details p {
-        margin: 7px 0 10px;
-        color: #374151;
-        line-height: 1.45;
+      .boost-reviews-detail p {
+        margin: 6px 0 8px;
         font-size: 14px;
+        line-height: 1.4;
+        color: #374151;
       }
 
       .boost-review-badges {
         display: flex;
-        flex-wrap: wrap;
         gap: 6px;
+        flex-wrap: wrap;
       }
 
-      .boost-review-badges span {
+      .boost-review-badges small {
         background: #ecfdf5;
         color: #047857;
+        padding: 3px 7px;
+        border-radius: 999px;
         font-size: 11px;
         font-weight: 700;
-        padding: 4px 8px;
-        border-radius: 999px;
       }
     \`
 
@@ -190,15 +187,17 @@ export async function GET() {
       target.appendChild(container)
     }
 
-    const box = container.querySelector(".boost-reviews-compact")
+    const box = container.querySelector(".boost-reviews-mini")
     const button = container.querySelector(".boost-reviews-summary")
 
     button?.addEventListener("click", function () {
-      box?.classList.toggle("boost-open")
+      box?.classList.toggle("open")
     })
+
+    return true
   }
 
-  loadReviews()
+  setTimeout(() => loadReviews(), 800)
 })()
 `
 
