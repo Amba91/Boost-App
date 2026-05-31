@@ -23,6 +23,8 @@ export default function ReviewsPage() {
   const [active, setActive] = useState(false)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importMessage, setImportMessage] = useState("")
   const [reviews, setReviews] = useState<Review[]>([])
 
   const [form, setForm] = useState({
@@ -52,17 +54,12 @@ export default function ReviewsPage() {
 
   async function toggleWidget() {
     setLoading(true)
-
     const newState = !active
 
     await fetch("/api/widgets/reviews", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        active: newState,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active: newState }),
     })
 
     setActive(newState)
@@ -90,16 +87,12 @@ export default function ReviewsPage() {
 
   async function handleNewImageUpload(file?: File) {
     if (!file) return
-
     setUploading(true)
 
     const url = await uploadImage(file)
 
     if (url) {
-      setForm({
-        ...form,
-        image_url: url,
-      })
+      setForm({ ...form, image_url: url })
     }
 
     setUploading(false)
@@ -107,7 +100,6 @@ export default function ReviewsPage() {
 
   async function handleExistingImageUpload(id: number, file?: File) {
     if (!file) return
-
     setUploading(true)
 
     const url = await uploadImage(file)
@@ -119,6 +111,32 @@ export default function ReviewsPage() {
     setUploading(false)
   }
 
+  async function importCSV(file?: File) {
+    if (!file) return
+
+    setImporting(true)
+    setImportMessage("")
+
+    const formData = new FormData()
+    formData.append("file", file)
+
+    const res = await fetch("/api/reviews/import", {
+      method: "POST",
+      body: formData,
+    })
+
+    const data = await res.json()
+
+    if (data.success) {
+      setImportMessage(`${data.imported} avis importé(s) avec succès.`)
+      await loadReviews()
+    } else {
+      setImportMessage("Erreur pendant l’import CSV.")
+    }
+
+    setImporting(false)
+  }
+
   async function createReview() {
     if (!form.product_handle || !form.review) {
       alert("Produit handle et avis obligatoires")
@@ -127,13 +145,8 @@ export default function ReviewsPage() {
 
     await fetch("/api/reviews/create", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        shop: "kiidiiz.com",
-        ...form,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ shop: "kiidiiz.com", ...form }),
     })
 
     setForm({
@@ -155,9 +168,7 @@ export default function ReviewsPage() {
   async function updateReview(review: Review) {
     await fetch("/api/reviews/update", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(review),
     })
 
@@ -167,12 +178,7 @@ export default function ReviewsPage() {
   function updateLocalReview(id: number, field: keyof Review, value: any) {
     setReviews((items) =>
       items.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              [field]: value,
-            }
-          : item
+        item.id === id ? { ...item, [field]: value } : item
       )
     )
   }
@@ -200,12 +206,7 @@ export default function ReviewsPage() {
           Active ou désactive l’affichage des avis sur les fiches produits.
         </p>
 
-        <p
-          style={{
-            ...styles.status,
-            color: active ? "#22c55e" : "#ef4444",
-          }}
-        >
+        <p style={{ ...styles.status, color: active ? "#22c55e" : "#ef4444" }}>
           Statut : {active ? "ACTIF" : "INACTIF"}
         </p>
 
@@ -223,6 +224,29 @@ export default function ReviewsPage() {
             ? "Désactiver Reviews"
             : "Activer Reviews"}
         </button>
+      </div>
+
+      <div style={styles.card}>
+        <h2>Import / Export CSV</h2>
+
+        <p style={styles.muted}>
+          Importe ou exporte les avis au format CSV compatible Boost.
+        </p>
+
+        <input
+          type="file"
+          accept=".csv,text/csv"
+          onChange={(e) => importCSV(e.target.files?.[0])}
+          style={styles.file}
+        />
+
+        {importMessage && <p style={styles.success}>{importMessage}</p>}
+
+        <a href="/api/reviews/export" style={styles.exportLink}>
+          Télécharger les avis en CSV
+        </a>
+
+        {importing && <p style={styles.muted}>Import en cours...</p>}
       </div>
 
       <div style={styles.card}>
@@ -491,6 +515,24 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: "20px",
     fontSize: "22px",
     fontWeight: "bold",
+  },
+  success: {
+    color: "#22c55e",
+    fontWeight: "bold",
+    marginTop: "12px",
+  },
+  exportLink: {
+    display: "block",
+    width: "100%",
+    marginTop: "18px",
+    background: "#16a34a",
+    color: "white",
+    textAlign: "center",
+    textDecoration: "none",
+    padding: "16px",
+    borderRadius: "14px",
+    fontWeight: "bold",
+    fontSize: "16px",
   },
   button: {
     width: "100%",
