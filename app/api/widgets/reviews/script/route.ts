@@ -33,63 +33,6 @@ export async function GET() {
     }
   }
 
-  function findProductPaymentIcons(form) {
-    const productArea =
-      form.closest(".product__info-container") ||
-      form.closest(".product__info-wrapper") ||
-      form.closest("[class*='product']") ||
-      form.parentElement
-
-    if (!productArea) return null
-
-    const selectors = [
-      ".payment-icons",
-      ".list-payment",
-      "[class*='payment-icons']",
-      "[class*='list-payment']",
-      "[class*='shopify-payment']",
-      "[class*='payment-method']",
-      "[class*='methods-of-payment']"
-    ]
-
-    for (const selector of selectors) {
-      const items = productArea.querySelectorAll(selector)
-
-      for (const item of items) {
-        if (item.closest("footer")) continue
-        return item
-      }
-    }
-
-    let current = form
-
-    for (let i = 0; i < 8; i++) {
-      if (!current) break
-
-      const next = current.nextElementSibling
-
-      if (next) {
-        const text = next.innerText || ""
-        const html = next.innerHTML || ""
-
-        if (
-          html.includes("visa") ||
-          html.includes("paypal") ||
-          html.includes("apple") ||
-          html.includes("payment") ||
-          text.includes("Visa") ||
-          text.includes("PayPal")
-        ) {
-          return next
-        }
-      }
-
-      current = current.parentElement
-    }
-
-    return null
-  }
-
   function renderReviews(reviews) {
     const oldWidget = document.getElementById("boost-reviews-widget")
     if (oldWidget) oldWidget.remove()
@@ -101,53 +44,49 @@ export async function GET() {
 
     if (!form || !form.parentNode) return
 
-    const paymentIcons = findProductPaymentIcons(form)
-
     const total = reviews.length
     const average =
       reviews.reduce((sum, item) => sum + Number(item.rating || 0), 0) / total
 
-    const previewReviews = reviews.slice(0, 4)
+    let currentIndex = 0
 
     const container = document.createElement("div")
     container.id = "boost-reviews-widget"
 
+    function reviewHtml(review) {
+      const initials = (review.customer_first_name || "C").charAt(0)
+
+      return \`
+        <div class="boost-single-review">
+          <div class="boost-review-avatar">
+            \${review.image_url ? \`<img src="\${review.image_url}" />\` : \`<span>\${initials}</span>\`}
+          </div>
+
+          <div class="boost-review-content">
+            <div class="boost-review-title">
+              <strong>\${review.customer_first_name || ""} \${review.customer_last_name || ""}</strong>
+              <span>\${"★".repeat(Number(review.rating || 5))}</span>
+            </div>
+
+            <p>\${review.review || ""}</p>
+          </div>
+        </div>
+      \`
+    }
+
     container.innerHTML = \`
       <div class="boost-reviews-box">
-        <button class="boost-reviews-summary" type="button">
+        <div class="boost-reviews-summary">
           <span>⭐</span>
           <strong>\${average.toFixed(1)} / 5</strong>
           <span>(\${total} avis)</span>
-          <span class="boost-chevron">⌄</span>
-        </button>
+        </div>
 
-        <div class="boost-reviews-carousel">
+        <div class="boost-review-slider">
           <button class="boost-review-arrow boost-prev" type="button">‹</button>
 
-          <div class="boost-review-track">
-            \${previewReviews.map((review) => \`
-              <div class="boost-review-card">
-                <div class="boost-review-head">
-                  <div class="boost-review-avatar">
-                    \${(review.customer_first_name || "C").charAt(0)}
-                  </div>
-
-                  <div>
-                    <strong>
-                      \${review.customer_first_name || ""}
-                      \${review.customer_last_name || ""}
-                    </strong>
-                    <div class="boost-review-stars">
-                      \${"★".repeat(Number(review.rating || 5))}
-                    </div>
-                  </div>
-                </div>
-
-                <p>\${review.review || ""}</p>
-
-                \${review.image_url ? \`<img src="\${review.image_url}" class="boost-review-image" />\` : ""}
-              </div>
-            \`).join("")}
+          <div class="boost-review-current">
+            \${reviewHtml(reviews[currentIndex])}
           </div>
 
           <button class="boost-review-arrow boost-next" type="button">›</button>
@@ -164,136 +103,111 @@ export async function GET() {
       }
 
       .boost-reviews-box {
-        background: #fff;
-        border: 1px solid rgba(0,0,0,.10);
-        border-radius: 14px;
-        overflow: hidden;
+        background: #f0fffb;
+        border-radius: 16px;
+        padding: 14px;
       }
 
       .boost-reviews-summary {
-        width: 100%;
-        padding: 10px 13px;
-        border: 0;
-        background: #fff;
         display: flex;
         align-items: center;
         gap: 7px;
-        cursor: pointer;
-        font: inherit;
+        margin-bottom: 10px;
         color: #111827;
-        text-align: left;
+        font-size: 14px;
       }
 
-      .boost-chevron {
-        margin-left: auto;
-        font-size: 18px;
-        opacity: .7;
-      }
-
-      .boost-reviews-carousel {
-        display: none;
+      .boost-review-slider {
         position: relative;
-        border-top: 1px solid rgba(0,0,0,.08);
-        padding: 12px 34px;
-      }
-
-      .boost-reviews-box.open .boost-reviews-carousel {
-        display: block;
-      }
-
-      .boost-review-track {
         display: flex;
-        gap: 10px;
-        overflow-x: auto;
-        scroll-snap-type: x mandatory;
-        scrollbar-width: none;
-      }
-
-      .boost-review-track::-webkit-scrollbar {
-        display: none;
-      }
-
-      .boost-review-card {
-        min-width: 180px;
-        max-width: 200px;
-        border: 1px solid rgba(0,0,0,.08);
-        border-radius: 12px;
-        padding: 10px;
-        scroll-snap-align: start;
-        background: #fff;
-      }
-
-      .boost-review-head {
-        display: flex;
-        gap: 8px;
         align-items: center;
-        font-size: 13px;
-        color: #111827;
+        gap: 10px;
+      }
+
+      .boost-review-current {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .boost-single-review {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        background: #f0fffb;
+        border-radius: 14px;
       }
 
       .boost-review-avatar {
-        width: 30px;
-        height: 30px;
+        width: 48px;
+        height: 48px;
         border-radius: 999px;
-        background: #ecfdf5;
+        background: #d1fae5;
         color: #047857;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 800;
         flex-shrink: 0;
+        overflow: hidden;
       }
 
-      .boost-review-stars {
+      .boost-review-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .boost-review-content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .boost-review-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        font-size: 14px;
+        color: #111827;
+      }
+
+      .boost-review-title span {
         color: #f59e0b;
         font-size: 12px;
-        margin-top: 2px;
+        white-space: nowrap;
       }
 
-      .boost-review-card p {
-        margin: 8px 0 0;
-        font-size: 12px;
-        line-height: 1.35;
+      .boost-review-content p {
+        margin: 5px 0 0;
         color: #374151;
+        font-size: 13px;
+        line-height: 1.35;
         display: -webkit-box;
         -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
         overflow: hidden;
       }
 
-      .boost-review-image {
-        margin-top: 8px;
-        width: 100%;
-        height: 65px;
-        object-fit: cover;
-        border-radius: 9px;
-      }
-
       .boost-review-arrow {
-        position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 24px;
-        height: 24px;
+        width: 28px;
+        height: 28px;
         border-radius: 999px;
-        border: 1px solid rgba(0,0,0,.12);
+        border: 1px solid rgba(0,0,0,.16);
         background: #fff;
         cursor: pointer;
-        font-size: 18px;
+        font-size: 22px;
         line-height: 1;
         color: #111827;
-      }
-
-      .boost-prev {
-        left: 6px;
-      }
-
-      .boost-next {
-        right: 6px;
+        flex-shrink: 0;
       }
     \`
 
     document.head.appendChild(style)
+
+    const paymentIcons =
+      form.parentNode.querySelector(".list-payment") ||
+      form.parentNode.querySelector(".payment-icons") ||
+      form.parentNode.querySelector('[class*="payment"]')
 
     if (paymentIcons && paymentIcons.parentNode) {
       paymentIcons.parentNode.insertBefore(container, paymentIcons.nextSibling)
@@ -301,22 +215,22 @@ export async function GET() {
       form.parentNode.insertBefore(container, form.nextSibling)
     }
 
-    const box = container.querySelector(".boost-reviews-box")
-    const summary = container.querySelector(".boost-reviews-summary")
-    const track = container.querySelector(".boost-review-track")
+    const current = container.querySelector(".boost-review-current")
     const prev = container.querySelector(".boost-prev")
     const next = container.querySelector(".boost-next")
 
-    summary?.addEventListener("click", function () {
-      box?.classList.toggle("open")
-    })
+    function updateReview() {
+      current.innerHTML = reviewHtml(reviews[currentIndex])
+    }
 
     prev?.addEventListener("click", function () {
-      track?.scrollBy({ left: -210, behavior: "smooth" })
+      currentIndex = currentIndex === 0 ? reviews.length - 1 : currentIndex - 1
+      updateReview()
     })
 
     next?.addEventListener("click", function () {
-      track?.scrollBy({ left: 210, behavior: "smooth" })
+      currentIndex = currentIndex === reviews.length - 1 ? 0 : currentIndex + 1
+      updateReview()
     })
   }
 
