@@ -5,14 +5,14 @@ export async function GET() {
 (function () {
   window.BOOST_REVIEWS_LOADED = true
 
-  const shop = window.BOOST_SHOP || window.location.hostname
+  const shop = window.location.hostname
 
   function getProductHandle() {
     const match = window.location.pathname.match(/\\/products\\/([^/?#]+)/)
     return match ? match[1] : null
   }
 
-  async function loadReviews(attempt = 0) {
+  async function loadReviews() {
     const productHandle = getProductHandle()
     if (!productHandle) return
 
@@ -26,15 +26,9 @@ export async function GET() {
 
       const data = await response.json()
 
-      if (!data.success) return
+      if (!data.success || !data.reviews || data.reviews.length === 0) return
 
-      if (!data.reviews || data.reviews.length === 0) return
-
-      const rendered = renderReviews(data.reviews)
-
-      if (!rendered && attempt < 10) {
-        setTimeout(() => loadReviews(attempt + 1), 700)
-      }
+      renderReviews(data.reviews)
     } catch (error) {
       console.error("Boost Reviews Error", error)
     }
@@ -49,13 +43,7 @@ export async function GET() {
       document.querySelector(".product-form") ||
       document.querySelector("product-form")
 
-    const target =
-      form ||
-      document.querySelector(".product__info-container") ||
-      document.querySelector(".product__info-wrapper") ||
-      document.querySelector("main")
-
-    if (!target || !target.parentNode) return false
+    if (!form || !form.parentNode) return
 
     const total = reviews.length
     const average =
@@ -139,10 +127,6 @@ export async function GET() {
         display: block;
       }
 
-      .boost-reviews-mini.open .boost-chevron {
-        transform: rotate(180deg);
-      }
-
       .boost-review-name {
         display: flex;
         justify-content: space-between;
@@ -180,12 +164,7 @@ export async function GET() {
     \`
 
     document.head.appendChild(style)
-
-    if (form && form.parentNode) {
-      form.parentNode.insertBefore(container, form)
-    } else {
-      target.appendChild(container)
-    }
+    form.parentNode.insertBefore(container, form)
 
     const box = container.querySelector(".boost-reviews-mini")
     const button = container.querySelector(".boost-reviews-summary")
@@ -193,11 +172,9 @@ export async function GET() {
     button?.addEventListener("click", function () {
       box?.classList.toggle("open")
     })
-
-    return true
   }
 
-  setTimeout(() => loadReviews(), 800)
+  setTimeout(loadReviews, 800)
 })()
 `
 
