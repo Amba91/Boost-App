@@ -25,7 +25,9 @@ export default function ReviewsPage() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [smartImporting, setSmartImporting] = useState(false)
   const [importMessage, setImportMessage] = useState("")
+  const [smartImportMessage, setSmartImportMessage] = useState("")
   const [search, setSearch] = useState("")
   const [reviews, setReviews] = useState<Review[]>([])
 
@@ -150,6 +152,56 @@ export default function ReviewsPage() {
     }
 
     setImporting(false)
+  }
+
+  async function importSmartJSON(file?: File) {
+    if (!file) return
+
+    setSmartImporting(true)
+    setSmartImportMessage("")
+
+    try {
+      const text = await file.text()
+      const parsed = JSON.parse(text)
+
+      const reviewsToImport = Array.isArray(parsed) ? parsed : parsed.reviews
+
+      if (!Array.isArray(reviewsToImport)) {
+        setSmartImportMessage(
+          "Format invalide. Le fichier doit contenir un tableau d’avis ou un objet { reviews: [...] }."
+        )
+        setSmartImporting(false)
+        return
+      }
+
+      const res = await fetch("/api/reviews/import-smart", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reviews: reviewsToImport,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        setSmartImportMessage(
+          `${data.imported} avis importé(s) avec succès. ${data.skipped || 0} avis ignoré(s).`
+        )
+        await loadReviews()
+      } else {
+        setSmartImportMessage(
+          data.error || "Erreur pendant l’import intelligent."
+        )
+      }
+    } catch (error) {
+      console.error("SMART IMPORT JSON ERROR:", error)
+      setSmartImportMessage("Erreur : le fichier JSON est invalide.")
+    }
+
+    setSmartImporting(false)
   }
 
   async function createReview() {
@@ -277,6 +329,57 @@ export default function ReviewsPage() {
         </a>
 
         {importing && <p style={styles.muted}>Import en cours...</p>}
+      </div>
+
+      <div style={styles.card}>
+        <h2>Import intelligent JSON</h2>
+
+        <p style={styles.muted}>
+          Importe des avis venant d’Amazon, AliExpress, Loox, Judge.me ou Ryviu
+          à partir d’un fichier JSON normalisé.
+        </p>
+
+        <input
+          type="file"
+          accept=".json,application/json"
+          onChange={(e) => importSmartJSON(e.target.files?.[0])}
+          style={styles.file}
+        />
+
+        {smartImportMessage && (
+          <p
+            style={
+              smartImportMessage.toLowerCase().includes("erreur") ||
+              smartImportMessage.toLowerCase().includes("invalide")
+                ? styles.error
+                : styles.success
+            }
+          >
+            {smartImportMessage}
+          </p>
+        )}
+
+        {smartImporting && (
+          <p style={styles.muted}>Import intelligent en cours...</p>
+        )}
+
+        <div style={styles.codeBox}>
+          <p style={styles.codeTitle}>Format JSON accepté :</p>
+          <pre style={styles.pre}>
+{`{
+  "reviews": [
+    {
+      "product_handle": "jouet-educatif",
+      "name": "Aminata Diallo",
+      "rating": 5,
+      "body": "Très bon produit, mon enfant adore.",
+      "photo": "https://exemple.com/photo.jpg",
+      "verified_purchase": true
+    }
+  ]
+}`}
+          </pre>
+        </div>
       </div>
 
       <div style={styles.card}>
@@ -595,6 +698,11 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: "bold",
     marginTop: "12px",
   },
+  error: {
+    color: "#ef4444",
+    fontWeight: "bold",
+    marginTop: "12px",
+  },
   exportLink: {
     display: "block",
     width: "100%",
@@ -677,5 +785,23 @@ const styles: Record<string, React.CSSProperties> = {
     gap: "16px",
     marginTop: "16px",
     color: "#cbd5e1",
+  },
+  codeBox: {
+    background: "#050816",
+    border: "1px solid #1e293b",
+    borderRadius: "14px",
+    padding: "16px",
+    marginTop: "18px",
+  },
+  codeTitle: {
+    color: "#cbd5e1",
+    fontWeight: "bold",
+    marginTop: 0,
+  },
+  pre: {
+    color: "#cbd5e1",
+    whiteSpace: "pre-wrap",
+    fontSize: "13px",
+    marginBottom: 0,
   },
 }
