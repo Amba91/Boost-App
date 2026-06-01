@@ -121,11 +121,7 @@ function detectSource(headers: string[]): ImportSource {
 
   const has = (key: string) => normalizedHeaders.includes(normalizeHeader(key))
 
-  if (
-    has("product_handle") &&
-    has("customer_first_name") &&
-    has("review")
-  ) {
+  if (has("product_handle") && has("customer_first_name") && has("review")) {
     return "boost"
   }
 
@@ -162,11 +158,14 @@ function detectSource(headers: string[]): ImportSource {
 
 function normalizeRow(
   row: Record<string, string>,
-  source: ImportSource
+  source: ImportSource,
+  targetProductHandle: string
 ): NormalizedReview | null {
+  const fallbackProductHandle = targetProductHandle.trim()
+
   if (source === "boost") {
     return {
-      product_handle: getValue(row, ["product_handle"]),
+      product_handle: getValue(row, ["product_handle"]) || fallbackProductHandle,
       customer_first_name: getValue(row, ["customer_first_name"]),
       customer_last_name: getValue(row, ["customer_last_name"]),
       rating: toRating(getValue(row, ["rating"])),
@@ -187,12 +186,13 @@ function normalizeRow(
     const name = splitFullName(fullName)
 
     return {
-      product_handle: getValue(row, [
-        "product_handle",
-        "product_slug",
-        "handle",
-        "product_url",
-      ]),
+      product_handle:
+        getValue(row, [
+          "product_handle",
+          "product_slug",
+          "handle",
+          "product_url",
+        ]) || fallbackProductHandle,
       customer_first_name: name.firstName,
       customer_last_name: name.lastName,
       rating: toRating(getValue(row, ["rating", "stars"])),
@@ -216,12 +216,13 @@ function normalizeRow(
     const name = splitFullName(fullName)
 
     return {
-      product_handle: getValue(row, [
-        "product_handle",
-        "handle",
-        "product_title",
-        "product_external_id",
-      ]),
+      product_handle:
+        getValue(row, [
+          "product_handle",
+          "handle",
+          "product_title",
+          "product_external_id",
+        ]) || fallbackProductHandle,
       customer_first_name: name.firstName,
       customer_last_name: name.lastName,
       rating: toRating(getValue(row, ["rating", "stars"])),
@@ -242,12 +243,13 @@ function normalizeRow(
     const name = splitFullName(fullName)
 
     return {
-      product_handle: getValue(row, [
-        "product_handle",
-        "handle",
-        "asin",
-        "product_title",
-      ]),
+      product_handle:
+        getValue(row, [
+          "product_handle",
+          "handle",
+          "asin",
+          "product_title",
+        ]) || fallbackProductHandle,
       customer_first_name: name.firstName,
       customer_last_name: name.lastName,
       rating: toRating(getValue(row, ["rating", "stars", "review_rating"])),
@@ -265,12 +267,13 @@ function normalizeRow(
   const name = splitFullName(fullName)
 
   return {
-    product_handle: getValue(row, [
-      "product_handle",
-      "handle",
-      "product",
-      "product_title",
-    ]),
+    product_handle:
+      getValue(row, [
+        "product_handle",
+        "handle",
+        "product",
+        "product_title",
+      ]) || fallbackProductHandle,
     customer_first_name:
       getValue(row, ["customer_first_name", "first_name"]) || name.firstName,
     customer_last_name:
@@ -290,6 +293,9 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData()
     const file = formData.get("file") as File | null
+    const targetProductHandle = String(
+      formData.get("target_product_handle") || ""
+    ).trim()
 
     if (!file) {
       return NextResponse.json(
@@ -325,7 +331,7 @@ export async function POST(request: Request) {
         row[header] = values[index] || ""
       })
 
-      const normalizedReview = normalizeRow(row, source)
+      const normalizedReview = normalizeRow(row, source, targetProductHandle)
 
       if (!normalizedReview?.product_handle || !normalizedReview.review) {
         skipped++
@@ -371,6 +377,7 @@ export async function POST(request: Request) {
       source,
       imported,
       skipped,
+      target_product_handle: targetProductHandle,
     })
   } catch (error) {
     return NextResponse.json(

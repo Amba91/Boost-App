@@ -20,6 +20,15 @@ type Review = {
   merchant_reply: string
 }
 
+type ShopifyProduct = {
+  id: string
+  title: string
+  handle: string
+  status?: string
+  image_url?: string
+  price?: string
+}
+
 export default function ReviewsPage() {
   const [active, setActive] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -30,6 +39,9 @@ export default function ReviewsPage() {
   const [smartImportMessage, setSmartImportMessage] = useState("")
   const [search, setSearch] = useState("")
   const [reviews, setReviews] = useState<Review[]>([])
+  const [products, setProducts] = useState<ShopifyProduct[]>([])
+  const [productsLoading, setProductsLoading] = useState(false)
+  const [targetProductHandle, setTargetProductHandle] = useState("")
 
   const [form, setForm] = useState({
     product_handle: "",
@@ -67,6 +79,26 @@ export default function ReviewsPage() {
     const res = await fetch("/api/reviews/admin")
     const data = await res.json()
     setReviews(data.reviews || [])
+  }
+
+  async function loadProducts() {
+    setProductsLoading(true)
+
+    try {
+      const res = await fetch("/api/shopify/products")
+      const data = await res.json()
+
+      if (data.success && Array.isArray(data.products)) {
+        setProducts(data.products)
+      } else {
+        setProducts([])
+      }
+    } catch (error) {
+      console.error("LOAD SHOPIFY PRODUCTS ERROR:", error)
+      setProducts([])
+    }
+
+    setProductsLoading(false)
   }
 
   async function toggleWidget() {
@@ -131,11 +163,17 @@ export default function ReviewsPage() {
   async function importCSV(file?: File) {
     if (!file) return
 
+    if (!targetProductHandle.trim()) {
+      alert("Choisis ou renseigne un produit cible avant d’importer les avis.")
+      return
+    }
+
     setImporting(true)
     setImportMessage("")
 
     const formData = new FormData()
     formData.append("file", file)
+    formData.append("target_product_handle", targetProductHandle.trim())
 
     const res = await fetch("/api/reviews/import", {
       method: "POST",
@@ -145,7 +183,9 @@ export default function ReviewsPage() {
     const data = await res.json()
 
     if (data.success) {
-      setImportMessage(`${data.imported} avis importé(s) avec succès.`)
+      setImportMessage(
+        `${data.imported} avis importé(s) avec succès. ${data.skipped || 0} avis ignoré(s).`
+      )
       await loadReviews()
     } else {
       setImportMessage("Erreur pendant l’import CSV.")
@@ -269,6 +309,7 @@ export default function ReviewsPage() {
     async function init() {
       await loadWidget()
       await loadReviews()
+      await loadProducts()
       setLoading(false)
     }
 
@@ -312,7 +353,39 @@ export default function ReviewsPage() {
         <h2>Import / Export CSV</h2>
 
         <p style={styles.muted}>
-          Importe ou exporte les avis au format CSV compatible Boost.
+          Choisis d’abord le produit Shopify cible. Les avis importés seront
+          associés à ce produit.
+        </p>
+
+        {products.length > 0 ? (
+          <select
+            value={targetProductHandle}
+            onChange={(e) => setTargetProductHandle(e.target.value)}
+            style={styles.input}
+          >
+            <option value="">Choisir un produit Shopify</option>
+            {products.map((product) => (
+              <option key={product.id} value={product.handle}>
+                {product.title} — {product.handle}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            placeholder={
+              productsLoading
+                ? "Chargement des produits Shopify..."
+                : "Handle du produit cible, ex : appareil-photo-enfant-kidcam-ludique"
+            }
+            value={targetProductHandle}
+            onChange={(e) => setTargetProductHandle(e.target.value)}
+            style={styles.input}
+          />
+        )}
+
+        <p style={styles.helper}>
+          Produit cible actuel :{" "}
+          <strong>{targetProductHandle || "aucun produit sélectionné"}</strong>
         </p>
 
         <input
@@ -322,7 +395,17 @@ export default function ReviewsPage() {
           style={styles.file}
         />
 
-        {importMessage && <p style={styles.success}>{importMessage}</p>}
+        {importMessage && (
+          <p
+            style={
+              importMessage.toLowerCase().includes("erreur")
+                ? styles.error
+                : styles.success
+            }
+          >
+            {importMessage}
+          </p>
+        )}
 
         <a href="/api/reviews/export" style={styles.exportLink}>
           Télécharger les avis en CSV
@@ -687,6 +770,11 @@ const styles: Record<string, React.CSSProperties> = {
   },
   muted: {
     color: "#94a3b8",
+  },
+  helper: {
+    color: "#cbd5e1",
+    fontSize: "13px",
+    marginTop: "10px",
   },
   status: {
     marginTop: "20px",
