@@ -33,7 +33,7 @@ export default function ProductsPage() {
     setMessage("")
 
     try {
-      const res = await fetch("/api/shopify/products")
+      const res = await fetch("/api/products/list")
       const data = await res.json()
 
       if (data.success && Array.isArray(data.products)) {
