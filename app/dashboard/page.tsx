@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 
 const API_URL =
   "https://boost-app-9e6w.vercel.app/api/widgets/sticky-cart"
@@ -61,45 +62,87 @@ export default function HomePage() {
 
       <div
         style={{
-          background: "#111827",
-          padding: "32px",
-          borderRadius: "24px",
-          maxWidth: "420px",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: "24px",
+          maxWidth: "1000px",
         }}
       >
-        <h2>Sticky Cart</h2>
-
-        <p style={{ color: "#94a3b8" }}>
-          Widget panier flottant intelligent.
-        </p>
-
-        <p>
-          Statut :{" "}
-          <strong style={{ color: active ? "#22c55e" : "#ef4444" }}>
-            {active ? "ACTIF" : "INACTIF"}
-          </strong>
-        </p>
-
-        <button
-          onClick={toggleStickyCart}
-          disabled={loading}
+        <div
           style={{
-            width: "100%",
-            background: active ? "#dc2626" : "#7c3aed",
-            color: "white",
-            border: "none",
-            padding: "14px 20px",
-            borderRadius: "14px",
-            fontWeight: "bold",
-            cursor: "pointer",
+            background: "#111827",
+            padding: "32px",
+            borderRadius: "24px",
           }}
         >
-          {loading
-            ? "Chargement..."
-            : active
-            ? "Désactiver Sticky Cart"
-            : "Activer Sticky Cart"}
-        </button>
+          <h2>Sticky Cart</h2>
+
+          <p style={{ color: "#94a3b8" }}>
+            Widget panier flottant intelligent.
+          </p>
+
+          <p>
+            Statut :{" "}
+            <strong style={{ color: active ? "#22c55e" : "#ef4444" }}>
+              {active ? "ACTIF" : "INACTIF"}
+            </strong>
+          </p>
+
+          <button
+            onClick={toggleStickyCart}
+            disabled={loading}
+            style={{
+              width: "100%",
+              background: active ? "#dc2626" : "#7c3aed",
+              color: "white",
+              border: "none",
+              padding: "14px 20px",
+              borderRadius: "14px",
+              fontWeight: "bold",
+              cursor: "pointer",
+            }}
+          >
+            {loading
+              ? "Chargement..."
+              : active
+              ? "Désactiver Sticky Cart"
+              : "Activer Sticky Cart"}
+          </button>
+        </div>
+
+        <div
+          style={{
+            background: "#111827",
+            padding: "32px",
+            borderRadius: "24px",
+          }}
+        >
+          <h2>Produits Shopify</h2>
+
+          <p style={{ color: "#94a3b8" }}>
+            Synchronise les produits Shopify dans Boost pour les utiliser dans
+            Reviews, Bundles, Upsell et Social AutoPilot.
+          </p>
+
+          <Link
+            href="/products"
+            style={{
+              display: "block",
+              width: "100%",
+              background: "#16a34a",
+              color: "white",
+              textAlign: "center",
+              textDecoration: "none",
+              padding: "14px 20px",
+              borderRadius: "14px",
+              fontWeight: "bold",
+              boxSizing: "border-box",
+              marginTop: "22px",
+            }}
+          >
+            Voir les produits
+          </Link>
+        </div>
       </div>
     </main>
   )
