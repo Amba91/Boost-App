@@ -94,6 +94,18 @@ export default function ProductsPage() {
           Social AutoPilot.
         </p>
 
+        <div style={styles.statsBox}>
+          <div>
+            <p style={styles.statNumber}>{products.length}</p>
+            <p style={styles.statLabel}>produit(s) importé(s)</p>
+          </div>
+
+          <div>
+            <p style={styles.statNumber}>{filteredProducts.length}</p>
+            <p style={styles.statLabel}>résultat(s) affiché(s)</p>
+          </div>
+        </div>
+
         <button onClick={syncProducts} disabled={syncing} style={styles.button}>
           {syncing ? "Synchronisation..." : "Synchroniser les produits"}
         </button>
@@ -102,7 +114,13 @@ export default function ProductsPage() {
       </div>
 
       <div style={styles.cardWide}>
-        <h2>Liste des produits</h2>
+        <div style={styles.listHeader}>
+          <h2 style={styles.sectionTitle}>Liste des produits</h2>
+
+          <span style={styles.badge}>
+            {filteredProducts.length} / {products.length}
+          </span>
+        </div>
 
         <input
           placeholder="Rechercher un produit..."
@@ -118,8 +136,10 @@ export default function ProductsPage() {
         )}
 
         <div style={styles.grid}>
-          {filteredProducts.map((product) => (
+          {filteredProducts.map((product, index) => (
             <div key={product.id} style={styles.productCard}>
+              <div style={styles.numberBadge}>#{index + 1}</div>
+
               {product.image_url ? (
                 <img
                   src={product.image_url}
@@ -189,6 +209,23 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: "16px",
     fontWeight: "bold",
   },
+  statsBox: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "16px",
+    marginTop: "22px",
+  },
+  statNumber: {
+    fontSize: "34px",
+    fontWeight: "bold",
+    margin: 0,
+    color: "#22c55e",
+  },
+  statLabel: {
+    color: "#94a3b8",
+    marginTop: "6px",
+    marginBottom: 0,
+  },
   button: {
     width: "100%",
     marginTop: "18px",
@@ -209,6 +246,23 @@ const styles: Record<string, React.CSSProperties> = {
     border: "none",
     fontSize: "15px",
   },
+  listHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+  },
+  sectionTitle: {
+    margin: 0,
+  },
+  badge: {
+    background: "#16a34a",
+    color: "white",
+    padding: "8px 12px",
+    borderRadius: "999px",
+    fontSize: "13px",
+    fontWeight: "bold",
+  },
   grid: {
     display: "grid",
     gap: "16px",
@@ -216,12 +270,21 @@ const styles: Record<string, React.CSSProperties> = {
   },
   productCard: {
     display: "grid",
-    gridTemplateColumns: "90px 1fr",
+    gridTemplateColumns: "60px 90px 1fr",
     gap: "18px",
     background: "#050816",
     padding: "18px",
     borderRadius: "18px",
     alignItems: "center",
+  },
+  numberBadge: {
+    background: "#7c3aed",
+    color: "white",
+    padding: "10px",
+    borderRadius: "12px",
+    fontWeight: "bold",
+    textAlign: "center",
+    fontSize: "15px",
   },
   image: {
     width: "90px",
