@@ -68,8 +68,16 @@ export default function ReviewsPage() {
   const filteredReviews = reviews.filter((item) => {
     const query = search.toLowerCase()
 
-    const matchesSelectedProduct = targetProductHandle
-      ? item.product_handle === targetProductHandle
+  const normalizeHandle = (value: string = "") =>
+      value
+        .toLowerCase()
+        .replace(/™/g, "")
+        .replace(/â„¢/g, "")
+        .trim()
+
+  const matchesSelectedProduct = targetProductHandle
+      ? normalizeHandle(item.product_handle) ===
+        normalizeHandle(targetProductHandle)
       : true
 
     const matchesSearch =
