@@ -42,6 +42,7 @@ export default function ReviewsPage() {
   const [products, setProducts] = useState<ShopifyProduct[]>([])
   const [productsLoading, setProductsLoading] = useState(false)
   const [targetProductHandle, setTargetProductHandle] = useState("")
+  const [targetProductTitle, setTargetProductTitle] = useState("")
 
   const [form, setForm] = useState({
     product_handle: "",
@@ -57,17 +58,40 @@ export default function ReviewsPage() {
     verified_purchase: true,
   })
 
+  const selectedProduct = products.find(
+    (product) => product.handle === targetProductHandle
+  )
+
+  const displayedProductTitle =
+    selectedProduct?.title || targetProductTitle || targetProductHandle
+
   const filteredReviews = reviews.filter((item) => {
     const query = search.toLowerCase()
 
-    return (
+    const matchesSelectedProduct = targetProductHandle
+      ? item.product_handle === targetProductHandle
+      : true
+
+    const matchesSearch =
       String(item.id).includes(query) ||
       item.product_handle?.toLowerCase().includes(query) ||
       item.customer_first_name?.toLowerCase().includes(query) ||
       item.customer_last_name?.toLowerCase().includes(query) ||
       item.review?.toLowerCase().includes(query)
-    )
+
+    return matchesSelectedProduct && matchesSearch
   })
+
+  function selectTargetProduct(handle: string) {
+    const product = products.find((item) => item.handle === handle)
+
+    setTargetProductHandle(handle)
+    setTargetProductTitle(product?.title || "")
+    setForm((current) => ({
+      ...current,
+      product_handle: handle,
+    }))
+  }
 
   async function loadWidget() {
     const res = await fetch("/api/widgets/reviews")
@@ -85,7 +109,7 @@ export default function ReviewsPage() {
     setProductsLoading(true)
 
     try {
-      const res = await fetch("/api/shopify/products")
+      const res = await fetch("/api/products/list")
       const data = await res.json()
 
       if (data.success && Array.isArray(data.products)) {
@@ -94,7 +118,7 @@ export default function ReviewsPage() {
         setProducts([])
       }
     } catch (error) {
-      console.error("LOAD SHOPIFY PRODUCTS ERROR:", error)
+      console.error("LOAD PRODUCTS ERROR:", error)
       setProducts([])
     }
 
@@ -164,7 +188,7 @@ export default function ReviewsPage() {
     if (!file) return
 
     if (!targetProductHandle.trim()) {
-      alert("Choisis ou renseigne un produit cible avant d’importer les avis.")
+      alert("Choisis un produit depuis la page Produits avant d’importer les avis.")
       return
     }
 
@@ -197,6 +221,11 @@ export default function ReviewsPage() {
   async function importSmartJSON(file?: File) {
     if (!file) return
 
+    if (!targetProductHandle.trim()) {
+      alert("Choisis un produit depuis la page Produits avant d’importer les avis.")
+      return
+    }
+
     setSmartImporting(true)
     setSmartImportMessage("")
 
@@ -214,13 +243,18 @@ export default function ReviewsPage() {
         return
       }
 
+      const reviewsWithTargetProduct = reviewsToImport.map((review: any) => ({
+        ...review,
+        product_handle: review.product_handle || targetProductHandle,
+      }))
+
       const res = await fetch("/api/reviews/import-smart", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          reviews: reviewsToImport,
+          reviews: reviewsWithTargetProduct,
         }),
       })
 
@@ -245,19 +279,25 @@ export default function ReviewsPage() {
   }
 
   async function createReview() {
-    if (!form.product_handle || !form.review) {
-      alert("Produit handle et avis obligatoires")
+    const productHandle = targetProductHandle || form.product_handle
+
+    if (!productHandle || !form.review) {
+      alert("Produit et avis obligatoires")
       return
     }
 
     await fetch("/api/reviews/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shop: "kiidiiz.com", ...form }),
+      body: JSON.stringify({
+        shop: "kiidiiz.com",
+        ...form,
+        product_handle: productHandle,
+      }),
     })
 
     setForm({
-      product_handle: "",
+      product_handle: productHandle,
       customer_first_name: "",
       customer_last_name: "",
       rating: 5,
@@ -307,6 +347,19 @@ export default function ReviewsPage() {
 
   useEffect(() => {
     async function init() {
+      const params = new URLSearchParams(window.location.search)
+      const productHandle = params.get("product_handle") || ""
+      const productTitle = params.get("product_title") || ""
+
+      if (productHandle) {
+        setTargetProductHandle(productHandle)
+        setTargetProductTitle(productTitle)
+        setForm((current) => ({
+          ...current,
+          product_handle: productHandle,
+        }))
+      }
+
       await loadWidget()
       await loadReviews()
       await loadProducts()
@@ -318,11 +371,23 @@ export default function ReviewsPage() {
 
   return (
     <main style={styles.main}>
-      <Link href="/" style={styles.back}>
-        ← Retour aux widgets
+      <Link href="/products" style={styles.back}>
+        ← Retour aux produits
       </Link>
 
       <h1 style={styles.title}>Avis clients</h1>
+
+      {targetProductHandle && (
+        <div style={styles.selectedProductCard}>
+          <p style={styles.selectedLabel}>Produit sélectionné</p>
+          <h2 style={styles.selectedTitle}>{displayedProductTitle}</h2>
+          <p style={styles.handle}>{targetProductHandle}</p>
+          <p style={styles.muted}>
+            Avis associés à ce produit :{" "}
+            <strong>{filteredReviews.length}</strong>
+          </p>
+        </div>
+      )}
 
       <div style={styles.card}>
         <p style={styles.muted}>
@@ -353,14 +418,14 @@ export default function ReviewsPage() {
         <h2>Import / Export CSV</h2>
 
         <p style={styles.muted}>
-          Choisis d’abord le produit Shopify cible. Les avis importés seront
-          associés à ce produit.
+          Les avis importés seront associés automatiquement au produit
+          sélectionné.
         </p>
 
         {products.length > 0 ? (
           <select
             value={targetProductHandle}
-            onChange={(e) => setTargetProductHandle(e.target.value)}
+            onChange={(e) => selectTargetProduct(e.target.value)}
             style={styles.input}
           >
             <option value="">Choisir un produit Shopify</option>
@@ -375,10 +440,10 @@ export default function ReviewsPage() {
             placeholder={
               productsLoading
                 ? "Chargement des produits Shopify..."
-                : "Handle du produit cible, ex : appareil-photo-enfant-kidcam-ludique"
+                : "Handle du produit cible"
             }
             value={targetProductHandle}
-            onChange={(e) => setTargetProductHandle(e.target.value)}
+            onChange={(e) => selectTargetProduct(e.target.value)}
             style={styles.input}
           />
         )}
@@ -445,35 +510,18 @@ export default function ReviewsPage() {
         {smartImporting && (
           <p style={styles.muted}>Import intelligent en cours...</p>
         )}
-
-        <div style={styles.codeBox}>
-          <p style={styles.codeTitle}>Format JSON accepté :</p>
-          <pre style={styles.pre}>
-{`{
-  "reviews": [
-    {
-      "product_handle": "jouet-educatif",
-      "name": "Aminata Diallo",
-      "rating": 5,
-      "body": "Très bon produit, mon enfant adore.",
-      "photo": "https://exemple.com/photo.jpg",
-      "verified_purchase": true
-    }
-  ]
-}`}
-          </pre>
-        </div>
       </div>
 
       <div style={styles.card}>
         <h2>Ajouter un avis</h2>
 
         <input
-          placeholder="Handle produit, ex : appareil-photo-enfant-kidcam-ludique"
-          value={form.product_handle}
+          placeholder="Produit sélectionné automatiquement"
+          value={targetProductHandle || form.product_handle}
           onChange={(e) =>
             setForm({ ...form, product_handle: e.target.value })
           }
+          disabled={Boolean(targetProductHandle)}
           style={styles.input}
         />
 
@@ -549,7 +597,10 @@ export default function ReviewsPage() {
       </div>
 
       <div style={styles.cardWide}>
-        <h2>Avis existants</h2>
+        <h2>
+          Avis existants{" "}
+          {targetProductHandle && `— ${filteredReviews.length} avis`}
+        </h2>
 
         <input
           placeholder="Rechercher par numéro, prénom, nom, produit ou texte..."
@@ -559,7 +610,7 @@ export default function ReviewsPage() {
         />
 
         {filteredReviews.length === 0 && (
-          <p style={styles.muted}>Aucun avis trouvé.</p>
+          <p style={styles.muted}>Aucun avis trouvé pour ce produit.</p>
         )}
 
         {filteredReviews.map((item) => (
@@ -754,6 +805,24 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "48px",
     marginTop: "30px",
   },
+  selectedProductCard: {
+    background: "linear-gradient(135deg, #111827, #064e3b)",
+    border: "1px solid #16a34a",
+    padding: "28px",
+    borderRadius: "24px",
+    maxWidth: "650px",
+    marginTop: "30px",
+  },
+  selectedLabel: {
+    color: "#22c55e",
+    fontWeight: "bold",
+    margin: 0,
+  },
+  selectedTitle: {
+    fontSize: "26px",
+    marginTop: "10px",
+    marginBottom: "8px",
+  },
   card: {
     background: "#111827",
     padding: "32px",
@@ -775,6 +844,11 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#cbd5e1",
     fontSize: "13px",
     marginTop: "10px",
+  },
+  handle: {
+    color: "#a78bfa",
+    fontSize: "13px",
+    marginTop: "6px",
   },
   status: {
     marginTop: "20px",
@@ -873,23 +947,5 @@ const styles: Record<string, React.CSSProperties> = {
     gap: "16px",
     marginTop: "16px",
     color: "#cbd5e1",
-  },
-  codeBox: {
-    background: "#050816",
-    border: "1px solid #1e293b",
-    borderRadius: "14px",
-    padding: "16px",
-    marginTop: "18px",
-  },
-  codeTitle: {
-    color: "#cbd5e1",
-    fontWeight: "bold",
-    marginTop: 0,
-  },
-  pre: {
-    color: "#cbd5e1",
-    whiteSpace: "pre-wrap",
-    fontSize: "13px",
-    marginBottom: 0,
   },
 }
