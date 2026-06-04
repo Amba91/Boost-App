@@ -37,12 +37,27 @@ export async function GET() {
       CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
         shop TEXT NOT NULL,
-        shopify_product_id TEXT UNIQUE,
+        shopify_product_id TEXT,
         title TEXT NOT NULL,
         handle TEXT NOT NULL,
         image_url TEXT,
         price TEXT,
         status TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `
+
+    await sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS products_shopify_product_id_unique
+      ON products (shopify_product_id)
+    `
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS shop_connections (
+        id SERIAL PRIMARY KEY,
+        shop TEXT NOT NULL UNIQUE,
+        access_token TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       )

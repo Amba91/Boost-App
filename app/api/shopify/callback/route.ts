@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { sql } from "@vercel/postgres"
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -39,6 +40,23 @@ export async function GET(request: Request) {
       { status: 400 }
     )
   }
+
+  await sql`
+    INSERT INTO shop_connections (
+      shop,
+      access_token,
+      updated_at
+    )
+    VALUES (
+      ${shop},
+      ${data.access_token},
+      NOW()
+    )
+    ON CONFLICT (shop)
+    DO UPDATE SET
+      access_token = EXCLUDED.access_token,
+      updated_at = NOW()
+  `
 
   const appUrl =
     process.env.SHOPIFY_APP_URL || "https://boost-app-9e6w.vercel.app"
