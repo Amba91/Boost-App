@@ -162,6 +162,15 @@ export default function ProductsPage() {
                 <p style={styles.muted}>
                   Prix : <strong>{product.price || "N/A"}</strong>
                 </p>
+
+                <Link
+                  href={`/widgets/reviews?product_handle=${encodeURIComponent(
+                    product.handle
+                  )}&product_title=${encodeURIComponent(product.title)}`}
+                  style={styles.reviewLink}
+                >
+                  Gérer les avis
+                </Link>
               </div>
             </div>
           ))}
@@ -312,5 +321,16 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#a78bfa",
     fontSize: "13px",
     marginTop: "6px",
+  },
+  reviewLink: {
+    display: "inline-block",
+    marginTop: "12px",
+    background: "#7c3aed",
+    color: "white",
+    textDecoration: "none",
+    padding: "10px 14px",
+    borderRadius: "12px",
+    fontWeight: "bold",
+    fontSize: "14px",
   },
 }
