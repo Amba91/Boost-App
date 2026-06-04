@@ -63,6 +63,25 @@ export default function HomePage() {
       <h1 style={styles.logo}>🚀 BOOST</h1>
 
       <div style={styles.grid}>
+        <div style={styles.productCard}>
+          <h2 style={styles.title}>Produits Shopify</h2>
+
+          <p style={styles.text}>
+            Synchronise les produits Shopify dans Boost pour les utiliser dans
+            Reviews, Bundles, Upsell, Related Products et Social AutoPilot.
+          </p>
+
+          <p style={{ ...styles.status, color: "#22c55e" }}>
+            BASE PRODUITS
+          </p>
+
+          <Link href="/products">
+            <button style={styles.productButton}>
+              Voir les produits
+            </button>
+          </Link>
+        </div>
+
         {widgets.map((widget) => {
           const active = statuses[widget.slug] || false
 
@@ -125,6 +144,12 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "24px",
     padding: "30px",
   },
+  productCard: {
+    background: "linear-gradient(135deg, #111827, #064e3b)",
+    borderRadius: "24px",
+    padding: "30px",
+    border: "1px solid #16a34a",
+  },
   title: {
     fontSize: "30px",
     marginBottom: "12px",
@@ -152,6 +177,17 @@ const styles: Record<string, React.CSSProperties> = {
   button: {
     width: "100%",
     background: "#7c3aed",
+    color: "white",
+    border: "none",
+    padding: "16px",
+    borderRadius: "14px",
+    fontWeight: "bold",
+    cursor: "pointer",
+    fontSize: "16px",
+  },
+  productButton: {
+    width: "100%",
+    background: "#16a34a",
     color: "white",
     border: "none",
     padding: "16px",
