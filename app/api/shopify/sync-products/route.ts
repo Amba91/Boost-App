@@ -21,14 +21,48 @@ type ShopifyProductNode = {
   }
 }
 
+async function getShopConnectionFromCookies() {
+  const cookieStore = await cookies()
+
+  const shop = cookieStore.get("boost_shop")?.value
+  const token = cookieStore.get("boost_token")?.value
+
+  if (shop && token) {
+    return {
+      shop,
+      token,
+    }
+  }
+
+  return null
+}
+
+async function getShopConnectionFromDatabase() {
+  const result = await sql`
+    SELECT shop, access_token
+    FROM shop_connections
+    ORDER BY updated_at DESC
+    LIMIT 1
+  `
+
+  const connection = result.rows[0]
+
+  if (!connection?.shop || !connection?.access_token) {
+    return null
+  }
+
+  return {
+    shop: connection.shop as string,
+    token: connection.access_token as string,
+  }
+}
+
 export async function POST() {
   try {
-    const cookieStore = await cookies()
+    const cookieConnection = await getShopConnectionFromCookies()
+    const databaseConnection = cookieConnection || (await getShopConnectionFromDatabase())
 
-    const shop = cookieStore.get("boost_shop")?.value
-    const token = cookieStore.get("boost_token")?.value
-
-    if (!shop || !token) {
+    if (!databaseConnection) {
       return NextResponse.json(
         {
           success: false,
@@ -38,6 +72,8 @@ export async function POST() {
         { status: 401 }
       )
     }
+
+    const { shop, token } = databaseConnection
 
     const query = `
       {
@@ -120,6 +156,7 @@ export async function POST() {
         )
         ON CONFLICT (shopify_product_id)
         DO UPDATE SET
+          shop = EXCLUDED.shop,
           title = EXCLUDED.title,
           handle = EXCLUDED.handle,
           image_url = EXCLUDED.image_url,
