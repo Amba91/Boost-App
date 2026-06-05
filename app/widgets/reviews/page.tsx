@@ -29,6 +29,18 @@ type ShopifyProduct = {
   price?: string
 }
 
+type ImportJob = {
+  id: number
+  product_handle: string
+  source_url: string
+  platform: string
+  status: string
+  imported_count: number
+  error_message?: string | null
+  created_at: string
+  updated_at: string
+}
+
 export default function ReviewsPage() {
   const [active, setActive] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -36,6 +48,7 @@ export default function ReviewsPage() {
   const [importing, setImporting] = useState(false)
   const [smartImporting, setSmartImporting] = useState(false)
   const [urlImporting, setUrlImporting] = useState(false)
+  const [importJobsLoading, setImportJobsLoading] = useState(false)
   const [importMessage, setImportMessage] = useState("")
   const [smartImportMessage, setSmartImportMessage] = useState("")
   const [urlImportMessage, setUrlImportMessage] = useState("")
@@ -43,6 +56,7 @@ export default function ReviewsPage() {
   const [search, setSearch] = useState("")
   const [reviews, setReviews] = useState<Review[]>([])
   const [products, setProducts] = useState<ShopifyProduct[]>([])
+  const [importJobs, setImportJobs] = useState<ImportJob[]>([])
   const [productsLoading, setProductsLoading] = useState(false)
   const [targetProductHandle, setTargetProductHandle] = useState("")
   const [targetProductTitle, setTargetProductTitle] = useState("")
@@ -68,15 +82,15 @@ export default function ReviewsPage() {
   const displayedProductTitle =
     selectedProduct?.title || targetProductTitle || targetProductHandle
 
+  const normalizeHandle = (value: string = "") =>
+    value
+      .toLowerCase()
+      .replace(/™/g, "")
+      .replace(/â„¢/g, "")
+      .trim()
+
   const filteredReviews = reviews.filter((item) => {
     const query = search.toLowerCase()
-
-    const normalizeHandle = (value: string = "") =>
-      value
-        .toLowerCase()
-        .replace(/™/g, "")
-        .replace(/â„¢/g, "")
-        .trim()
 
     const matchesSelectedProduct = targetProductHandle
       ? normalizeHandle(item.product_handle) ===
@@ -93,6 +107,14 @@ export default function ReviewsPage() {
     return matchesSelectedProduct && matchesSearch
   })
 
+  const filteredImportJobs = importJobs.filter((job) => {
+    if (!targetProductHandle) return true
+
+    return (
+      normalizeHandle(job.product_handle) === normalizeHandle(targetProductHandle)
+    )
+  })
+
   function selectTargetProduct(handle: string) {
     const product = products.find((item) => item.handle === handle)
 
@@ -102,6 +124,16 @@ export default function ReviewsPage() {
       ...current,
       product_handle: handle,
     }))
+  }
+
+  function formatDate(value: string) {
+    if (!value) return "Date inconnue"
+
+    try {
+      return new Date(value).toLocaleString("fr-FR")
+    } catch {
+      return value
+    }
   }
 
   async function loadWidget() {
@@ -114,6 +146,26 @@ export default function ReviewsPage() {
     const res = await fetch("/api/reviews/admin")
     const data = await res.json()
     setReviews(data.reviews || [])
+  }
+
+  async function loadImportJobs() {
+    setImportJobsLoading(true)
+
+    try {
+      const res = await fetch("/api/reviews/import-jobs")
+      const data = await res.json()
+
+      if (data.success && Array.isArray(data.jobs)) {
+        setImportJobs(data.jobs)
+      } else {
+        setImportJobs([])
+      }
+    } catch (error) {
+      console.error("LOAD IMPORT JOBS ERROR:", error)
+      setImportJobs([])
+    }
+
+    setImportJobsLoading(false)
   }
 
   async function loadProducts() {
@@ -319,6 +371,8 @@ export default function ReviewsPage() {
 
       if (data.success) {
         setUrlImportMessage(data.message || "Lien analysé avec succès.")
+        setReviewUrl("")
+        await loadImportJobs()
       } else {
         setUrlImportMessage(data.error || "Erreur pendant l’analyse du lien.")
       }
@@ -415,6 +469,7 @@ export default function ReviewsPage() {
       await loadWidget()
       await loadReviews()
       await loadProducts()
+      await loadImportJobs()
       setLoading(false)
     }
 
@@ -599,6 +654,69 @@ export default function ReviewsPage() {
             {urlImportMessage}
           </p>
         )}
+      </div>
+
+      <div style={styles.cardWide}>
+        <h2>Historique des imports par lien</h2>
+
+        {importJobsLoading && (
+          <p style={styles.muted}>Chargement de l’historique...</p>
+        )}
+
+        {!importJobsLoading && filteredImportJobs.length === 0 && (
+          <p style={styles.muted}>Aucun import par lien pour ce produit.</p>
+        )}
+
+        {filteredImportJobs.map((job) => (
+          <div key={job.id} style={styles.jobCard}>
+            <div style={styles.jobHeader}>
+              <span>Import #{job.id}</span>
+
+              <span
+                style={{
+                  ...styles.statusBadge,
+                  background:
+                    job.status === "completed"
+                      ? "#16a34a"
+                      : job.status === "failed"
+                      ? "#dc2626"
+                      : "#7c3aed",
+                }}
+              >
+                {job.status}
+              </span>
+            </div>
+
+            <p style={styles.helper}>
+              Plateforme : <strong>{job.platform}</strong>
+            </p>
+
+            <p style={styles.helper}>
+              Produit : <strong>{job.product_handle}</strong>
+            </p>
+
+            <p style={styles.helper}>
+              Avis importés : <strong>{job.imported_count || 0}</strong>
+            </p>
+
+            <p style={styles.helper}>
+              Date : <strong>{formatDate(job.created_at)}</strong>
+            </p>
+
+            {job.error_message && (
+              <p style={styles.error}>Erreur : {job.error_message}</p>
+            )}
+
+            <a
+              href={job.source_url}
+              target="_blank"
+              rel="noreferrer"
+              style={styles.sourceLink}
+            >
+              Ouvrir le lien source
+            </a>
+          </div>
+        ))}
       </div>
 
       <div style={styles.card}>
@@ -933,6 +1051,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#cbd5e1",
     fontSize: "13px",
     marginTop: "10px",
+    wordBreak: "break-word",
   },
   handle: {
     color: "#a78bfa",
@@ -966,6 +1085,17 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "14px",
     fontWeight: "bold",
     fontSize: "16px",
+  },
+  sourceLink: {
+    display: "inline-block",
+    marginTop: "12px",
+    background: "#16a34a",
+    color: "white",
+    textDecoration: "none",
+    padding: "10px 14px",
+    borderRadius: "12px",
+    fontWeight: "bold",
+    fontSize: "14px",
   },
   button: {
     width: "100%",
@@ -1024,6 +1154,31 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#a78bfa",
     fontWeight: "bold",
     fontSize: "15px",
+  },
+  jobCard: {
+    background: "#050816",
+    padding: "22px",
+    borderRadius: "18px",
+    marginTop: "16px",
+    border: "1px solid #1e293b",
+  },
+  jobHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px",
+    color: "#a78bfa",
+    fontWeight: "bold",
+    fontSize: "15px",
+    marginBottom: "12px",
+  },
+  statusBadge: {
+    color: "white",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: "bold",
+    textTransform: "uppercase",
   },
   row: {
     display: "grid",
