@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+{ NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
 
 export async function POST(request: Request) {
