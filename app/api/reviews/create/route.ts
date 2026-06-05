@@ -1,4 +1,4 @@
-{ NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
 
 export async function POST(request: Request) {
@@ -38,10 +38,15 @@ export async function POST(request: Request) {
       )
     `
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({
+      success: true,
+    })
   } catch (error) {
     return NextResponse.json(
-      { success: false, error: String(error) },
+      {
+        success: false,
+        error: String(error),
+      },
       { status: 500 }
     )
   }
