@@ -35,8 +35,11 @@ export default function ReviewsPage() {
   const [uploading, setUploading] = useState(false)
   const [importing, setImporting] = useState(false)
   const [smartImporting, setSmartImporting] = useState(false)
+  const [urlImporting, setUrlImporting] = useState(false)
   const [importMessage, setImportMessage] = useState("")
   const [smartImportMessage, setSmartImportMessage] = useState("")
+  const [urlImportMessage, setUrlImportMessage] = useState("")
+  const [reviewUrl, setReviewUrl] = useState("")
   const [search, setSearch] = useState("")
   const [reviews, setReviews] = useState<Review[]>([])
   const [products, setProducts] = useState<ShopifyProduct[]>([])
@@ -68,14 +71,14 @@ export default function ReviewsPage() {
   const filteredReviews = reviews.filter((item) => {
     const query = search.toLowerCase()
 
-  const normalizeHandle = (value: string = "") =>
+    const normalizeHandle = (value: string = "") =>
       value
         .toLowerCase()
         .replace(/™/g, "")
         .replace(/â„¢/g, "")
         .trim()
 
-  const matchesSelectedProduct = targetProductHandle
+    const matchesSelectedProduct = targetProductHandle
       ? normalizeHandle(item.product_handle) ===
         normalizeHandle(targetProductHandle)
       : true
@@ -284,6 +287,47 @@ export default function ReviewsPage() {
     }
 
     setSmartImporting(false)
+  }
+
+  async function importFromUrl() {
+    if (!targetProductHandle.trim()) {
+      alert("Choisis un produit depuis la page Produits avant d’importer les avis.")
+      return
+    }
+
+    if (!reviewUrl.trim()) {
+      alert("Colle d’abord un lien Amazon, AliExpress ou autre.")
+      return
+    }
+
+    setUrlImporting(true)
+    setUrlImportMessage("")
+
+    try {
+      const res = await fetch("/api/reviews/import-url", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          product_handle: targetProductHandle,
+          url: reviewUrl,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        setUrlImportMessage(data.message || "Lien analysé avec succès.")
+      } else {
+        setUrlImportMessage(data.error || "Erreur pendant l’analyse du lien.")
+      }
+    } catch (error) {
+      console.error("IMPORT URL ERROR:", error)
+      setUrlImportMessage("Erreur pendant l’import par lien.")
+    }
+
+    setUrlImporting(false)
   }
 
   async function createReview() {
@@ -517,6 +561,43 @@ export default function ReviewsPage() {
 
         {smartImporting && (
           <p style={styles.muted}>Import intelligent en cours...</p>
+        )}
+      </div>
+
+      <div style={styles.card}>
+        <h2>Import par lien</h2>
+
+        <p style={styles.muted}>
+          Colle un lien Amazon, AliExpress, Loox, Judge.me, Ryviu ou autre.
+          Boost détectera la plateforme et préparera l’import des avis pour le
+          produit sélectionné.
+        </p>
+
+        <input
+          placeholder="Colle ici le lien du produit ou des avis..."
+          value={reviewUrl}
+          onChange={(e) => setReviewUrl(e.target.value)}
+          style={styles.input}
+        />
+
+        <button
+          onClick={importFromUrl}
+          disabled={urlImporting}
+          style={styles.button}
+        >
+          {urlImporting ? "Analyse du lien..." : "Importer depuis ce lien"}
+        </button>
+
+        {urlImportMessage && (
+          <p
+            style={
+              urlImportMessage.toLowerCase().includes("erreur")
+                ? styles.error
+                : styles.success
+            }
+          >
+            {urlImportMessage}
+          </p>
         )}
       </div>
 
