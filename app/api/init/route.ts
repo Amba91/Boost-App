@@ -63,6 +63,20 @@ export async function GET() {
       )
     `
 
+    await sql`
+      CREATE TABLE IF NOT EXISTS review_import_jobs (
+        id SERIAL PRIMARY KEY,
+        product_handle TEXT NOT NULL,
+        source_url TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        imported_count INTEGER DEFAULT 0,
+        error_message TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `
+
     return NextResponse.json({
       success: true,
       message: "Database initialized",

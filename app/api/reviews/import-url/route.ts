@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { sql } from "@vercel/postgres"
 
 function detectPlatform(url: string) {
   const value = url.toLowerCase()
@@ -41,16 +42,39 @@ export async function POST(request: Request) {
 
     const platform = detectPlatform(url)
 
+    const result = await sql`
+      INSERT INTO review_import_jobs (
+        product_handle,
+        source_url,
+        platform,
+        status,
+        imported_count,
+        updated_at
+      )
+      VALUES (
+        ${productHandle},
+        ${url},
+        ${platform},
+        'pending',
+        0,
+        NOW()
+      )
+      RETURNING id, product_handle, source_url, platform, status, imported_count, created_at, updated_at
+    `
+
+    const job = result.rows[0]
+
     return NextResponse.json({
       success: true,
+      job,
       platform,
       product_handle: productHandle,
       url,
       imported: 0,
       message:
         platform === "unknown"
-          ? "Lien détecté, mais la plateforme n’est pas encore reconnue automatiquement."
-          : `Lien ${platform} détecté. Prochaine étape : connecter un extracteur d’avis.`,
+          ? "Lien enregistré. Plateforme non reconnue automatiquement pour le moment."
+          : `Lien ${platform} détecté et enregistré. Prochaine étape : connecter un extracteur d’avis.`,
     })
   } catch (error) {
     return NextResponse.json(
