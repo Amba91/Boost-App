@@ -474,6 +474,48 @@ export default function ReviewsPage() {
     loadReviews()
   }
 
+  async function bulkReviewAction(
+    action: "show_all" | "hide_all" | "delete_hidden"
+  ) {
+    if (!targetProductHandle) {
+      alert("Choisis d’abord un produit.")
+      return
+    }
+
+    if (
+      action === "delete_hidden" &&
+      !confirm("Supprimer tous les avis masqués de ce produit ?")
+    ) {
+      return
+    }
+
+    try {
+      const res = await fetch("/api/reviews/bulk-action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          product_handle: targetProductHandle,
+          action,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!data.success) {
+        alert(data.error || "Erreur pendant l’action groupée.")
+        return
+      }
+
+      alert(data.message)
+      await loadReviews()
+    } catch (error) {
+      console.error("BULK REVIEW ACTION ERROR:", error)
+      alert("Erreur pendant l’action groupée.")
+    }
+  }
+
   async function deleteImportJob(jobId: number) {
     if (
       !confirm(
@@ -830,7 +872,7 @@ export default function ReviewsPage() {
                 <option value={100}>Extraire 100 avis</option>
               </select>
             )}
-            
+
             <button
               onClick={() => processImportJob(job.id)}
               disabled={
@@ -964,6 +1006,37 @@ export default function ReviewsPage() {
           Avis existants{" "}
           {targetProductHandle && `— ${filteredReviews.length} avis`}
         </h2>
+
+        {targetProductHandle && (
+          <div style={styles.bulkActions}>
+            <button
+              onClick={() => bulkReviewAction("show_all")}
+              style={styles.bulkButton}
+            >
+              Tout afficher
+            </button>
+
+            <button
+              onClick={() => bulkReviewAction("hide_all")}
+              style={{
+                ...styles.bulkButton,
+                background: "#7c3aed",
+              }}
+            >
+              Tout masquer
+            </button>
+
+            <button
+              onClick={() => bulkReviewAction("delete_hidden")}
+              style={{
+                ...styles.bulkButton,
+                background: "#dc2626",
+              }}
+            >
+              Supprimer les avis masqués
+            </button>
+          </div>
+        )}
 
         <input
           placeholder="Rechercher par numéro, prénom, nom, produit ou texte..."
@@ -1277,6 +1350,23 @@ const styles: Record<string, React.CSSProperties> = {
     width: "100%",
     marginTop: "12px",
     background: "#dc2626",
+    color: "white",
+    border: "none",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    fontWeight: "bold",
+    cursor: "pointer",
+    fontSize: "14px",
+  },
+  bulkActions: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: "12px",
+    marginTop: "18px",
+    marginBottom: "18px",
+  },
+  bulkButton: {
+    background: "#16a34a",
     color: "white",
     border: "none",
     padding: "12px 14px",
