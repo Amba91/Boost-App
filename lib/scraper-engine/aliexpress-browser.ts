@@ -94,7 +94,7 @@ export async function scrapeAliExpressReviewsWithBrowser(
       locale: "fr-FR",
     })
 
-    page.on("response", async (response) => {
+    page.on("response", async (response: any) => {
       try {
         const responseUrl = response.url().toLowerCase()
 
