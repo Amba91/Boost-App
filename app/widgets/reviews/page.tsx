@@ -49,6 +49,9 @@ export default function ReviewsPage() {
   const [smartImporting, setSmartImporting] = useState(false)
   const [urlImporting, setUrlImporting] = useState(false)
   const [importJobsLoading, setImportJobsLoading] = useState(false)
+  const [deletingImportJobId, setDeletingImportJobId] = useState<number | null>(
+    null
+  )
   const [importMessage, setImportMessage] = useState("")
   const [smartImportMessage, setSmartImportMessage] = useState("")
   const [urlImportMessage, setUrlImportMessage] = useState("")
@@ -443,6 +446,42 @@ export default function ReviewsPage() {
     loadReviews()
   }
 
+  async function deleteImportJob(jobId: number) {
+    if (
+      !confirm(
+        "Supprimer cet import et tous les avis associés à cet import ?"
+      )
+    ) {
+      return
+    }
+
+    setDeletingImportJobId(jobId)
+
+    try {
+      const res = await fetch("/api/reviews/import-jobs/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: jobId }),
+      })
+
+      const data = await res.json()
+
+      if (!data.success) {
+        alert(data.error || "Erreur pendant la suppression de l’import.")
+      }
+
+      await loadImportJobs()
+      await loadReviews()
+    } catch (error) {
+      console.error("DELETE IMPORT JOB ERROR:", error)
+      alert("Erreur pendant la suppression de l’import.")
+    }
+
+    setDeletingImportJobId(null)
+  }
+
   function updateLocalReview(id: number, field: keyof Review, value: any) {
     setReviews((items) =>
       items.map((item) =>
@@ -715,6 +754,16 @@ export default function ReviewsPage() {
             >
               Ouvrir le lien source
             </a>
+
+            <button
+              onClick={() => deleteImportJob(job.id)}
+              disabled={deletingImportJobId === job.id}
+              style={styles.deleteImportButton}
+            >
+              {deletingImportJobId === job.id
+                ? "Suppression..."
+                : "Supprimer cet import et ses avis"}
+            </button>
           </div>
         ))}
       </div>
@@ -1095,6 +1144,19 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "10px 14px",
     borderRadius: "12px",
     fontWeight: "bold",
+    fontSize: "14px",
+  },
+  deleteImportButton: {
+    display: "block",
+    width: "100%",
+    marginTop: "12px",
+    background: "#dc2626",
+    color: "white",
+    border: "none",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    fontWeight: "bold",
+    cursor: "pointer",
     fontSize: "14px",
   },
   button: {

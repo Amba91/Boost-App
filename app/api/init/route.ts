@@ -34,6 +34,11 @@ export async function GET() {
     `
 
     await sql`
+      ALTER TABLE product_reviews
+      ADD COLUMN IF NOT EXISTS import_job_id INTEGER
+    `
+
+    await sql`
       CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
         shop TEXT NOT NULL,
