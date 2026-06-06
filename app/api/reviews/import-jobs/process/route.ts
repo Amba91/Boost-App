@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
-import { scrapeAliExpressReviews } from "@/lib/scraper-engine/aliexpress"
+import { scrapeAliExpressReviews } from "../../../../../lib/scraper-engine/aliexpress"
 
 export async function POST(request: Request) {
   try {
