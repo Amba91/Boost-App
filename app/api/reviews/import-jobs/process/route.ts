@@ -12,13 +12,34 @@ const demoReviews = [
   ["Émilie", "Simon", 5, "Mon enfant est ravi. Je recommande vivement."],
   ["Antoine", "Michel", 4, "Bonne qualité générale. Rien à signaler."],
   ["Catherine", "Robert", 5, "Très beau produit, exactement comme sur les photos."],
-
+  ["Paul", "Lefebvre", 5, "Produit bien pensé et agréable à utiliser."],
+  ["Laura", "Girard", 4, "Très correct pour le prix. Je suis contente de mon achat."],
+  ["Hugo", "Morel", 5, "Le produit est conforme et plaît beaucoup à mon enfant."],
+  ["Julie", "Fournier", 5, "Très bon achat, je recommande cette boutique."],
+  ["Alexandre", "Mercier", 4, "Produit reçu en bon état et facile à prendre en main."],
+  ["Mathilde", "Blanc", 5, "Très satisfaite. La qualité est au rendez-vous."],
+  ["Romain", "Garnier", 5, "Article conforme, rien à redire."],
+  ["Charlotte", "Faure", 4, "Bon produit, livraison correcte."],
+  ["Maxime", "Rousseau", 5, "Très bonne expérience, je recommande."],
+  ["Manon", "Vincent", 5, "Produit apprécié à la maison, très contente."],
+  ["Pierre", "Muller", 4, "Bon rapport qualité-prix."],
+  ["Anaïs", "Fontaine", 5, "Produit conforme aux attentes, très bien."],
+  ["Guillaume", "Chevalier", 5, "Achat satisfaisant et produit bien emballé."],
+  ["Lucie", "Robin", 4, "Joli produit, conforme aux photos."],
+  ["Baptiste", "Masson", 5, "Très satisfait de la commande."],
+  ["Marine", "Henry", 5, "Mon enfant adore, je recommande."],
+  ["Quentin", "Roussel", 4, "Produit pratique et simple à utiliser."],
+  ["Elodie", "Perrin", 5, "Très bon produit, livraison rapide."],
+  ["Vincent", "Guerin", 5, "Bonne qualité générale."],
+  ["Amandine", "Lemoine", 4, "Article conforme, rien à signaler."],
 ]
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     const jobId = Number(body.id)
+    const requestedCount = Number(body.count || 10)
+    const count = Math.min(Math.max(requestedCount, 1), 100)
 
     if (!jobId) {
       return NextResponse.json(
@@ -61,7 +82,9 @@ export async function POST(request: Request) {
 
     let imported = 0
 
-    for (const review of demoReviews) {
+    for (let index = 0; index < count; index++) {
+      const review = demoReviews[index % demoReviews.length]
+
       await sql`
         INSERT INTO product_reviews (
           shop,

@@ -64,6 +64,7 @@ export default function ReviewsPage() {
   const [smartImportMessage, setSmartImportMessage] = useState("")
   const [urlImportMessage, setUrlImportMessage] = useState("")
   const [reviewUrl, setReviewUrl] = useState("")
+  const [extractionCount, setExtractionCount] = useState(10)
   const [search, setSearch] = useState("")
   const [reviews, setReviews] = useState<Review[]>([])
   const [products, setProducts] = useState<ShopifyProduct[]>([])
@@ -520,6 +521,7 @@ export default function ReviewsPage() {
         },
         body: JSON.stringify({
           id: jobId,
+          count: extractionCount,
         }),
       })
 
@@ -816,6 +818,19 @@ export default function ReviewsPage() {
               <p style={styles.error}>Erreur : {job.error_message}</p>
             )}
 
+            {job.status !== "completed" && (
+              <select
+                value={extractionCount}
+                onChange={(e) => setExtractionCount(Number(e.target.value))}
+                style={styles.input}
+              >
+                <option value={10}>Extraire 10 avis</option>
+                <option value={20}>Extraire 20 avis</option>
+                <option value={50}>Extraire 50 avis</option>
+                <option value={100}>Extraire 100 avis</option>
+              </select>
+            )}
+            
             <button
               onClick={() => processImportJob(job.id)}
               disabled={
