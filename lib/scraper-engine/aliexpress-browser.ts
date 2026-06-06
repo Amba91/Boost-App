@@ -158,10 +158,10 @@ export async function scrapeAliExpressReviewsWithBrowser(
       if (bodyText) {
         const textReviews = bodyText
           .split("\n")
-          .map((line) => line.trim())
-          .filter((line) => line.length > 30 && line.length < 400)
+          .map((line: string) => line.trim())
+          .filter((line: string) => line.length > 30 && line.length < 400)
           .filter(
-            (line) =>
+            (line: string) =>
               !line.toLowerCase().includes("cookie") &&
               !line.toLowerCase().includes("javascript") &&
               !line.toLowerCase().includes("aliexpress")
