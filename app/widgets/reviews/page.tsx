@@ -52,6 +52,9 @@ export default function ReviewsPage() {
   const [deletingImportJobId, setDeletingImportJobId] = useState<number | null>(
     null
   )
+  const [processingImportJobId, setProcessingImportJobId] = useState<
+    number | null
+  >(null)
   const [importMessage, setImportMessage] = useState("")
   const [smartImportMessage, setSmartImportMessage] = useState("")
   const [urlImportMessage, setUrlImportMessage] = useState("")
@@ -482,6 +485,36 @@ export default function ReviewsPage() {
     setDeletingImportJobId(null)
   }
 
+  async function processImportJob(jobId: number) {
+    setProcessingImportJobId(jobId)
+
+    try {
+      const res = await fetch("/api/reviews/import-jobs/process", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: jobId,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!data.success) {
+        alert(data.error || "Erreur pendant l’extraction.")
+      }
+
+      await loadImportJobs()
+      await loadReviews()
+    } catch (error) {
+      console.error("PROCESS IMPORT JOB ERROR:", error)
+      alert("Erreur pendant l’extraction.")
+    }
+
+    setProcessingImportJobId(null)
+  }
+
   function updateLocalReview(id: number, field: keyof Review, value: any) {
     setReviews((items) =>
       items.map((item) =>
@@ -719,6 +752,8 @@ export default function ReviewsPage() {
                       ? "#16a34a"
                       : job.status === "failed"
                       ? "#dc2626"
+                      : job.status === "processing"
+                      ? "#2563eb"
                       : "#7c3aed",
                 }}
               >
@@ -745,6 +780,28 @@ export default function ReviewsPage() {
             {job.error_message && (
               <p style={styles.error}>Erreur : {job.error_message}</p>
             )}
+
+            <button
+              onClick={() => processImportJob(job.id)}
+              disabled={
+                processingImportJobId === job.id || job.status === "completed"
+              }
+              style={{
+                ...styles.processButton,
+                background:
+                  job.status === "completed"
+                    ? "#16a34a"
+                    : job.status === "processing"
+                    ? "#2563eb"
+                    : "#2563eb",
+              }}
+            >
+              {processingImportJobId === job.id
+                ? "Extraction..."
+                : job.status === "completed"
+                ? "Extraction terminée"
+                : "Lancer l’extraction"}
+            </button>
 
             <a
               href={job.source_url}
@@ -1144,6 +1201,18 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "10px 14px",
     borderRadius: "12px",
     fontWeight: "bold",
+    fontSize: "14px",
+  },
+  processButton: {
+    display: "block",
+    width: "100%",
+    marginTop: "14px",
+    color: "white",
+    border: "none",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    fontWeight: "bold",
+    cursor: "pointer",
     fontSize: "14px",
   },
   deleteImportButton: {
