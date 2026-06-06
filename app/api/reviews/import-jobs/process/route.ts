@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
-import { scrapeAliExpressReviewsWithBrowser } from "../../../../../lib/scraper-engine/aliexpress-browser"
+import { scrapeAliExpressReviews } from "../../../../../lib/scraper-engine/aliexpress"
 import type { ScrapedReview } from "../../../../../lib/scraper-engine/types"
 
 export const maxDuration = 60
@@ -57,10 +57,7 @@ export async function POST(request: Request) {
     let scrapedReviews: ScrapedReview[] = []
 
     if (job.platform === "aliexpress") {
-      scrapedReviews = await scrapeAliExpressReviewsWithBrowser(
-        job.source_url,
-        count
-      )
+      scrapedReviews = await scrapeAliExpressReviews(job.source_url, count)
     } else {
       throw new Error(
         `Extraction ${job.platform} pas encore disponible dans Boost Scraper Engine.`
