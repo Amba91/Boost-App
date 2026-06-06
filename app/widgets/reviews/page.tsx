@@ -55,6 +55,11 @@ export default function ReviewsPage() {
   const [processingImportJobId, setProcessingImportJobId] = useState<
     number | null
   >(null)
+  const [savingReviewId, setSavingReviewId] = useState<number | null>(null)
+  const [savedReviewIds, setSavedReviewIds] = useState<Record<number, boolean>>(
+    {}
+  )
+
   const [importMessage, setImportMessage] = useState("")
   const [smartImportMessage, setSmartImportMessage] = useState("")
   const [urlImportMessage, setUrlImportMessage] = useState("")
@@ -426,13 +431,32 @@ export default function ReviewsPage() {
   }
 
   async function updateReview(review: Review) {
-    await fetch("/api/reviews/update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(review),
-    })
+    setSavingReviewId(review.id)
 
-    loadReviews()
+    try {
+      const res = await fetch("/api/reviews/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(review),
+      })
+
+      const data = await res.json()
+
+      if (!data.success) {
+        alert(data.error || "Erreur pendant l’enregistrement.")
+      } else {
+        setSavedReviewIds((current) => ({
+          ...current,
+          [review.id]: true,
+        }))
+        await loadReviews()
+      }
+    } catch (error) {
+      console.error("UPDATE REVIEW ERROR:", error)
+      alert("Erreur pendant l’enregistrement.")
+    }
+
+    setSavingReviewId(null)
   }
 
   async function deleteReview(id: number) {
@@ -516,11 +540,22 @@ export default function ReviewsPage() {
   }
 
   function updateLocalReview(id: number, field: keyof Review, value: any) {
+    setSavedReviewIds((current) => ({
+      ...current,
+      [id]: false,
+    }))
+
     setReviews((items) =>
       items.map((item) =>
         item.id === id ? { ...item, [field]: value } : item
       )
     )
+  }
+
+  function getReviewButtonText(id: number) {
+    if (savingReviewId === id) return "Enregistrement..."
+    if (savedReviewIds[id]) return "Modifications enregistrées"
+    return "Enregistrer les modifications"
   }
 
   useEffect(() => {
@@ -1081,8 +1116,15 @@ export default function ReviewsPage() {
               </label>
             </div>
 
-            <button onClick={() => updateReview(item)} style={styles.button}>
-              Enregistrer les modifications
+            <button
+              onClick={() => updateReview(item)}
+              disabled={savingReviewId === item.id}
+              style={{
+                ...styles.button,
+                background: savedReviewIds[item.id] ? "#16a34a" : "#7c3aed",
+              }}
+            >
+              {getReviewButtonText(item.id)}
             </button>
 
             <button
