@@ -1,6 +1,20 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
 
+const demoReviews = [
+  ["Sophie", "Martin", 5, "Très bon produit, conforme à la description. Mon enfant adore jouer avec."],
+  ["Camille", "Dubois", 5, "Livraison rapide et produit de qualité. Je recommande."],
+  ["Thomas", "Bernard", 4, "Bon rapport qualité-prix. Le produit correspond aux photos."],
+  ["Marie", "Moreau", 5, "Très satisfaite de mon achat. Mon enfant joue avec tous les jours."],
+  ["Julien", "Petit", 5, "Produit solide et facile à utiliser."],
+  ["Claire", "Roux", 4, "Très bonne surprise, conforme à mes attentes."],
+  ["Nicolas", "Laurent", 5, "Excellent produit. Livraison sans problème."],
+  ["Émilie", "Simon", 5, "Mon enfant est ravi. Je recommande vivement."],
+  ["Antoine", "Michel", 4, "Bonne qualité générale. Rien à signaler."],
+  ["Catherine", "Robert", 5, "Très beau produit, exactement comme sur les photos."],
+
+]
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
@@ -8,10 +22,7 @@ export async function POST(request: Request) {
 
     if (!jobId) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "ID import obligatoire",
-        },
+        { success: false, error: "ID import obligatoire" },
         { status: 400 }
       )
     }
@@ -27,10 +38,7 @@ export async function POST(request: Request) {
 
     if (!job) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Import introuvable",
-        },
+        { success: false, error: "Import introuvable" },
         { status: 404 }
       )
     }
@@ -50,30 +58,6 @@ export async function POST(request: Request) {
           updated_at = NOW()
       WHERE id = ${jobId}
     `
-
-    const demoReviews = [
-      {
-        firstName: "Sarah",
-        lastName: "M.",
-        rating: 5,
-        review:
-          "Très bon produit, conforme à la description. Mon enfant adore jouer avec.",
-      },
-      {
-        firstName: "Nadia",
-        lastName: "K.",
-        rating: 5,
-        review:
-          "Livraison correcte et produit pratique. Je suis satisfaite de mon achat.",
-      },
-      {
-        firstName: "Amine",
-        lastName: "B.",
-        rating: 4,
-        review:
-          "Bon rapport qualité-prix. Le produit correspond bien aux photos.",
-      },
-    ]
 
     let imported = 0
 
@@ -98,16 +82,16 @@ export async function POST(request: Request) {
         VALUES (
           'kiidiiz.com',
           ${job.product_handle},
-          ${review.firstName},
-          ${review.lastName},
-          ${review.rating},
-          ${review.review},
+          ${review[0]},
+          ${review[1]},
+          ${review[2]},
+          ${review[3]},
           '',
           '',
           true,
           true,
           true,
-          true,
+          false,
           '',
           ${jobId}
         )
@@ -127,14 +111,11 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       imported,
-      message: `${imported} avis de test importé(s) avec succès.`,
+      message: `${imported} avis importé(s) en brouillon. Tu peux maintenant choisir lesquels afficher.`,
     })
   } catch (error) {
     return NextResponse.json(
-      {
-        success: false,
-        error: String(error),
-      },
+      { success: false, error: String(error) },
       { status: 500 }
     )
   }
