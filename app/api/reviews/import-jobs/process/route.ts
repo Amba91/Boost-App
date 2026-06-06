@@ -1,82 +1,9 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
-import { scrapeAliExpressReviews } from "../../../../../lib/scraper-engine/aliexpress"
+import { scrapeAliExpressReviewsWithBrowser } from "../../../../../lib/scraper-engine/aliexpress-browser"
 import type { ScrapedReview } from "../../../../../lib/scraper-engine/types"
 
-const fallbackReviews: ScrapedReview[] = [
-  {
-    customer_first_name: "Sophie",
-    customer_last_name: "Martin",
-    rating: 5,
-    review:
-      "Très bon produit, conforme à la description. Mon enfant adore jouer avec.",
-  },
-  {
-    customer_first_name: "Camille",
-    customer_last_name: "Dubois",
-    rating: 5,
-    review: "Livraison rapide et produit de qualité. Je recommande.",
-  },
-  {
-    customer_first_name: "Thomas",
-    customer_last_name: "Bernard",
-    rating: 4,
-    review: "Bon rapport qualité-prix. Le produit correspond aux photos.",
-  },
-  {
-    customer_first_name: "Marie",
-    customer_last_name: "Moreau",
-    rating: 5,
-    review:
-      "Très satisfaite de mon achat. Mon enfant joue avec tous les jours.",
-  },
-  {
-    customer_first_name: "Julien",
-    customer_last_name: "Petit",
-    rating: 5,
-    review: "Produit solide et facile à utiliser.",
-  },
-  {
-    customer_first_name: "Claire",
-    customer_last_name: "Roux",
-    rating: 4,
-    review: "Très bonne surprise, conforme à mes attentes.",
-  },
-  {
-    customer_first_name: "Nicolas",
-    customer_last_name: "Laurent",
-    rating: 5,
-    review: "Excellent produit. Livraison sans problème.",
-  },
-  {
-    customer_first_name: "Émilie",
-    customer_last_name: "Simon",
-    rating: 5,
-    review: "Mon enfant est ravi. Je recommande vivement.",
-  },
-  {
-    customer_first_name: "Antoine",
-    customer_last_name: "Michel",
-    rating: 4,
-    review: "Bonne qualité générale. Rien à signaler.",
-  },
-  {
-    customer_first_name: "Catherine",
-    customer_last_name: "Robert",
-    rating: 5,
-    review: "Très beau produit, exactement comme sur les photos.",
-  },
-]
-
-function buildFallbackReviews(count: number) {
-  const reviews: ScrapedReview[] = []
-
-  for (let index = 0; index < count; index++) {
-    reviews.push(fallbackReviews[index % fallbackReviews.length])
-  }
-
-  return reviews
-}
+export const maxDuration = 60
 
 export async function POST(request: Request) {
   let jobId = 0
@@ -128,14 +55,12 @@ export async function POST(request: Request) {
     `
 
     let scrapedReviews: ScrapedReview[] = []
-    let usedFallback = false
 
     if (job.platform === "aliexpress") {
-      try {
-        scrapedReviews = await scrapeAliExpressReviews(job.source_url, count)
-      } catch {
-        scrapedReviews = []
-      }
+      scrapedReviews = await scrapeAliExpressReviewsWithBrowser(
+        job.source_url,
+        count
+      )
     } else {
       throw new Error(
         `Extraction ${job.platform} pas encore disponible dans Boost Scraper Engine.`
@@ -143,8 +68,9 @@ export async function POST(request: Request) {
     }
 
     if (scrapedReviews.length === 0) {
-      usedFallback = true
-      scrapedReviews = buildFallbackReviews(count)
+      throw new Error(
+        "Aucun avis réel récupéré. Boost n’a importé aucun faux avis."
+      )
     }
 
     let imported = 0
@@ -192,9 +118,7 @@ export async function POST(request: Request) {
       UPDATE review_import_jobs
       SET status = 'completed',
           imported_count = ${imported},
-          error_message = ${usedFallback
-            ? "Aucun avis réel récupéré. Boost a utilisé des avis brouillons intelligents."
-            : null},
+          error_message = NULL,
           updated_at = NOW()
       WHERE id = ${jobId}
     `
@@ -202,10 +126,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       imported,
-      fallback: usedFallback,
-      message: usedFallback
-        ? `${imported} avis brouillons intelligents importé(s).`
-        : `${imported} avis AliExpress réel(s) importé(s) en brouillon.`,
+      message: `${imported} avis AliExpress réel(s) importé(s) en brouillon.`,
     })
   } catch (error) {
     const message = String(error)
