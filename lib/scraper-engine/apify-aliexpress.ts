@@ -3,7 +3,7 @@ import { normalizeReview } from "./normalizer"
 
 type ApifyDatasetItem = Record<string, any>
 
-const APIFY_ACTOR_ID = "easyapi/aliexpress-reviews-scraper"
+const APIFY_ACTOR_ID = "crowdpull~aliexpress-reviews-scraper"
 
 function getApifyToken() {
   const token = process.env.APIFY_TOKEN
@@ -101,17 +101,15 @@ async function runApifyActor(productUrl: string, count: number) {
   const token = getApifyToken()
 
   const response = await fetch(
-    `https://api.apify.com/v2/acts/${APIFY_ACTOR_ID}/runs?token=${token}`,
+    `https://api.apify.com/v2/actors/${APIFY_ACTOR_ID}/runs?token=${token}`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        startUrls: [{ url: productUrl }],
-        maxItems: count,
-        maxReviews: count,
-        reviewsLimit: count,
+        productIds: [productUrl],
+        maxReviewsPerProduct: count,
       }),
     }
   )
@@ -130,7 +128,7 @@ async function runApifyActor(productUrl: string, count: number) {
 async function waitForRun(runId: string) {
   const token = getApifyToken()
 
-  for (let attempt = 0; attempt < 30; attempt++) {
+  for (let attempt = 0; attempt < 40; attempt++) {
     const response = await fetch(
       `https://api.apify.com/v2/actor-runs/${runId}?token=${token}`,
       {
