@@ -5,6 +5,54 @@ type ApifyDatasetItem = Record<string, any>
 
 const APIFY_ACTOR_ID = "crowdpull~aliexpress-reviews-scraper"
 
+const frenchFirstNames = [
+  "Lucas",
+  "Emma",
+  "Louis",
+  "Chloé",
+  "Jules",
+  "Léa",
+  "Hugo",
+  "Manon",
+  "Nathan",
+  "Camille",
+  "Arthur",
+  "Clara",
+  "Gabriel",
+  "Inès",
+  "Raphaël",
+  "Lina",
+  "Noah",
+  "Alice",
+  "Tom",
+  "Louise",
+  "Adam",
+  "Jade",
+  "Paul",
+  "Sarah",
+  "Ethan",
+  "Eva",
+  "Mathis",
+  "Zoé",
+  "Léo",
+  "Anna",
+]
+
+const frenchLastInitials = [
+  "M.",
+  "D.",
+  "R.",
+  "B.",
+  "L.",
+  "P.",
+  "G.",
+  "C.",
+  "T.",
+  "V.",
+  "F.",
+  "S.",
+]
+
 function getApifyToken() {
   const token = process.env.APIFY_TOKEN
 
@@ -15,6 +63,25 @@ function getApifyToken() {
   return token
 }
 
+function getKiidiizDisplayName(productId: string, reviewId: string) {
+  const seed = `${productId}-${reviewId}`
+
+  let hash = 0
+
+  for (let index = 0; index < seed.length; index++) {
+    hash = (hash + seed.charCodeAt(index) * (index + 1)) % 100000
+  }
+
+  const firstName = frenchFirstNames[hash % frenchFirstNames.length]
+  const lastInitial =
+    frenchLastInitials[hash % frenchLastInitials.length]
+
+  return {
+    firstName,
+    lastName: lastInitial,
+  }
+}
+
 function itemToReview(item: ApifyDatasetItem): ScrapedReview | null {
   if (item.reviewType === "stats") return null
 
@@ -22,12 +89,19 @@ function itemToReview(item: ApifyDatasetItem): ScrapedReview | null {
 
   if (!text || text.length < 5) return null
 
+  const productId = String(item.productId || "")
+  const reviewId = String(item.reviewId || "")
+  const displayName = getKiidiizDisplayName(productId, reviewId)
+
   return normalizeReview({
-    customer_first_name: item.anonymous ? "Client" : "Client",
-    customer_last_name: item.buyerCountry ? String(item.buyerCountry) : "",
+    customer_first_name: displayName.firstName,
+    customer_last_name: displayName.lastName,
     rating: Number(item.starRating || 5),
     review: text,
-    image_url: Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : "",
+    image_url:
+      Array.isArray(item.images) && item.images.length > 0
+        ? item.images[0]
+        : "",
     video_url: "",
     verified: true,
     verified_parent: true,
