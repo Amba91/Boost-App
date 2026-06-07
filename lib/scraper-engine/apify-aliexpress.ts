@@ -15,77 +15,24 @@ function getApifyToken() {
   return token
 }
 
-function findReviewsInObject(value: any): ScrapedReview[] {
-  const reviews: ScrapedReview[] = []
+function itemToReview(item: ApifyDatasetItem): ScrapedReview | null {
+  if (item.reviewType === "stats") return null
 
-  function walk(node: any) {
-    if (!node) return
+  const text = String(item.buyerFeedback || "").trim()
 
-    if (Array.isArray(node)) {
-      for (const item of node) walk(item)
-      return
-    }
+  if (!text || text.length < 5) return null
 
-    if (typeof node !== "object") return
-
-    const text =
-      node.review ||
-      node.reviewText ||
-      node.reviewBody ||
-      node.content ||
-      node.comment ||
-      node.feedback ||
-      node.text
-
-    const rating =
-      node.rating ||
-      node.stars ||
-      node.starRating ||
-      node.reviewRating?.ratingValue ||
-      node.score
-
-    const author =
-      node.author ||
-      node.authorName ||
-      node.buyerName ||
-      node.userName ||
-      node.name ||
-      node.customerName ||
-      "Client"
-
-    const image =
-      node.image_url ||
-      node.imageUrl ||
-      node.image ||
-      node.avatar ||
-      node.buyerAvatar ||
-      ""
-
-    if (text && String(text).length > 5) {
-      const [firstName, ...lastParts] = String(author).split(" ")
-
-      reviews.push(
-        normalizeReview({
-          customer_first_name: firstName || "Client",
-          customer_last_name: lastParts.join(" "),
-          rating: Number(rating || 5),
-          review: String(text),
-          image_url: String(image || ""),
-          verified: true,
-          verified_parent: true,
-          verified_purchase: true,
-        })
-      )
-    }
-
-    for (const key of Object.keys(node)) {
-      walk(node[key])
-    }
-  }
-
-  walk(value)
-
-  return reviews
+  return normalizeReview({
+    customer_first_name: item.anonymous ? "Client" : "Client",
+    customer_last_name: item.buyerCountry ? String(item.buyerCountry) : "",
+    rating: Number(item.starRating || 5),
+    review: text,
+    image_url: Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : "",
+    video_url: "",
+    verified: true,
+    verified_parent: true,
+    verified_purchase: true,
+  })
 }
 
 function uniqueReviews(reviews: ScrapedReview[]) {
@@ -131,17 +78,13 @@ async function waitForRun(runId: string) {
   for (let attempt = 0; attempt < 40; attempt++) {
     const response = await fetch(
       `https://api.apify.com/v2/actor-runs/${runId}?token=${token}`,
-      {
-        cache: "no-store",
-      }
+      { cache: "no-store" }
     )
 
     const data = await response.json()
     const status = data?.data?.status
 
-    if (status === "SUCCEEDED") {
-      return data?.data
-    }
+    if (status === "SUCCEEDED") return data?.data
 
     if (["FAILED", "ABORTED", "TIMED-OUT"].includes(status)) {
       throw new Error(`Apify a échoué : ${status}`)
@@ -158,9 +101,7 @@ async function readDatasetItems(datasetId: string) {
 
   const response = await fetch(
     `https://api.apify.com/v2/datasets/${datasetId}/items?clean=true&format=json&token=${token}`,
-    {
-      cache: "no-store",
-    }
+    { cache: "no-store" }
   )
 
   const data = await response.json()
@@ -189,11 +130,10 @@ export async function scrapeAliExpressReviewsWithApify(
   }
 
   const items: ApifyDatasetItem[] = await readDatasetItems(datasetId)
-  const reviews: ScrapedReview[] = []
 
-  for (const item of items) {
-    reviews.push(...findReviewsInObject(item))
-  }
+  const reviews = items
+    .map(itemToReview)
+    .filter((review): review is ScrapedReview => review !== null)
 
   return uniqueReviews(reviews).slice(0, count)
 }
