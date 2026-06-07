@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
 import { scrapeAliExpressReviewsWithApify } from "../../../../../lib/scraper-engine/apify-aliexpress"
+import { enhanceReviewsWithOpenAI } from "../../../../../lib/scraper-engine/openai-review-enhancer"
 import type { ScrapedReview } from "../../../../../lib/scraper-engine/types"
 
 export const maxDuration = 60
@@ -73,9 +74,11 @@ export async function POST(request: Request) {
       )
     }
 
+    const enhancedReviews = await enhanceReviewsWithOpenAI(scrapedReviews)
+
     let imported = 0
 
-    for (const review of scrapedReviews) {
+    for (const review of enhancedReviews) {
       await sql`
         INSERT INTO product_reviews (
           shop,
@@ -126,7 +129,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       imported,
-      message: `${imported} avis AliExpress réel(s) importé(s) via Apify en brouillon.`,
+      message: `${imported} avis AliExpress réel(s) traduit(s), corrigé(s) et amélioré(s) par IA.`,
     })
   } catch (error) {
     const message = String(error)
