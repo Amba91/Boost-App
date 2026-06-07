@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
-import { scrapeAliExpressReviews } from "../../../../../lib/scraper-engine/aliexpress"
+import { scrapeAliExpressReviewsWithApify } from "../../../../../lib/scraper-engine/apify-aliexpress"
 import type { ScrapedReview } from "../../../../../lib/scraper-engine/types"
 
 export const maxDuration = 60
@@ -57,7 +57,10 @@ export async function POST(request: Request) {
     let scrapedReviews: ScrapedReview[] = []
 
     if (job.platform === "aliexpress") {
-      scrapedReviews = await scrapeAliExpressReviews(job.source_url, count)
+      scrapedReviews = await scrapeAliExpressReviewsWithApify(
+        job.source_url,
+        count
+      )
     } else {
       throw new Error(
         `Extraction ${job.platform} pas encore disponible dans Boost Scraper Engine.`
@@ -66,7 +69,7 @@ export async function POST(request: Request) {
 
     if (scrapedReviews.length === 0) {
       throw new Error(
-        "Aucun avis réel récupéré. Boost n’a importé aucun faux avis."
+        "Aucun avis réel récupéré depuis Apify. Boost n’a importé aucun faux avis."
       )
     }
 
@@ -123,7 +126,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       imported,
-      message: `${imported} avis AliExpress réel(s) importé(s) en brouillon.`,
+      message: `${imported} avis AliExpress réel(s) importé(s) via Apify en brouillon.`,
     })
   } catch (error) {
     const message = String(error)
