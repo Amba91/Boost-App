@@ -20,6 +20,10 @@ type Review = {
   merchant_reply: string
 }
 
+type ReviewWithVisualNumber = Review & {
+  visualNumber: number
+}
+
 type ShopifyProduct = {
   id: string
   title: string
@@ -101,22 +105,36 @@ export default function ReviewsPage() {
       .replace(/â„¢/g, "")
       .trim()
 
-  const filteredReviews = reviews.filter((item) => {
-    const query = search.toLowerCase()
-
+  const productReviews = reviews.filter((item) => {
     const matchesSelectedProduct = targetProductHandle
       ? normalizeHandle(item.product_handle) ===
         normalizeHandle(targetProductHandle)
       : true
 
+    return matchesSelectedProduct
+  })
+
+  const numberedProductReviews: ReviewWithVisualNumber[] = productReviews.map(
+    (review, index) => ({
+      ...review,
+      visualNumber: index + 1,
+    })
+  )
+
+  const filteredReviews = numberedProductReviews.filter((item) => {
+    const query = search.toLowerCase().trim()
+
+    if (!query) return true
+
     const matchesSearch =
+      String(item.visualNumber).includes(query) ||
       String(item.id).includes(query) ||
       item.product_handle?.toLowerCase().includes(query) ||
       item.customer_first_name?.toLowerCase().includes(query) ||
       item.customer_last_name?.toLowerCase().includes(query) ||
       item.review?.toLowerCase().includes(query)
 
-    return matchesSelectedProduct && matchesSearch
+    return matchesSearch
   })
 
   const filteredImportJobs = importJobs.filter((job) => {
@@ -603,6 +621,20 @@ export default function ReviewsPage() {
   }
 
   useEffect(() => {
+    document.documentElement.style.height = "auto"
+    document.documentElement.style.overflowY = "auto"
+    document.body.style.height = "auto"
+    document.body.style.overflowY = "auto"
+
+    return () => {
+      document.documentElement.style.height = ""
+      document.documentElement.style.overflowY = ""
+      document.body.style.height = ""
+      document.body.style.overflowY = ""
+    }
+  }, [])
+
+  useEffect(() => {
     async function init() {
       const params = new URLSearchParams(window.location.search)
       const productHandle = params.get("product_handle") || ""
@@ -642,7 +674,7 @@ export default function ReviewsPage() {
           <p style={styles.handle}>{targetProductHandle}</p>
           <p style={styles.muted}>
             Avis associés à ce produit :{" "}
-            <strong>{filteredReviews.length}</strong>
+            <strong>{productReviews.length}</strong>
           </p>
         </div>
       )}
@@ -1004,7 +1036,7 @@ export default function ReviewsPage() {
       <div style={styles.cardWide}>
         <h2>
           Avis existants{" "}
-          {targetProductHandle && `— ${filteredReviews.length} avis`}
+          {targetProductHandle && `— ${productReviews.length} avis`}
         </h2>
 
         {targetProductHandle && (
@@ -1052,7 +1084,7 @@ export default function ReviewsPage() {
         {filteredReviews.map((item) => (
           <div key={item.id} style={styles.reviewCard}>
             <div style={styles.reviewHeader}>
-              <span>Avis #{item.id}</span>
+              <span>Avis #{item.visualNumber}</span>
               <span>
                 {item.visible ? "Visible" : "Masqué"} ·{" "}
                 {item.customer_first_name} {item.customer_last_name}
@@ -1239,6 +1271,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: "white",
     padding: "40px",
     fontFamily: "Arial",
+    overflowY: "visible",
   },
   back: {
     color: "#a78bfa",
