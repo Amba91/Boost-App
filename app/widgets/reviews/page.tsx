@@ -400,7 +400,7 @@ export default function ReviewsPage() {
       const data = await res.json()
 
       if (data.success) {
-        setUrlImportMessage(data.message || "Lien analysé avec succès.")
+        setUrlImportMessage("")
         setReviewUrl("")
         await loadImportJobs()
       } else {
@@ -826,17 +826,7 @@ export default function ReviewsPage() {
           {urlImporting ? "Analyse du lien..." : "Importer depuis ce lien"}
         </button>
 
-        {urlImportMessage && (
-          <p
-            style={
-              urlImportMessage.toLowerCase().includes("erreur")
-                ? styles.error
-                : styles.success
-            }
-          >
-            {urlImportMessage}
-          </p>
-        )}
+
       </div>
 
       <div style={styles.cardWide}>
@@ -1266,12 +1256,15 @@ export default function ReviewsPage() {
 
 const styles: Record<string, React.CSSProperties> = {
   main: {
+    height: "100vh",
     minHeight: "100vh",
+    overflowY: "auto",
+    overflowX: "hidden",
     background: "#050816",
     color: "white",
     padding: "40px",
     fontFamily: "Arial",
-    overflowY: "visible",
+   
   },
   back: {
     color: "#a78bfa",
