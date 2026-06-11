@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
 import { scrapeAliExpressReviewsWithApify } from "../../../../../lib/scraper-engine/apify-aliexpress"
-import { enhanceReviewsWithOpenAI } from "../../../../../lib/scraper-engine/openai-review-enhancer"
+import {
+  enhanceReviewsWithOpenAI,
+  isSupportedTargetLanguage,
+} from "../../../../../lib/scraper-engine/openai-review-enhancer"
 import type { ScrapedReview } from "../../../../../lib/scraper-engine/types"
 
 export const maxDuration = 60
@@ -15,6 +18,26 @@ export async function POST(request: Request) {
     jobId = Number(body.id)
     const requestedCount = Number(body.count || 10)
     const count = Math.min(Math.max(requestedCount, 1), 100)
+    const aiEnabled =
+      typeof body.ai_enabled === "boolean" ? body.ai_enabled : true
+    const requestedTargetLanguage = body.target_language
+
+    if (
+      aiEnabled &&
+      requestedTargetLanguage !== undefined &&
+      !isSupportedTargetLanguage(requestedTargetLanguage)
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Langue cible non prise en charge" },
+        { status: 400 }
+      )
+    }
+
+    const targetLanguage = isSupportedTargetLanguage(
+      requestedTargetLanguage
+    )
+      ? requestedTargetLanguage
+      : "fr"
 
     if (!jobId) {
       return NextResponse.json(
@@ -74,11 +97,13 @@ export async function POST(request: Request) {
       )
     }
 
-    const enhancedReviews = await enhanceReviewsWithOpenAI(scrapedReviews)
+    const reviewsToImport = aiEnabled
+      ? await enhanceReviewsWithOpenAI(scrapedReviews, targetLanguage)
+      : scrapedReviews
 
     let imported = 0
 
-    for (const review of enhancedReviews) {
+    for (const review of reviewsToImport) {
       await sql`
         INSERT INTO product_reviews (
           shop,
@@ -129,7 +154,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       imported,
-      message: `${imported} avis AliExpress réel(s) traduit(s), corrigé(s) et amélioré(s) par IA.`,
+      message: aiEnabled
+        ? `${imported} avis AliExpress réel(s) traduit(s), corrigé(s) et amélioré(s) par IA.`
+        : `${imported} avis AliExpress réel(s) importé(s) sans traitement IA.`,
     })
   } catch (error) {
     const message = String(error)

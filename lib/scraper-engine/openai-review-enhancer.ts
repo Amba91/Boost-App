@@ -1,5 +1,25 @@
 import type { ScrapedReview } from "./types"
 
+const targetLanguages = {
+  fr: "français",
+  en: "anglais",
+  es: "espagnol",
+  de: "allemand",
+  it: "italien",
+  ar: "arabe",
+} as const
+
+export type TargetLanguage = keyof typeof targetLanguages
+
+export function isSupportedTargetLanguage(
+  language: unknown
+): language is TargetLanguage {
+  return (
+    typeof language === "string" &&
+    Object.prototype.hasOwnProperty.call(targetLanguages, language)
+  )
+}
+
 function getOpenAIKey() {
   const key = process.env.OPENAI_API_KEY
 
@@ -10,8 +30,12 @@ function getOpenAIKey() {
   return key
 }
 
-async function enhanceSingleReview(review: ScrapedReview) {
+async function enhanceSingleReview(
+  review: ScrapedReview,
+  targetLanguage: TargetLanguage
+) {
   const apiKey = getOpenAIKey()
+  const targetLanguageName = targetLanguages[targetLanguage]
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -24,8 +48,7 @@ async function enhanceSingleReview(review: ScrapedReview) {
       input: [
         {
           role: "system",
-          content:
-            "Tu es un assistant e-commerce. Traduis les avis clients en français naturel, corrige les fautes et améliore légèrement le style sans inventer de nouveaux détails. Garde un ton authentique, simple et crédible. Ne réponds qu'avec le texte final de l'avis.",
+          content: `Tu es un assistant e-commerce. Traduis les avis clients en ${targetLanguageName} naturel, corrige les fautes et améliore légèrement le style sans inventer de nouveaux détails. Garde un ton authentique, simple et crédible. Ne réponds qu'avec le texte final de l'avis.`,
         },
         {
           role: "user",
@@ -55,13 +78,14 @@ async function enhanceSingleReview(review: ScrapedReview) {
 }
 
 export async function enhanceReviewsWithOpenAI(
-  reviews: ScrapedReview[]
+  reviews: ScrapedReview[],
+  targetLanguage: TargetLanguage
 ): Promise<ScrapedReview[]> {
   const enhancedReviews: ScrapedReview[] = []
 
   for (const review of reviews) {
     try {
-      const enhanced = await enhanceSingleReview(review)
+      const enhanced = await enhanceSingleReview(review, targetLanguage)
       enhancedReviews.push(enhanced)
     } catch {
       enhancedReviews.push(review)
