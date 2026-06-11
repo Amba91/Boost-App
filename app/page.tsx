@@ -58,6 +58,20 @@ export default function HomePage() {
     loadStatuses()
   }, [])
 
+  useEffect(() => {
+    document.documentElement.style.height = "auto"
+    document.documentElement.style.overflowY = "auto"
+    document.body.style.height = "auto"
+    document.body.style.overflowY = "auto"
+
+    return () => {
+      document.documentElement.style.height = ""
+      document.documentElement.style.overflowY = ""
+      document.body.style.height = ""
+      document.body.style.overflowY = ""
+    }
+  }, [])
+
   return (
     <main style={styles.main}>
       <h1 style={styles.logo}>🚀 BOOST</h1>
@@ -128,6 +142,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: "white",
     padding: "40px",
     fontFamily: "Arial",
+    overflowY: "visible",
   },
   logo: {
     fontSize: "58px",
