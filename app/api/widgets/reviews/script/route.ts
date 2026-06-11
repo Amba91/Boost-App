@@ -53,9 +53,23 @@ export async function GET() {
     }
   }
 
+  function imageProxyUrl(value) {
+    var url = safeMediaUrl(value)
+    if (!url) return ""
+
+    return (
+      "https://boost-app-9e6w.vercel.app/api/reviews/media?url=" +
+      encodeURIComponent(url)
+    )
+  }
+
   function renderReviews(reviews) {
     var oldWidget = document.getElementById("boost-reviews-widget")
+    var oldSummary = document.getElementById("boost-reviews-rating")
+    var oldStyle = document.getElementById("boost-reviews-style")
     if (oldWidget) oldWidget.remove()
+    if (oldSummary) oldSummary.remove()
+    if (oldStyle) oldStyle.remove()
 
     var form =
       document.querySelector('form[action*="/cart/add"]') ||
@@ -76,7 +90,9 @@ export async function GET() {
     var currentIndex = 0
 
     var container = document.createElement("div")
+    var summary = document.createElement("div")
     container.id = "boost-reviews-widget"
+    summary.id = "boost-reviews-rating"
 
     function reviewHtml(review) {
       var firstName = escapeHtml(review.customer_first_name || "")
@@ -84,20 +100,21 @@ export async function GET() {
       var content = escapeHtml(review.review || "")
       var rating = Number(review.rating || 5)
       var initials = escapeHtml((review.customer_first_name || "C").charAt(0))
-      var imageUrl = safeMediaUrl(review.image_url)
+      var originalImageUrl = safeMediaUrl(review.image_url)
+      var imageUrl = imageProxyUrl(review.image_url)
       var videoUrl = safeMediaUrl(review.video_url)
       var mediaHtml = ""
 
       if (imageUrl) {
         mediaHtml +=
-          '<a class="boost-review-media-link" href="' + imageUrl + '" target="_blank" rel="noopener noreferrer">' +
-            '<img class="boost-review-media" src="' + imageUrl + '" alt="Photo ajoutée par le client" loading="lazy" />' +
+          '<a class="boost-review-media-link" href="' + originalImageUrl + '" target="_blank" rel="noopener noreferrer">' +
+            '<img class="boost-review-media" src="' + imageUrl + '" alt="Photo ajoutée par le client" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()" />' +
           '</a>'
       }
 
       if (videoUrl) {
         mediaHtml +=
-          '<video class="boost-review-video" src="' + videoUrl + '" controls preload="metadata"></video>'
+          '<video class="boost-review-video" src="' + videoUrl + '" controls preload="metadata" onerror="this.remove()"></video>'
       }
 
       return (
@@ -117,13 +134,14 @@ export async function GET() {
       )
     }
 
+    summary.innerHTML =
+      '<span class="boost-rating-stars">★★★★★</span>' +
+      '<strong>' + average.toFixed(1).replace(".", ",") + ' / 5</strong>' +
+      '<span>(' + total + ' avis)</span>'
+
     container.innerHTML =
       '<div class="boost-reviews-box">' +
-        '<div class="boost-reviews-summary">' +
-          '<span>⭐</span>' +
-          '<strong>' + average.toFixed(1) + ' / 5</strong>' +
-          '<span>(' + total + ' avis)</span>' +
-        '</div>' +
+        '<div class="boost-reviews-heading">Avis de nos clients</div>' +
         '<div class="boost-review-slider">' +
           '<button class="boost-review-arrow boost-prev" type="button">‹</button>' +
           '<div class="boost-review-current">' +
@@ -134,9 +152,24 @@ export async function GET() {
       '</div>'
 
     var style = document.createElement("style")
+    style.id = "boost-reviews-style"
     style.innerHTML =
+      '#boost-reviews-rating {' +
+        'display: flex;' +
+        'align-items: center;' +
+        'gap: 7px;' +
+        'margin: 10px 0 8px;' +
+        'color: #111827;' +
+        'font-size: 14px;' +
+        'line-height: 1.2;' +
+      '}' +
+      '.boost-rating-stars {' +
+        'color: #f59e0b;' +
+        'font-size: 17px;' +
+        'letter-spacing: 1px;' +
+      '}' +
       '#boost-reviews-widget {' +
-        'margin: 14px 0 18px;' +
+        'margin: 18px 0 22px;' +
         'font-family: inherit;' +
         'width: 100%;' +
       '}' +
@@ -145,13 +178,11 @@ export async function GET() {
         'border-radius: 16px;' +
         'padding: 14px;' +
       '}' +
-      '.boost-reviews-summary {' +
-        'display: flex;' +
-        'align-items: center;' +
-        'gap: 7px;' +
-        'margin-bottom: 10px;' +
+      '.boost-reviews-heading {' +
+        'margin-bottom: 12px;' +
         'color: #111827;' +
-        'font-size: 14px;' +
+        'font-size: 17px;' +
+        'font-weight: 800;' +
       '}' +
       '.boost-review-slider {' +
         'position: relative;' +
@@ -224,13 +255,17 @@ export async function GET() {
       '}' +
       '.boost-review-media-link {' +
         'display: block;' +
+        'width: 104px;' +
+        'height: 104px;' +
+        'overflow: hidden;' +
+        'border-radius: 10px;' +
+        'background: #e5e7eb;' +
       '}' +
       '.boost-review-media {' +
         'display: block;' +
-        'width: 88px;' +
-        'height: 88px;' +
+        'width: 100%;' +
+        'height: 100%;' +
         'object-fit: cover;' +
-        'border-radius: 10px;' +
       '}' +
       '.boost-review-video {' +
         'display: block;' +
@@ -254,16 +289,47 @@ export async function GET() {
 
     document.head.appendChild(style)
 
-    var paymentIcons =
-      form.parentNode.querySelector(".list-payment") ||
-      form.parentNode.querySelector(".payment-icons") ||
-      form.parentNode.querySelector('[class*="payment"]')
+    var productInfo =
+      form.closest(".product__info-container") ||
+      form.parentNode
+    var priceBlock =
+      productInfo.querySelector('.no-js-hidden[id^="price-"]') ||
+      productInfo.querySelector(".price")
+    var productPaymentList = productInfo.querySelector(".list-payment-lm")
+    var productPaymentBlock = productPaymentList
+      ? productPaymentList.closest(".footer__payment")
+      : null
+    var description = productInfo.querySelector(".product__description")
 
-    if (paymentIcons && paymentIcons.parentNode) {
-      paymentIcons.parentNode.insertBefore(container, paymentIcons.nextSibling)
+    if (priceBlock && priceBlock.parentNode) {
+      priceBlock.parentNode.insertBefore(summary, priceBlock)
     } else {
-      form.parentNode.insertBefore(container, form.nextSibling)
+      productInfo.insertBefore(summary, productInfo.firstChild)
     }
+
+    if (productPaymentBlock && productPaymentBlock.parentNode) {
+      productPaymentBlock.parentNode.insertBefore(
+        container,
+        productPaymentBlock.nextSibling
+      )
+    } else if (description && description.parentNode) {
+      description.parentNode.insertBefore(container, description)
+    } else {
+      productInfo.appendChild(container)
+    }
+
+    container.querySelectorAll(".boost-review-media").forEach(function (image) {
+      image.addEventListener("error", function () {
+        var link = image.closest(".boost-review-media-link")
+        if (link) link.remove()
+      })
+    })
+
+    container.querySelectorAll(".boost-review-video").forEach(function (video) {
+      video.addEventListener("error", function () {
+        video.remove()
+      })
+    })
 
     var current = container.querySelector(".boost-review-current")
     var prev = container.querySelector(".boost-prev")
@@ -271,6 +337,19 @@ export async function GET() {
 
     function updateReview() {
       current.innerHTML = reviewHtml(reviews[currentIndex])
+
+      current.querySelectorAll(".boost-review-media").forEach(function (image) {
+        image.addEventListener("error", function () {
+          var link = image.closest(".boost-review-media-link")
+          if (link) link.remove()
+        })
+      })
+
+      current.querySelectorAll(".boost-review-video").forEach(function (video) {
+        video.addEventListener("error", function () {
+          video.remove()
+        })
+      })
     }
 
     if (prev) {
