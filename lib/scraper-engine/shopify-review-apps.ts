@@ -20,14 +20,20 @@ function splitName(fullName: unknown) {
 }
 
 function firstUrl(value: unknown) {
-  if (typeof value === "string") return value
-  if (!Array.isArray(value) || value.length === 0) return ""
-
-  const first = value[0]
+  const first = Array.isArray(value) ? value[0] : value
 
   if (typeof first === "string") return first
   if (first && typeof first === "object") {
-    return String(first.url || first.src || first.image_url || "")
+    return String(
+      first.url ||
+        first.src ||
+        first.image_url ||
+        first.video_url ||
+        first.videoUrl ||
+        first.large ||
+        first.full ||
+        ""
+    )
   }
 
   return ""
@@ -96,10 +102,16 @@ function rawToReview(raw: RawReview): ScrapedReview | null {
   const author =
     (typeof raw.author === "string" ? raw.author : raw.author?.name) ||
     raw.authorName ||
+    raw.display_name ||
+    raw.displayName ||
+    raw.reviewer ||
     raw.reviewer_name ||
     raw.reviewerName ||
     raw.customer_name ||
     raw.customerName ||
+    raw.user?.name ||
+    raw.user_name ||
+    raw.nickname ||
     raw.name ||
     "Client"
   const name = splitName(author)
@@ -112,9 +124,20 @@ function rawToReview(raw: RawReview): ScrapedReview | null {
     rating: Number(rating),
     review: text,
     image_url: firstUrl(
-      raw.images || raw.photos || raw.image || raw.image_url || raw.photo
+      raw.images ||
+        raw.photos ||
+        raw.media ||
+        raw.pictures ||
+        raw.picture_urls ||
+        raw.photo_urls ||
+        raw.image ||
+        raw.image_url ||
+        raw.photo ||
+        raw.photo_url
     ),
-    video_url: firstUrl(raw.videos || raw.video || raw.video_url),
+    video_url: firstUrl(
+      raw.videos || raw.video || raw.video_url || raw.videoUrl
+    ),
     verified: raw.verified ?? raw.verified_purchase ?? true,
     verified_parent: true,
     verified_purchase: raw.verified_purchase ?? raw.verified ?? true,
@@ -214,10 +237,28 @@ export async function scrapeShopifyReviewApp(
       ]
       const authorSelectors = [
         ".jdgm-rev__author",
+        ".jdgm-rev__buyer-badge + span",
         ".loox-review-author",
+        ".loox-reviewer-name",
         ".r--author",
+        ".r--author-name",
         ".review-author",
         "[data-review-author]",
+      ]
+      const mediaSelectors = [
+        ".jdgm-rev__pic-link img",
+        ".jdgm-rev__pics img",
+        ".loox-review-image",
+        ".loox-review-photo img",
+        ".r--review-images img",
+        ".review-images img",
+        "[data-review-image]",
+      ]
+      const videoSelectors = [
+        ".jdgm-rev video",
+        ".loox-review video",
+        ".ryviu-review video",
+        ".r--review-item video",
       ]
 
       const elements = Array.from(
@@ -241,13 +282,24 @@ export async function scrapeShopifyReviewApp(
             ?.getAttribute("aria-label") ||
           "5"
         const ratingMatch = ratingSource.match(/[1-5](?:[.,]\d)?/)
-        const image = element.querySelector("img")?.getAttribute("src") || ""
+        const findMedia = (candidates: string[], attribute: string) => {
+          for (const selector of candidates) {
+            const media = element.querySelector(selector)
+            const value =
+              media?.getAttribute(attribute) ||
+              media?.getAttribute("data-src") ||
+              media?.getAttribute("data-lazy-src")
+            if (value) return value
+          }
+          return ""
+        }
 
         return {
           review: findText(textSelectors),
           rating: ratingMatch ? Number(ratingMatch[0].replace(",", ".")) : 5,
           author: findText(authorSelectors),
-          image,
+          image: findMedia(mediaSelectors, "src"),
+          video: findMedia(videoSelectors, "src"),
           verified: true,
         }
       })

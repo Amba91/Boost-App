@@ -1210,10 +1210,35 @@ export default function ReviewsPage() {
             />
 
             {item.image_url && (
-              <img
-                src={item.image_url}
-                alt="Avis client"
-                style={styles.preview}
+              <a
+                href={item.image_url}
+                target="_blank"
+                rel="noreferrer"
+                style={styles.mediaLink}
+              >
+                <img
+                  src={item.image_url}
+                  alt="Photo de l’avis client"
+                  style={styles.preview}
+                />
+              </a>
+            )}
+
+            <input
+              placeholder="URL vidéo"
+              value={item.video_url || ""}
+              onChange={(e) =>
+                updateLocalReview(item.id, "video_url", e.target.value)
+              }
+              style={styles.input}
+            />
+
+            {item.video_url && (
+              <video
+                src={item.video_url}
+                controls
+                preload="metadata"
+                style={styles.videoPreview}
               />
             )}
 
@@ -1497,6 +1522,18 @@ const styles: Record<string, React.CSSProperties> = {
     objectFit: "cover",
     borderRadius: "12px",
     marginTop: "12px",
+  },
+  mediaLink: {
+    display: "inline-block",
+  },
+  videoPreview: {
+    display: "block",
+    width: "100%",
+    maxWidth: "320px",
+    maxHeight: "240px",
+    borderRadius: "12px",
+    marginTop: "12px",
+    background: "#000",
   },
   reviewCard: {
     background: "#050816",

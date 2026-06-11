@@ -42,6 +42,17 @@ export async function GET() {
       .replace(/'/g, "&#039;")
   }
 
+  function safeMediaUrl(value) {
+    try {
+      var url = new URL(String(value || ""), window.location.origin)
+      return url.protocol === "https:" || url.protocol === "http:"
+        ? escapeHtml(url.href)
+        : ""
+    } catch (error) {
+      return ""
+    }
+  }
+
   function renderReviews(reviews) {
     var oldWidget = document.getElementById("boost-reviews-widget")
     if (oldWidget) oldWidget.remove()
@@ -73,14 +84,26 @@ export async function GET() {
       var content = escapeHtml(review.review || "")
       var rating = Number(review.rating || 5)
       var initials = escapeHtml((review.customer_first_name || "C").charAt(0))
-      var imageUrl = review.image_url || ""
+      var imageUrl = safeMediaUrl(review.image_url)
+      var videoUrl = safeMediaUrl(review.video_url)
+      var mediaHtml = ""
+
+      if (imageUrl) {
+        mediaHtml +=
+          '<a class="boost-review-media-link" href="' + imageUrl + '" target="_blank" rel="noopener noreferrer">' +
+            '<img class="boost-review-media" src="' + imageUrl + '" alt="Photo ajoutée par le client" loading="lazy" />' +
+          '</a>'
+      }
+
+      if (videoUrl) {
+        mediaHtml +=
+          '<video class="boost-review-video" src="' + videoUrl + '" controls preload="metadata"></video>'
+      }
 
       return (
         '<div class="boost-single-review">' +
           '<div class="boost-review-avatar">' +
-            (imageUrl
-              ? '<img src="' + escapeHtml(imageUrl) + '" alt="Avis client" />'
-              : '<span>' + initials + '</span>') +
+            '<span>' + initials + '</span>' +
           '</div>' +
           '<div class="boost-review-content">' +
             '<div class="boost-review-title">' +
@@ -88,6 +111,7 @@ export async function GET() {
               '<span>' + "★".repeat(rating) + '</span>' +
             '</div>' +
             '<p>' + content + '</p>' +
+            (mediaHtml ? '<div class="boost-review-medias">' + mediaHtml + '</div>' : '') +
           '</div>' +
         '</div>'
       )
@@ -190,6 +214,30 @@ export async function GET() {
         '-webkit-line-clamp: 3;' +
         '-webkit-box-orient: vertical;' +
         'overflow: hidden;' +
+      '}' +
+      '.boost-review-medias {' +
+        'display: flex;' +
+        'gap: 8px;' +
+        'align-items: flex-start;' +
+        'flex-wrap: wrap;' +
+        'margin-top: 10px;' +
+      '}' +
+      '.boost-review-media-link {' +
+        'display: block;' +
+      '}' +
+      '.boost-review-media {' +
+        'display: block;' +
+        'width: 88px;' +
+        'height: 88px;' +
+        'object-fit: cover;' +
+        'border-radius: 10px;' +
+      '}' +
+      '.boost-review-video {' +
+        'display: block;' +
+        'width: 156px;' +
+        'max-height: 120px;' +
+        'border-radius: 10px;' +
+        'background: #000;' +
       '}' +
       '.boost-review-arrow {' +
         'width: 28px;' +

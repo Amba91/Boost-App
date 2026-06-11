@@ -37,13 +37,19 @@ function splitName(fullName: unknown) {
 }
 
 function getFirstMediaUrl(value: unknown) {
-  if (!Array.isArray(value) || value.length === 0) return ""
-
-  const first = value[0]
+  const first = Array.isArray(value) ? value[0] : value
 
   if (typeof first === "string") return first
   if (first && typeof first === "object") {
-    return String(first.url || first.videoUrl || first.src || "")
+    return String(
+      first.url ||
+        first.videoUrl ||
+        first.video_url ||
+        first.src ||
+        first.large ||
+        first.full ||
+        ""
+    )
   }
 
   return ""
@@ -94,7 +100,9 @@ async function runAmazonActor(productUrl: string, count: number) {
         region: getAmazonRegion(productUrl),
         language: "all",
         include_variants: true,
-        personal_data: false,
+        personal_data: true,
+        scrape_image_reviews: true,
+        scrape_video_reviews: true,
       }),
     }
   )
