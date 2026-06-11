@@ -67,7 +67,7 @@
       if (data.widgets["reviews"]) {
         const script = document.createElement("script")
         script.src =
-          "https://boost-app-9e6w.vercel.app/api/widgets/reviews/script?v=9"
+          "https://boost-app-9e6w.vercel.app/api/widgets/reviews/script?v=10"
         script.defer = true
         document.body.appendChild(script)
       }

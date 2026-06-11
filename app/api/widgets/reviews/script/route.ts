@@ -183,7 +183,15 @@ export async function GET() {
         '<div class="boost-review-slider">' +
           '<button class="boost-review-arrow boost-prev" type="button">‹</button>' +
           '<div class="boost-review-current">' +
-            reviewHtml(reviews[currentIndex]) +
+            reviews.map(function (review, index) {
+              return (
+                '<div class="boost-review-panel' +
+                (index === 0 ? ' is-active' : '') +
+                '" data-review-index="' + index + '">' +
+                  reviewHtml(review) +
+                '</div>'
+              )
+            }).join("") +
           '</div>' +
           '<button class="boost-review-arrow boost-next" type="button">›</button>' +
         '</div>' +
@@ -231,6 +239,12 @@ export async function GET() {
       '.boost-review-current {' +
         'flex: 1;' +
         'min-width: 0;' +
+      '}' +
+      '.boost-review-panel {' +
+        'display: none;' +
+      '}' +
+      '.boost-review-panel.is-active {' +
+        'display: block;' +
       '}' +
       '.boost-single-review {' +
         'display: flex;' +
@@ -352,9 +366,16 @@ export async function GET() {
     var current = container.querySelector(".boost-review-current")
     var prev = container.querySelector(".boost-prev")
     var next = container.querySelector(".boost-next")
+    var panels = current.querySelectorAll(".boost-review-panel")
 
     function updateReview() {
-      current.innerHTML = reviewHtml(reviews[currentIndex])
+      panels.forEach(function (panel, index) {
+        if (index === currentIndex) {
+          panel.classList.add("is-active")
+        } else {
+          panel.classList.remove("is-active")
+        }
+      })
     }
 
     if (prev) {
