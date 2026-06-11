@@ -39,6 +39,11 @@ export async function GET() {
     `
 
     await sql`
+      ALTER TABLE product_reviews
+      ADD COLUMN IF NOT EXISTS featured BOOLEAN DEFAULT false
+    `
+
+    await sql`
       CREATE TABLE IF NOT EXISTS products (
         id SERIAL PRIMARY KEY,
         shop TEXT NOT NULL,

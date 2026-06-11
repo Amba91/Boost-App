@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
+import { ensureReviewPriorityColumn } from "../../../../lib/reviews-schema"
 
 export async function POST(request: Request) {
   try {
+    await ensureReviewPriorityColumn()
+
     const body = await request.json()
 
     await sql`
@@ -19,7 +22,8 @@ export async function POST(request: Request) {
         verified_parent,
         verified_purchase,
         visible,
-        merchant_reply
+        merchant_reply,
+        featured
       )
       VALUES (
         ${body.shop || "kiidiiz.com"},
@@ -34,7 +38,8 @@ export async function POST(request: Request) {
         ${body.verified_parent ?? true},
         ${body.verified_purchase ?? true},
         ${body.visible ?? true},
-        ${body.merchant_reply || ""}
+        ${body.merchant_reply || ""},
+        ${body.featured ?? false}
       )
     `
 

@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
+import { ensureReviewPriorityColumn } from "../../../../lib/reviews-schema"
 
 export async function POST(req: Request) {
   try {
+    await ensureReviewPriorityColumn()
+
     const body = await req.json()
 
     const id = Number(body.id)
@@ -28,7 +31,8 @@ export async function POST(req: Request) {
         verified_parent = ${body.verified_parent ?? true},
         verified_purchase = ${body.verified_purchase ?? true},
         visible = ${body.visible ?? true},
-        merchant_reply = ${body.merchant_reply || ""}
+        merchant_reply = ${body.merchant_reply || ""},
+        featured = ${body.featured ?? false}
       WHERE id = ${id}
       RETURNING *
     `

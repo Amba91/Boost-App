@@ -18,6 +18,7 @@ type Review = {
   verified_purchase: boolean
   visible: boolean
   merchant_reply: string
+  featured: boolean
 }
 
 type ReviewWithVisualNumber = Review & {
@@ -73,6 +74,9 @@ export default function ReviewsPage() {
   const [aiEnabled, setAiEnabled] = useState(true)
   const [targetLanguage, setTargetLanguage] = useState("fr")
   const [search, setSearch] = useState("")
+  const [visibilityFilter, setVisibilityFilter] = useState("all")
+  const [ratingFilter, setRatingFilter] = useState("all")
+  const [mediaFilter, setMediaFilter] = useState("all")
   const [reviews, setReviews] = useState<Review[]>([])
   const [products, setProducts] = useState<ShopifyProduct[]>([])
   const [importJobs, setImportJobs] = useState<ImportJob[]>([])
@@ -124,8 +128,29 @@ export default function ReviewsPage() {
     })
   )
 
+  const publishedReviewsCount = productReviews.filter(
+    (item) => item.visible
+  ).length
+  const hiddenReviewsCount = productReviews.length - publishedReviewsCount
+  const featuredReviewsCount = productReviews.filter(
+    (item) => item.featured
+  ).length
+
   const filteredReviews = numberedProductReviews.filter((item) => {
     const query = search.toLowerCase().trim()
+
+    if (visibilityFilter === "published" && !item.visible) return false
+    if (visibilityFilter === "hidden" && item.visible) return false
+    if (visibilityFilter === "featured" && !item.featured) return false
+    if (ratingFilter !== "all" && item.rating !== Number(ratingFilter)) {
+      return false
+    }
+    if (mediaFilter === "with_media" && !item.image_url && !item.video_url) {
+      return false
+    }
+    if (mediaFilter === "without_media" && (item.image_url || item.video_url)) {
+      return false
+    }
 
     if (!query) return true
 
@@ -680,6 +705,20 @@ export default function ReviewsPage() {
           <p style={styles.muted}>
             Avis associés à ce produit : <strong>{productReviews.length}</strong>
           </p>
+          <div style={styles.statsGrid}>
+            <div style={styles.statBox}>
+              <strong style={{ color: "#22c55e" }}>{publishedReviewsCount}</strong>
+              <span>Publiés</span>
+            </div>
+            <div style={styles.statBox}>
+              <strong style={{ color: "#f59e0b" }}>{hiddenReviewsCount}</strong>
+              <span>Masqués</span>
+            </div>
+            <div style={styles.statBox}>
+              <strong style={{ color: "#a78bfa" }}>{featuredReviewsCount}</strong>
+              <span>Mis en premier</span>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1112,6 +1151,46 @@ export default function ReviewsPage() {
           style={styles.input}
         />
 
+        <div style={styles.filtersGrid}>
+          <select
+            value={visibilityFilter}
+            onChange={(e) => setVisibilityFilter(e.target.value)}
+            style={styles.input}
+          >
+            <option value="all">Tous les avis</option>
+            <option value="published">Publiés seulement</option>
+            <option value="hidden">Masqués seulement</option>
+            <option value="featured">Mis en premier</option>
+          </select>
+
+          <select
+            value={ratingFilter}
+            onChange={(e) => setRatingFilter(e.target.value)}
+            style={styles.input}
+          >
+            <option value="all">Toutes les notes</option>
+            <option value="5">5 étoiles</option>
+            <option value="4">4 étoiles</option>
+            <option value="3">3 étoiles</option>
+            <option value="2">2 étoiles</option>
+            <option value="1">1 étoile</option>
+          </select>
+
+          <select
+            value={mediaFilter}
+            onChange={(e) => setMediaFilter(e.target.value)}
+            style={styles.input}
+          >
+            <option value="all">Avec ou sans média</option>
+            <option value="with_media">Avec photo ou vidéo</option>
+            <option value="without_media">Sans média</option>
+          </select>
+        </div>
+
+        <p style={styles.helper}>
+          {filteredReviews.length} avis affiché(s) avec ces filtres.
+        </p>
+
         {filteredReviews.length === 0 && (
           <p style={styles.muted}>Aucun avis trouvé pour ce produit.</p>
         )}
@@ -1119,7 +1198,9 @@ export default function ReviewsPage() {
         {filteredReviews.map((item) => (
           <div key={item.id} style={styles.reviewCard}>
             <div style={styles.reviewHeader}>
-              <span>Avis #{item.visualNumber}</span>
+              <span>
+                Avis #{item.visualNumber} {item.featured ? "· En premier" : ""}
+              </span>
               <span>
                 {item.visible ? "Visible" : "Masqué"} ·{" "}
                 {item.customer_first_name} {item.customer_last_name}
@@ -1294,6 +1375,17 @@ export default function ReviewsPage() {
                 />{" "}
                 Visible
               </label>
+
+              <label>
+                <input
+                  type="checkbox"
+                  checked={item.featured || false}
+                  onChange={(e) =>
+                    updateLocalReview(item.id, "featured", e.target.checked)
+                  }
+                />{" "}
+                Mettre en premier
+              </label>
             </div>
 
             <button
@@ -1358,6 +1450,21 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "26px",
     marginTop: "10px",
     marginBottom: "8px",
+  },
+  statsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+    gap: "12px",
+    marginTop: "18px",
+  },
+  statBox: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "5px",
+    background: "rgba(5, 8, 22, 0.65)",
+    padding: "14px",
+    borderRadius: "14px",
+    color: "#cbd5e1",
   },
   card: {
     background: "#111827",
@@ -1471,6 +1578,11 @@ const styles: Record<string, React.CSSProperties> = {
     gap: "12px",
     marginTop: "18px",
     marginBottom: "18px",
+  },
+  filtersGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+    gap: "12px",
   },
   bulkButton: {
     background: "#16a34a",

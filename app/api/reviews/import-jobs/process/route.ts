@@ -116,8 +116,23 @@ export async function POST(request: Request) {
       : scrapedReviews
 
     let imported = 0
+    let skippedDuplicates = 0
 
     for (const review of reviewsToImport) {
+      const duplicate = await sql`
+        SELECT id
+        FROM product_reviews
+        WHERE shop = 'kiidiiz.com'
+        AND product_handle = ${job.product_handle}
+        AND LOWER(TRIM(review)) = LOWER(TRIM(${review.review}))
+        LIMIT 1
+      `
+
+      if (duplicate.rows.length > 0) {
+        skippedDuplicates++
+        continue
+      }
+
       await sql`
         INSERT INTO product_reviews (
           shop,
@@ -168,9 +183,16 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       imported,
-      message: aiEnabled
-        ? `${imported} avis ${job.platform} réel(s) traduit(s), corrigé(s) et amélioré(s) par IA.`
-        : `${imported} avis ${job.platform} réel(s) importé(s) sans traitement IA.`,
+      skipped_duplicates: skippedDuplicates,
+      message: `${
+        aiEnabled
+          ? `${imported} avis ${job.platform} réel(s) traduit(s), corrigé(s) et amélioré(s) par IA.`
+          : `${imported} avis ${job.platform} réel(s) importé(s) sans traitement IA.`
+      }${
+        skippedDuplicates > 0
+          ? ` ${skippedDuplicates} doublon(s) ignoré(s).`
+          : ""
+      }`,
     })
   } catch (error) {
     const message = String(error)

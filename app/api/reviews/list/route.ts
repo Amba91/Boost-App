@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
+import { ensureReviewPriorityColumn } from "../../../../lib/reviews-schema"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +17,8 @@ export async function OPTIONS() {
 
 export async function GET(req: Request) {
   try {
+    await ensureReviewPriorityColumn()
+
     const { searchParams } = new URL(req.url)
 
     const shop = searchParams.get("shop")
@@ -37,7 +40,7 @@ export async function GET(req: Request) {
       WHERE shop = ${shop}
       AND product_handle = ${productHandle}
       AND visible = TRUE
-      ORDER BY created_at DESC
+      ORDER BY featured DESC, created_at DESC
     `
 
     return NextResponse.json(
