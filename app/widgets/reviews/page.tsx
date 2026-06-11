@@ -46,6 +46,26 @@ type ImportJob = {
   updated_at: string
 }
 
+type WidgetSettings = {
+  title: string
+  background_color: string
+  star_color: string
+  text_color: string
+  photo_size: number
+  max_reviews: number
+  show_arrows: boolean
+}
+
+const defaultWidgetSettings: WidgetSettings = {
+  title: "Avis de nos clients",
+  background_color: "#f0fffb",
+  star_color: "#f59e0b",
+  text_color: "#111827",
+  photo_size: 104,
+  max_reviews: 50,
+  show_arrows: true,
+}
+
 export default function ReviewsPage() {
   const [active, setActive] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -83,6 +103,11 @@ export default function ReviewsPage() {
   const [productsLoading, setProductsLoading] = useState(false)
   const [targetProductHandle, setTargetProductHandle] = useState("")
   const [targetProductTitle, setTargetProductTitle] = useState("")
+  const [widgetSettings, setWidgetSettings] = useState<WidgetSettings>(
+    defaultWidgetSettings
+  )
+  const [savingWidgetSettings, setSavingWidgetSettings] = useState(false)
+  const [widgetSettingsMessage, setWidgetSettingsMessage] = useState("")
 
   const [form, setForm] = useState({
     product_handle: "",
@@ -198,6 +223,48 @@ export default function ReviewsPage() {
     const res = await fetch("/api/widgets/reviews")
     const data = await res.json()
     setActive(data.active)
+  }
+
+  async function loadWidgetSettings() {
+    try {
+      const res = await fetch("/api/reviews/widget-settings")
+      const data = await res.json()
+
+      if (data.success && data.settings) {
+        setWidgetSettings({
+          ...defaultWidgetSettings,
+          ...data.settings,
+        })
+      }
+    } catch (error) {
+      console.error("LOAD WIDGET SETTINGS ERROR:", error)
+    }
+  }
+
+  async function saveWidgetSettings() {
+    setSavingWidgetSettings(true)
+    setWidgetSettingsMessage("")
+
+    try {
+      const res = await fetch("/api/reviews/widget-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(widgetSettings),
+      })
+      const data = await res.json()
+
+      if (!data.success) {
+        setWidgetSettingsMessage(data.error || "Erreur pendant l’enregistrement.")
+      } else {
+        setWidgetSettings({ ...defaultWidgetSettings, ...data.settings })
+        setWidgetSettingsMessage("Personnalisation enregistrée.")
+      }
+    } catch (error) {
+      console.error("SAVE WIDGET SETTINGS ERROR:", error)
+      setWidgetSettingsMessage("Erreur pendant l’enregistrement.")
+    }
+
+    setSavingWidgetSettings(false)
   }
 
   async function loadReviews() {
@@ -680,6 +747,7 @@ export default function ReviewsPage() {
       }
 
       await loadWidget()
+      await loadWidgetSettings()
       await loadReviews()
       await loadProducts()
       await loadImportJobs()
@@ -745,6 +813,154 @@ export default function ReviewsPage() {
             ? "Désactiver Reviews"
             : "Activer Reviews"}
         </button>
+      </div>
+
+      <div style={styles.cardWide}>
+        <h2>Personnaliser l’affichage</h2>
+        <p style={styles.muted}>
+          Ces choix s’appliquent automatiquement aux fiches produits Shopify.
+        </p>
+
+        <label style={styles.fieldLabel}>Titre du bloc</label>
+        <input
+          value={widgetSettings.title}
+          onChange={(e) =>
+            setWidgetSettings({ ...widgetSettings, title: e.target.value })
+          }
+          style={styles.input}
+        />
+
+        <div style={styles.settingsGrid}>
+          <label style={styles.colorField}>
+            <span>Couleur du fond</span>
+            <input
+              type="color"
+              value={widgetSettings.background_color}
+              onChange={(e) =>
+                setWidgetSettings({
+                  ...widgetSettings,
+                  background_color: e.target.value,
+                })
+              }
+              style={styles.colorInput}
+            />
+          </label>
+
+          <label style={styles.colorField}>
+            <span>Couleur des étoiles</span>
+            <input
+              type="color"
+              value={widgetSettings.star_color}
+              onChange={(e) =>
+                setWidgetSettings({
+                  ...widgetSettings,
+                  star_color: e.target.value,
+                })
+              }
+              style={styles.colorInput}
+            />
+          </label>
+
+          <label style={styles.colorField}>
+            <span>Couleur du texte</span>
+            <input
+              type="color"
+              value={widgetSettings.text_color}
+              onChange={(e) =>
+                setWidgetSettings({
+                  ...widgetSettings,
+                  text_color: e.target.value,
+                })
+              }
+              style={styles.colorInput}
+            />
+          </label>
+        </div>
+
+        <div style={styles.settingsGrid}>
+          <label style={styles.fieldLabel}>
+            Taille des photos
+            <select
+              value={widgetSettings.photo_size}
+              onChange={(e) =>
+                setWidgetSettings({
+                  ...widgetSettings,
+                  photo_size: Number(e.target.value),
+                })
+              }
+              style={styles.input}
+            >
+              <option value={80}>Petite</option>
+              <option value={104}>Moyenne</option>
+              <option value={140}>Grande</option>
+            </select>
+          </label>
+
+          <label style={styles.fieldLabel}>
+            Nombre maximum d’avis
+            <input
+              type="number"
+              min={1}
+              max={100}
+              value={widgetSettings.max_reviews}
+              onChange={(e) =>
+                setWidgetSettings({
+                  ...widgetSettings,
+                  max_reviews: Number(e.target.value),
+                })
+              }
+              style={styles.input}
+            />
+          </label>
+        </div>
+
+        <label style={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            checked={widgetSettings.show_arrows}
+            onChange={(e) =>
+              setWidgetSettings({
+                ...widgetSettings,
+                show_arrows: e.target.checked,
+              })
+            }
+          />{" "}
+          Afficher les flèches du carrousel
+        </label>
+
+        <div
+          style={{
+            ...styles.widgetPreview,
+            background: widgetSettings.background_color,
+            color: widgetSettings.text_color,
+          }}
+        >
+          <strong>{widgetSettings.title || "Avis de nos clients"}</strong>
+          <div style={{ color: widgetSettings.star_color }}>★★★★★</div>
+          <p style={{ marginBottom: 0 }}>Très bon produit, je recommande.</p>
+        </div>
+
+        <button
+          onClick={saveWidgetSettings}
+          disabled={savingWidgetSettings}
+          style={styles.button}
+        >
+          {savingWidgetSettings
+            ? "Enregistrement..."
+            : "Enregistrer la personnalisation"}
+        </button>
+
+        {widgetSettingsMessage && (
+          <p
+            style={
+              widgetSettingsMessage.toLowerCase().includes("erreur")
+                ? styles.error
+                : styles.success
+            }
+          >
+            {widgetSettingsMessage}
+          </p>
+        )}
       </div>
 
       <div style={styles.card}>
@@ -1522,6 +1738,41 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: "bold",
     display: "block",
     marginBottom: "8px",
+  },
+  fieldLabel: {
+    color: "#cbd5e1",
+    fontWeight: "bold",
+    display: "block",
+    marginTop: "16px",
+  },
+  settingsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: "14px",
+    marginTop: "12px",
+  },
+  colorField: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+    background: "#050816",
+    color: "#cbd5e1",
+    padding: "14px",
+    borderRadius: "12px",
+    fontWeight: "bold",
+  },
+  colorInput: {
+    width: "52px",
+    height: "38px",
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+  },
+  widgetPreview: {
+    marginTop: "18px",
+    padding: "18px",
+    borderRadius: "16px",
   },
   exportLink: {
     display: "block",

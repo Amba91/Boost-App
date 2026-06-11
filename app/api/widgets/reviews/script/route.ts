@@ -15,20 +15,28 @@ export async function GET() {
     if (!productHandle) return
 
     try {
-      var response = await fetch(
-        "https://boost-app-9e6w.vercel.app/api/reviews/list?shop=kiidiiz.com&product_handle=" +
-          encodeURIComponent(productHandle)
-      )
-
-      var data = await response.json()
+      var responses = await Promise.all([
+        fetch(
+          "https://boost-app-9e6w.vercel.app/api/reviews/list?shop=kiidiiz.com&product_handle=" +
+            encodeURIComponent(productHandle)
+        ),
+        fetch(
+          "https://boost-app-9e6w.vercel.app/api/reviews/widget-settings"
+        ),
+      ])
+      var data = await responses[0].json()
+      var settingsData = await responses[1].json()
 
       if (!data.success || !data.reviews || !data.reviews.length) {
         console.log("Boost Reviews: aucun avis trouvé", productHandle, data)
         return
       }
 
-      var preparedReviews = await prepareReviewPhotos(data.reviews)
-      renderReviews(preparedReviews)
+      var settings = normalizeSettings(settingsData.settings)
+      var preparedReviews = await prepareReviewPhotos(
+        data.reviews.slice(0, settings.max_reviews)
+      )
+      renderReviews(preparedReviews, settings)
     } catch (error) {
       console.error("Boost Reviews Error", error)
     }
@@ -41,6 +49,27 @@ export async function GET() {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;")
+  }
+
+  function safeColor(value, fallback) {
+    var color = String(value || "").trim()
+    return /^#[0-9a-f]{6}$/i.test(color) ? color : fallback
+  }
+
+  function normalizeSettings(value) {
+    var settings = value || {}
+    var maxReviews = Number(settings.max_reviews || 50)
+    var photoSize = Number(settings.photo_size || 104)
+
+    return {
+      title: String(settings.title || "Avis de nos clients").slice(0, 80),
+      background_color: safeColor(settings.background_color, "#f0fffb"),
+      star_color: safeColor(settings.star_color, "#f59e0b"),
+      text_color: safeColor(settings.text_color, "#111827"),
+      photo_size: Math.min(Math.max(photoSize, 60), 220),
+      max_reviews: Math.min(Math.max(maxReviews, 1), 100),
+      show_arrows: settings.show_arrows !== false,
+    }
   }
 
   function safeMediaUrl(value) {
@@ -108,7 +137,7 @@ export async function GET() {
     return Promise.all(reviews.map(preloadPhoto))
   }
 
-  function renderReviews(reviews) {
+  function renderReviews(reviews, settings) {
     var oldWidget = document.getElementById("boost-reviews-widget")
     var oldSummary = document.getElementById("boost-reviews-rating")
     var oldStyle = document.getElementById("boost-reviews-style")
@@ -179,9 +208,11 @@ export async function GET() {
 
     container.innerHTML =
       '<div class="boost-reviews-box">' +
-        '<div class="boost-reviews-heading">Avis de nos clients</div>' +
+        '<div class="boost-reviews-heading">' + escapeHtml(settings.title) + '</div>' +
         '<div class="boost-review-slider">' +
-          '<button class="boost-review-arrow boost-prev" type="button">‹</button>' +
+          (settings.show_arrows
+            ? '<button class="boost-review-arrow boost-prev" type="button">‹</button>'
+            : '') +
           '<div class="boost-review-current">' +
             reviews.map(function (review, index) {
               return (
@@ -193,7 +224,9 @@ export async function GET() {
               )
             }).join("") +
           '</div>' +
-          '<button class="boost-review-arrow boost-next" type="button">›</button>' +
+          (settings.show_arrows
+            ? '<button class="boost-review-arrow boost-next" type="button">›</button>'
+            : '') +
         '</div>' +
       '</div>'
 
@@ -205,12 +238,12 @@ export async function GET() {
         'align-items: center;' +
         'gap: 7px;' +
         'margin: 10px 0 8px;' +
-        'color: #111827;' +
+        'color: ' + settings.text_color + ';' +
         'font-size: 14px;' +
         'line-height: 1.2;' +
       '}' +
       '.boost-rating-stars {' +
-        'color: #f59e0b;' +
+        'color: ' + settings.star_color + ';' +
         'font-size: 17px;' +
         'letter-spacing: 1px;' +
       '}' +
@@ -220,13 +253,13 @@ export async function GET() {
         'width: 100%;' +
       '}' +
       '.boost-reviews-box {' +
-        'background: #f0fffb;' +
+        'background: ' + settings.background_color + ';' +
         'border-radius: 16px;' +
         'padding: 14px;' +
       '}' +
       '.boost-reviews-heading {' +
         'margin-bottom: 12px;' +
-        'color: #111827;' +
+        'color: ' + settings.text_color + ';' +
         'font-size: 17px;' +
         'font-weight: 800;' +
       '}' +
@@ -250,7 +283,7 @@ export async function GET() {
         'display: flex;' +
         'gap: 12px;' +
         'align-items: flex-start;' +
-        'background: #f0fffb;' +
+        'background: ' + settings.background_color + ';' +
         'border-radius: 14px;' +
       '}' +
       '.boost-review-avatar {' +
@@ -281,16 +314,16 @@ export async function GET() {
         'gap: 8px;' +
         'flex-wrap: wrap;' +
         'font-size: 14px;' +
-        'color: #111827;' +
+        'color: ' + settings.text_color + ';' +
       '}' +
       '.boost-review-title span {' +
-        'color: #f59e0b;' +
+        'color: ' + settings.star_color + ';' +
         'font-size: 12px;' +
         'white-space: nowrap;' +
       '}' +
       '.boost-review-content p {' +
         'margin: 5px 0 0;' +
-        'color: #374151;' +
+        'color: ' + settings.text_color + ';' +
         'font-size: 13px;' +
         'line-height: 1.35;' +
         'display: -webkit-box;' +
@@ -307,8 +340,8 @@ export async function GET() {
       '}' +
       '.boost-review-media-link {' +
         'display: block;' +
-        'width: 104px;' +
-        'height: 104px;' +
+        'width: ' + settings.photo_size + 'px;' +
+        'height: ' + settings.photo_size + 'px;' +
         'overflow: hidden;' +
         'border-radius: 10px;' +
         'background: #e5e7eb;' +

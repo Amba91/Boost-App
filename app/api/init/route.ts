@@ -87,6 +87,20 @@ export async function GET() {
       )
     `
 
+    await sql`
+      CREATE TABLE IF NOT EXISTS review_widget_settings (
+        shop TEXT PRIMARY KEY,
+        title TEXT NOT NULL DEFAULT 'Avis de nos clients',
+        background_color TEXT NOT NULL DEFAULT '#f0fffb',
+        star_color TEXT NOT NULL DEFAULT '#f59e0b',
+        text_color TEXT NOT NULL DEFAULT '#111827',
+        photo_size INTEGER NOT NULL DEFAULT 104,
+        max_reviews INTEGER NOT NULL DEFAULT 50,
+        show_arrows BOOLEAN NOT NULL DEFAULT true,
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `
+
     return NextResponse.json({
       success: true,
       message: "Database initialized",
