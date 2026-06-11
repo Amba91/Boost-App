@@ -27,6 +27,23 @@ function getAmazonRegion(productUrl: string) {
   return "amazon.com"
 }
 
+function getCanonicalAmazonUrl(productUrl: string) {
+  try {
+    const url = new URL(productUrl)
+    const asinMatch = url.pathname.match(
+      /\/(?:dp|gp\/product|product-reviews)\/([A-Z0-9]{10})(?:[/?]|$)/i
+    )
+
+    if (asinMatch?.[1]) {
+      return `${url.protocol}//${url.hostname}/dp/${asinMatch[1].toUpperCase()}`
+    }
+  } catch {
+    // L'acteur validera le lien original si son format est inhabituel.
+  }
+
+  return productUrl
+}
+
 function splitName(fullName: unknown) {
   const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean)
 
@@ -86,6 +103,7 @@ function uniqueReviews(reviews: ScrapedReview[]) {
 async function runAmazonActor(productUrl: string, count: number) {
   const token = getApifyToken()
   const pages = Math.min(Math.max(Math.ceil(count / 10), 1), 10)
+  const canonicalUrl = getCanonicalAmazonUrl(productUrl)
 
   const response = await fetch(
     `https://api.apify.com/v2/actors/${APIFY_ACTOR_ID}/runs?token=${token}`,
@@ -95,14 +113,12 @@ async function runAmazonActor(productUrl: string, count: number) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        products: [productUrl],
+        products: [canonicalUrl],
         limit: pages,
         region: getAmazonRegion(productUrl),
         language: "all",
         include_variants: true,
         personal_data: true,
-        scrape_image_reviews: true,
-        scrape_video_reviews: true,
       }),
     }
   )
