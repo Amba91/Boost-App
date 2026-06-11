@@ -69,6 +69,8 @@ export default function ReviewsPage() {
   const [urlImportMessage, setUrlImportMessage] = useState("")
   const [reviewUrl, setReviewUrl] = useState("")
   const [extractionCount, setExtractionCount] = useState(10)
+  const [aiEnabled, setAiEnabled] = useState(true)
+  const [targetLanguage, setTargetLanguage] = useState("fr")
   const [search, setSearch] = useState("")
   const [reviews, setReviews] = useState<Review[]>([])
   const [products, setProducts] = useState<ShopifyProduct[]>([])
@@ -370,8 +372,7 @@ export default function ReviewsPage() {
 
     setSmartImporting(false)
   }
-
-  async function importFromUrl() {
+    async function importFromUrl() {
     if (!targetProductHandle.trim()) {
       alert("Choisis un produit depuis la page Produits avant d’importer les avis.")
       return
@@ -582,6 +583,8 @@ export default function ReviewsPage() {
         body: JSON.stringify({
           id: jobId,
           count: extractionCount,
+          ai_enabled: aiEnabled,
+          target_language: targetLanguage,
         }),
       })
 
@@ -673,8 +676,7 @@ export default function ReviewsPage() {
           <h2 style={styles.selectedTitle}>{displayedProductTitle}</h2>
           <p style={styles.handle}>{targetProductHandle}</p>
           <p style={styles.muted}>
-            Avis associés à ce produit :{" "}
-            <strong>{productReviews.length}</strong>
+            Avis associés à ce produit : <strong>{productReviews.length}</strong>
           </p>
         </div>
       )}
@@ -708,8 +710,7 @@ export default function ReviewsPage() {
         <h2>Import / Export CSV</h2>
 
         <p style={styles.muted}>
-          Les avis importés seront associés automatiquement au produit
-          sélectionné.
+          Les avis importés seront associés automatiquement au produit sélectionné.
         </p>
 
         {products.length > 0 ? (
@@ -826,11 +827,40 @@ export default function ReviewsPage() {
           {urlImporting ? "Analyse du lien..." : "Importer depuis ce lien"}
         </button>
 
-
+        {urlImportMessage && (
+          <p style={styles.error}>{urlImportMessage}</p>
+        )}
       </div>
 
       <div style={styles.cardWide}>
         <h2>Historique des imports par lien</h2>
+
+        {targetProductHandle && (
+          <div style={styles.aiBox}>
+            <label style={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={aiEnabled}
+                onChange={(e) => setAiEnabled(e.target.checked)}
+              />{" "}
+              Utiliser l’IA OpenAI pour traduire, corriger et améliorer les avis
+            </label>
+
+            <select
+              value={targetLanguage}
+              onChange={(e) => setTargetLanguage(e.target.value)}
+              disabled={!aiEnabled}
+              style={styles.input}
+            >
+              <option value="fr">Français</option>
+              <option value="en">Anglais</option>
+              <option value="es">Espagnol</option>
+              <option value="de">Allemand</option>
+              <option value="it">Italien</option>
+              <option value="ar">Arabe</option>
+            </select>
+          </div>
+        )}
 
         {importJobsLoading && (
           <p style={styles.muted}>Chargement de l’historique...</p>
@@ -1256,15 +1286,12 @@ export default function ReviewsPage() {
 
 const styles: Record<string, React.CSSProperties> = {
   main: {
-    height: "100vh",
     minHeight: "100vh",
-    overflowY: "auto",
-    overflowX: "hidden",
     background: "#050816",
     color: "white",
     padding: "40px",
     fontFamily: "Arial",
-   
+    overflowY: "visible",
   },
   back: {
     color: "#a78bfa",
@@ -1334,6 +1361,20 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#ef4444",
     fontWeight: "bold",
     marginTop: "12px",
+  },
+  aiBox: {
+    background: "#050816",
+    border: "1px solid #1e293b",
+    borderRadius: "18px",
+    padding: "18px",
+    marginTop: "18px",
+    marginBottom: "18px",
+  },
+  checkboxLabel: {
+    color: "#cbd5e1",
+    fontWeight: "bold",
+    display: "block",
+    marginBottom: "8px",
   },
   exportLink: {
     display: "block",
