@@ -1,16 +1,31 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
+import { detectPlatform } from "../../../../lib/scraper-engine/detect-plateform"
+import type { ScraperPlatform } from "../../../../lib/scraper-engine/types"
 
-function detectPlatform(url: string) {
-  const value = url.toLowerCase()
+const supportedPlatforms: ScraperPlatform[] = [
+  "aliexpress",
+  "amazon",
+  "loox",
+  "judge_me",
+  "ryviu",
+]
 
-  if (value.includes("amazon.")) return "amazon"
-  if (value.includes("aliexpress.")) return "aliexpress"
-  if (value.includes("loox.")) return "loox"
-  if (value.includes("judge.me")) return "judge_me"
-  if (value.includes("ryviu.")) return "ryviu"
+function isSafePublicUrl(value: string) {
+  try {
+    const url = new URL(value)
+    const hostname = url.hostname.toLowerCase()
 
-  return "unknown"
+    if (!["http:", "https:"].includes(url.protocol)) return false
+    if (["localhost", "127.0.0.1", "::1"].includes(hostname)) return false
+    if (/^10\./.test(hostname)) return false
+    if (/^192\.168\./.test(hostname)) return false
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) return false
+
+    return true
+  } catch {
+    return false
+  }
 }
 
 export async function POST(request: Request) {
@@ -19,6 +34,7 @@ export async function POST(request: Request) {
 
     const productHandle = String(body.product_handle || "").trim()
     const url = String(body.url || "").trim()
+    const requestedPlatform = String(body.platform || "auto")
 
     if (!productHandle) {
       return NextResponse.json(
@@ -40,7 +56,29 @@ export async function POST(request: Request) {
       )
     }
 
-    const platform = detectPlatform(url)
+    if (!isSafePublicUrl(url)) {
+      return NextResponse.json(
+        { success: false, error: "Le lien fourni n’est pas une adresse publique valide." },
+        { status: 400 }
+      )
+    }
+
+    const detectedPlatform = detectPlatform(url)
+    const platform = supportedPlatforms.includes(
+      requestedPlatform as ScraperPlatform
+    )
+      ? (requestedPlatform as ScraperPlatform)
+      : detectedPlatform
+
+    if (platform === "unknown") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Choisis Amazon, AliExpress, Loox, Judge.me ou Ryviu dans la liste.",
+        },
+        { status: 400 }
+      )
+    }
 
     const result = await sql`
       INSERT INTO review_import_jobs (
@@ -71,10 +109,7 @@ export async function POST(request: Request) {
       product_handle: productHandle,
       url,
       imported: 0,
-      message:
-        platform === "unknown"
-          ? "Lien enregistré. Plateforme non reconnue automatiquement pour le moment."
-          : `Lien ${platform} détecté et enregistré. Prochaine étape : connecter un extracteur d’avis.`,
+      message: `Lien ${platform} enregistré. Tu peux maintenant lancer l’extraction depuis l’historique.`,
     })
   } catch (error) {
     return NextResponse.json(

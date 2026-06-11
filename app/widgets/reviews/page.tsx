@@ -68,6 +68,7 @@ export default function ReviewsPage() {
   const [smartImportMessage, setSmartImportMessage] = useState("")
   const [urlImportMessage, setUrlImportMessage] = useState("")
   const [reviewUrl, setReviewUrl] = useState("")
+  const [importPlatform, setImportPlatform] = useState("auto")
   const [extractionCount, setExtractionCount] = useState(10)
   const [aiEnabled, setAiEnabled] = useState(true)
   const [targetLanguage, setTargetLanguage] = useState("fr")
@@ -395,6 +396,7 @@ export default function ReviewsPage() {
         body: JSON.stringify({
           product_handle: targetProductHandle,
           url: reviewUrl,
+          platform: importPlatform,
         }),
       })
 
@@ -807,10 +809,23 @@ export default function ReviewsPage() {
         <h2>Import par lien</h2>
 
         <p style={styles.muted}>
-          Colle un lien Amazon, AliExpress, Loox, Judge.me, Ryviu ou autre.
-          Boost détectera la plateforme et préparera l’import des avis pour le
-          produit sélectionné.
+          Pour Amazon et AliExpress, colle le lien du produit. Pour Loox,
+          Judge.me ou Ryviu, colle la page publique du produit où les avis sont
+          visibles.
         </p>
+
+        <select
+          value={importPlatform}
+          onChange={(e) => setImportPlatform(e.target.value)}
+          style={styles.input}
+        >
+          <option value="auto">Détection automatique</option>
+          <option value="amazon">Amazon</option>
+          <option value="aliexpress">AliExpress</option>
+          <option value="loox">Loox</option>
+          <option value="judge_me">Judge.me</option>
+          <option value="ryviu">Ryviu</option>
+        </select>
 
         <input
           placeholder="Colle ici le lien du produit ou des avis..."

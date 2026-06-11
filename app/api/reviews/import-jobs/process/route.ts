@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
 import { scrapeAliExpressReviewsWithApify } from "../../../../../lib/scraper-engine/apify-aliexpress"
+import { scrapeAmazonReviewsWithApify } from "../../../../../lib/scraper-engine/apify-amazon"
+import { scrapeShopifyReviewApp } from "../../../../../lib/scraper-engine/shopify-review-apps"
 import {
   enhanceReviewsWithOpenAI,
   isSupportedTargetLanguage,
@@ -85,15 +87,27 @@ export async function POST(request: Request) {
         job.source_url,
         count
       )
+    } else if (job.platform === "amazon") {
+      scrapedReviews = await scrapeAmazonReviewsWithApify(job.source_url, count)
+    } else if (
+      job.platform === "loox" ||
+      job.platform === "judge_me" ||
+      job.platform === "ryviu"
+    ) {
+      scrapedReviews = await scrapeShopifyReviewApp(
+        job.source_url,
+        count,
+        job.platform
+      )
     } else {
       throw new Error(
-        `Extraction ${job.platform} pas encore disponible dans Boost Scraper Engine.`
+        "Plateforme inconnue. Supprime cet import puis recrée-le en choisissant la bonne plateforme."
       )
     }
 
     if (scrapedReviews.length === 0) {
       throw new Error(
-        "Aucun avis réel récupéré depuis Apify. Boost n’a importé aucun faux avis."
+        `Aucun avis réel ${job.platform} n’a été trouvé. Vérifie que le lien ouvre une page publique où les avis sont visibles.`
       )
     }
 
@@ -155,8 +169,8 @@ export async function POST(request: Request) {
       success: true,
       imported,
       message: aiEnabled
-        ? `${imported} avis AliExpress réel(s) traduit(s), corrigé(s) et amélioré(s) par IA.`
-        : `${imported} avis AliExpress réel(s) importé(s) sans traitement IA.`,
+        ? `${imported} avis ${job.platform} réel(s) traduit(s), corrigé(s) et amélioré(s) par IA.`
+        : `${imported} avis ${job.platform} réel(s) importé(s) sans traitement IA.`,
     })
   } catch (error) {
     const message = String(error)
