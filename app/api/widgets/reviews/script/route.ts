@@ -27,7 +27,8 @@ export async function GET() {
         return
       }
 
-      renderReviews(data.reviews)
+      var preparedReviews = await prepareReviewPhotos(data.reviews)
+      renderReviews(preparedReviews)
     } catch (error) {
       console.error("Boost Reviews Error", error)
     }
@@ -61,6 +62,50 @@ export async function GET() {
       "https://boost-app-9e6w.vercel.app/api/reviews/media?url=" +
       encodeURIComponent(url)
     )
+  }
+
+  function preloadPhoto(review) {
+    return new Promise(function (resolve) {
+      var originalUrl = safeMediaUrl(review.image_url)
+      var proxyUrl = imageProxyUrl(review.image_url)
+
+      if (!originalUrl || !proxyUrl) {
+        resolve(Object.assign({}, review, { boost_photo: null }))
+        return
+      }
+
+      var image = new Image()
+      var finished = false
+      var timeout = setTimeout(function () {
+        finish(null)
+      }, 5000)
+
+      function finish(photo) {
+        if (finished) return
+        finished = true
+        clearTimeout(timeout)
+        image.onload = null
+        image.onerror = null
+        resolve(Object.assign({}, review, { boost_photo: photo }))
+      }
+
+      image.onload = function () {
+        if (image.naturalWidth > 1 && image.naturalHeight > 1) {
+          finish({ originalUrl: originalUrl, proxyUrl: proxyUrl })
+        } else {
+          finish(null)
+        }
+      }
+      image.onerror = function () {
+        finish(null)
+      }
+      image.referrerPolicy = "no-referrer"
+      image.src = proxyUrl
+    })
+  }
+
+  async function prepareReviewPhotos(reviews) {
+    return Promise.all(reviews.map(preloadPhoto))
   }
 
   function renderReviews(reviews) {
@@ -100,21 +145,14 @@ export async function GET() {
       var content = escapeHtml(review.review || "")
       var rating = Number(review.rating || 5)
       var initials = escapeHtml((review.customer_first_name || "C").charAt(0))
-      var originalImageUrl = safeMediaUrl(review.image_url)
-      var imageUrl = imageProxyUrl(review.image_url)
-      var videoUrl = safeMediaUrl(review.video_url)
+      var photo = review.boost_photo
       var mediaHtml = ""
 
-      if (imageUrl) {
+      if (photo) {
         mediaHtml +=
-          '<a class="boost-review-media-link" href="' + originalImageUrl + '" target="_blank" rel="noopener noreferrer">' +
-            '<img class="boost-review-media" src="' + imageUrl + '" alt="Photo ajoutée par le client" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()" />' +
+          '<a class="boost-review-media-link" href="' + photo.originalUrl + '" target="_blank" rel="noopener noreferrer">' +
+            '<img class="boost-review-media" src="' + photo.proxyUrl + '" alt="Photo ajoutée par le client" loading="lazy" referrerpolicy="no-referrer" />' +
           '</a>'
-      }
-
-      if (videoUrl) {
-        mediaHtml +=
-          '<video class="boost-review-video" src="' + videoUrl + '" controls preload="metadata" onerror="this.remove()"></video>'
       }
 
       return (
@@ -267,13 +305,6 @@ export async function GET() {
         'height: 100%;' +
         'object-fit: cover;' +
       '}' +
-      '.boost-review-video {' +
-        'display: block;' +
-        'width: 156px;' +
-        'max-height: 120px;' +
-        'border-radius: 10px;' +
-        'background: #000;' +
-      '}' +
       '.boost-review-arrow {' +
         'width: 28px;' +
         'height: 28px;' +
@@ -318,38 +349,12 @@ export async function GET() {
       productInfo.appendChild(container)
     }
 
-    container.querySelectorAll(".boost-review-media").forEach(function (image) {
-      image.addEventListener("error", function () {
-        var link = image.closest(".boost-review-media-link")
-        if (link) link.remove()
-      })
-    })
-
-    container.querySelectorAll(".boost-review-video").forEach(function (video) {
-      video.addEventListener("error", function () {
-        video.remove()
-      })
-    })
-
     var current = container.querySelector(".boost-review-current")
     var prev = container.querySelector(".boost-prev")
     var next = container.querySelector(".boost-next")
 
     function updateReview() {
       current.innerHTML = reviewHtml(reviews[currentIndex])
-
-      current.querySelectorAll(".boost-review-media").forEach(function (image) {
-        image.addEventListener("error", function () {
-          var link = image.closest(".boost-review-media-link")
-          if (link) link.remove()
-        })
-      })
-
-      current.querySelectorAll(".boost-review-video").forEach(function (video) {
-        video.addEventListener("error", function () {
-          video.remove()
-        })
-      })
     }
 
     if (prev) {
