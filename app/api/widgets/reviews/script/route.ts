@@ -27,16 +27,16 @@ export async function GET() {
       var data = await responses[0].json()
       var settingsData = await responses[1].json()
 
-      if (!data.success || !data.reviews || !data.reviews.length) {
-        console.log("Boost Reviews: aucun avis trouvé", productHandle, data)
+      if (!data.success) {
+        console.log("Boost Reviews: impossible de charger les avis", productHandle, data)
         return
       }
 
       var settings = normalizeSettings(settingsData.settings)
       var preparedReviews = await prepareReviewPhotos(
-        data.reviews.slice(0, settings.max_reviews)
+        (data.reviews || []).slice(0, settings.max_reviews)
       )
-      renderReviews(preparedReviews, settings)
+      renderReviews(preparedReviews, settings, productHandle)
     } catch (error) {
       console.error("Boost Reviews Error", error)
     }
@@ -137,7 +137,7 @@ export async function GET() {
     return Promise.all(reviews.map(preloadPhoto))
   }
 
-  function renderReviews(reviews, settings) {
+  function renderReviews(reviews, settings, productHandle) {
     var oldWidget = document.getElementById("boost-reviews-widget")
     var oldSummary = document.getElementById("boost-reviews-rating")
     var oldStyle = document.getElementById("boost-reviews-style")
@@ -156,10 +156,11 @@ export async function GET() {
     }
 
     var total = reviews.length
-    var average =
-      reviews.reduce(function (sum, item) {
-        return sum + Number(item.rating || 0)
-      }, 0) / total
+    var average = total
+      ? reviews.reduce(function (sum, item) {
+          return sum + Number(item.rating || 0)
+        }, 0) / total
+      : 0
 
     var currentIndex = 0
 
@@ -176,6 +177,9 @@ export async function GET() {
       var initials = escapeHtml((review.customer_first_name || "C").charAt(0))
       var photo = review.boost_photo
       var mediaHtml = ""
+      var verifiedHtml = review.verified_purchase
+        ? '<span class="boost-review-verified">✓ Achat vérifié</span>'
+        : ''
 
       if (photo) {
         mediaHtml +=
@@ -193,6 +197,7 @@ export async function GET() {
             '<div class="boost-review-title">' +
               '<strong>' + firstName + ' ' + lastName + '</strong>' +
               '<span>' + "★".repeat(rating) + '</span>' +
+              verifiedHtml +
             '</div>' +
             '<p>' + content + '</p>' +
             (mediaHtml ? '<div class="boost-review-medias">' + mediaHtml + '</div>' : '') +
@@ -201,15 +206,19 @@ export async function GET() {
       )
     }
 
-    summary.innerHTML =
-      '<span class="boost-rating-stars">★★★★★</span>' +
-      '<strong>' + average.toFixed(1).replace(".", ",") + ' / 5</strong>' +
-      '<span>(' + total + ' avis)</span>'
+    if (total) {
+      summary.innerHTML =
+        '<span class="boost-rating-stars">★★★★★</span>' +
+        '<strong>' + average.toFixed(1).replace(".", ",") + ' / 5</strong>' +
+        '<span>(' + total + ' avis)</span>'
+    } else {
+      summary.style.display = "none"
+    }
 
     container.innerHTML =
       '<div class="boost-reviews-box">' +
         '<div class="boost-reviews-heading">' + escapeHtml(settings.title) + '</div>' +
-        '<div class="boost-review-slider">' +
+        (total ? '<div class="boost-review-slider">' +
           (settings.show_arrows
             ? '<button class="boost-review-arrow boost-prev" type="button">‹</button>'
             : '') +
@@ -227,7 +236,26 @@ export async function GET() {
           (settings.show_arrows
             ? '<button class="boost-review-arrow boost-next" type="button">›</button>'
             : '') +
-        '</div>' +
+        '</div>' : '<p class="boost-review-empty">Sois le premier à donner ton avis.</p>') +
+        '<button class="boost-review-open-form" type="button">Écrire un avis</button>' +
+        '<form class="boost-review-form" hidden>' +
+          '<div class="boost-review-form-grid">' +
+            '<label>Prénom *<input name="first_name" maxlength="60" required /></label>' +
+            '<label>Nom<input name="last_name" maxlength="60" /></label>' +
+          '</div>' +
+          '<label>Note *<select name="rating">' +
+            '<option value="5">5 étoiles</option>' +
+            '<option value="4">4 étoiles</option>' +
+            '<option value="3">3 étoiles</option>' +
+            '<option value="2">2 étoiles</option>' +
+            '<option value="1">1 étoile</option>' +
+          '</select></label>' +
+          '<label>Ton avis *<textarea name="review" minlength="10" maxlength="2000" required placeholder="Partage ton expérience avec ce produit..."></textarea></label>' +
+          '<label>Ajouter une photo (facultatif)<input name="photo" type="file" accept="image/*" /></label>' +
+          '<input class="boost-review-honeypot" name="website" tabindex="-1" autocomplete="off" />' +
+          '<button class="boost-review-submit" type="submit">Envoyer mon avis</button>' +
+          '<p class="boost-review-form-message" aria-live="polite"></p>' +
+        '</form>' +
       '</div>'
 
     var style = document.createElement("style")
@@ -321,6 +349,11 @@ export async function GET() {
         'font-size: 12px;' +
         'white-space: nowrap;' +
       '}' +
+      '.boost-review-title .boost-review-verified {' +
+        'color: #047857;' +
+        'font-size: 11px;' +
+        'font-weight: 700;' +
+      '}' +
       '.boost-review-content p {' +
         'margin: 5px 0 0;' +
         'color: ' + settings.text_color + ';' +
@@ -363,6 +396,76 @@ export async function GET() {
         'line-height: 1;' +
         'color: #111827;' +
         'flex-shrink: 0;' +
+      '}' +
+      '.boost-review-empty {' +
+        'margin: 0 0 12px;' +
+        'color: ' + settings.text_color + ';' +
+        'font-size: 14px;' +
+      '}' +
+      '.boost-review-open-form, .boost-review-submit {' +
+        'border: 0;' +
+        'border-radius: 10px;' +
+        'background: #111827;' +
+        'color: #fff;' +
+        'font: inherit;' +
+        'font-weight: 700;' +
+        'padding: 10px 16px;' +
+        'cursor: pointer;' +
+      '}' +
+      '.boost-review-open-form {' +
+        'margin-top: 14px;' +
+      '}' +
+      '.boost-review-form {' +
+        'margin-top: 14px;' +
+        'padding-top: 14px;' +
+        'border-top: 1px solid rgba(0,0,0,.1);' +
+      '}' +
+      '.boost-review-form-grid {' +
+        'display: grid;' +
+        'grid-template-columns: repeat(2, minmax(0, 1fr));' +
+        'gap: 10px;' +
+      '}' +
+      '.boost-review-form label {' +
+        'display: block;' +
+        'margin-bottom: 10px;' +
+        'color: ' + settings.text_color + ';' +
+        'font-size: 13px;' +
+        'font-weight: 700;' +
+      '}' +
+      '.boost-review-form input, .boost-review-form select, .boost-review-form textarea {' +
+        'display: block;' +
+        'box-sizing: border-box;' +
+        'width: 100%;' +
+        'margin-top: 5px;' +
+        'border: 1px solid rgba(0,0,0,.18);' +
+        'border-radius: 8px;' +
+        'background: #fff;' +
+        'color: #111827;' +
+        'font: inherit;' +
+        'padding: 9px 10px;' +
+      '}' +
+      '.boost-review-form textarea {' +
+        'min-height: 92px;' +
+        'resize: vertical;' +
+      '}' +
+      '.boost-review-form .boost-review-honeypot {' +
+        'position: absolute;' +
+        'left: -9999px;' +
+        'width: 1px;' +
+        'height: 1px;' +
+      '}' +
+      '.boost-review-submit[disabled] {' +
+        'cursor: wait;' +
+        'opacity: .65;' +
+      '}' +
+      '.boost-review-form-message {' +
+        'margin: 10px 0 0;' +
+        'color: #047857;' +
+        'font-size: 13px;' +
+        'font-weight: 700;' +
+      '}' +
+      '@media (max-width: 560px) {' +
+        '.boost-review-form-grid { grid-template-columns: 1fr; gap: 0; }' +
       '}'
 
     document.head.appendChild(style)
@@ -399,7 +502,7 @@ export async function GET() {
     var current = container.querySelector(".boost-review-current")
     var prev = container.querySelector(".boost-prev")
     var next = container.querySelector(".boost-next")
-    var panels = current.querySelectorAll(".boost-review-panel")
+    var panels = current ? current.querySelectorAll(".boost-review-panel") : []
 
     function updateReview() {
       panels.forEach(function (panel, index) {
@@ -424,6 +527,70 @@ export async function GET() {
         updateReview()
       })
     }
+
+    var openFormButton = container.querySelector(".boost-review-open-form")
+    var reviewForm = container.querySelector(".boost-review-form")
+    var formMessage = container.querySelector(".boost-review-form-message")
+    var submitButton = container.querySelector(".boost-review-submit")
+
+    openFormButton.addEventListener("click", function () {
+      reviewForm.hidden = !reviewForm.hidden
+      openFormButton.textContent = reviewForm.hidden ? "Écrire un avis" : "Fermer le formulaire"
+    })
+
+    reviewForm.addEventListener("submit", async function (event) {
+      event.preventDefault()
+      submitButton.disabled = true
+      submitButton.textContent = "Envoi..."
+      formMessage.style.color = "#047857"
+      formMessage.textContent = ""
+
+      try {
+        var formData = new FormData(reviewForm)
+        var photo = formData.get("photo")
+        var imageUrl = ""
+
+        if (photo && photo.size) {
+          var uploadData = new FormData()
+          uploadData.append("file", photo)
+          var uploadResponse = await fetch(
+            "https://boost-app-9e6w.vercel.app/api/reviews/upload-image",
+            { method: "POST", body: uploadData }
+          )
+          var uploadResult = await uploadResponse.json()
+          if (!uploadResult.success) throw new Error(uploadResult.error || "Photo invalide.")
+          imageUrl = uploadResult.url
+        }
+
+        var response = await fetch(
+          "https://boost-app-9e6w.vercel.app/api/reviews/submit",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              product_handle: productHandle,
+              customer_first_name: formData.get("first_name"),
+              customer_last_name: formData.get("last_name"),
+              rating: formData.get("rating"),
+              review: formData.get("review"),
+              image_url: imageUrl,
+              website: formData.get("website"),
+            }),
+          }
+        )
+        var result = await response.json()
+        if (!result.success) throw new Error(result.error || "Envoi impossible.")
+
+        reviewForm.reset()
+        formMessage.textContent = result.message
+      } catch (error) {
+        formMessage.style.color = "#b91c1c"
+        formMessage.textContent = error.message || "Une erreur est survenue."
+      } finally {
+        submitButton.disabled = false
+        submitButton.textContent = "Envoyer mon avis"
+      }
+    })
   }
 
   setTimeout(loadReviews, 800)
