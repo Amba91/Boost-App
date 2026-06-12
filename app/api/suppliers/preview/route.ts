@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
+import { scrapeAliExpressProductWithApify } from "../../../../lib/scraper-engine/apify-aliexpress-product"
 
 const SHOP = "hy4nf1-dt.myshopify.com"
 
@@ -376,6 +377,35 @@ function extractPrice(html: string) {
 
 async function scrapeSupplierProduct(url: string): Promise<SupplierProduct> {
   const source = getSource(url)
+
+  if (source === "aliexpress") {
+    try {
+      const apifyProduct = await scrapeAliExpressProductWithApify(url)
+
+      if (
+        apifyProduct &&
+        (apifyProduct.title ||
+          apifyProduct.image_urls.length > 0 ||
+          apifyProduct.variants.length > 0)
+      ) {
+        return {
+          source,
+          source_url: url,
+          external_id: cleanText(getExternalId(url), 180),
+          title: apifyProduct.title || "Produit AliExpress à vérifier",
+          description: apifyProduct.description,
+          image_urls: apifyProduct.image_urls,
+          price: apifyProduct.price,
+          currency: apifyProduct.currency,
+          supplier_name: apifyProduct.supplier_name,
+          variants: apifyProduct.variants,
+        }
+      }
+    } catch {
+      // L'ancien parseur HTML prend le relais si l'acteur choisi échoue.
+    }
+  }
+
   let html = ""
 
   try {

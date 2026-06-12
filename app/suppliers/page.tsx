@@ -551,6 +551,14 @@ export default function SuppliersPage() {
             value={supplierUrl}
             onChange={(event) => setSupplierUrl(event.target.value)}
           />
+          <div style={styles.connectorBox}>
+            <strong>Mode recommandé : connecteur produit AliExpress</strong>
+            <span>
+              Boost passe maintenant par Apify quand le connecteur est configuré.
+              Objectif : récupérer titre, images, prix et variantes réelles pour
+              faire un mapping visuel comme DSers.
+            </span>
+          </div>
           <input
             style={styles.input}
             placeholder="Nom fournisseur"
@@ -633,13 +641,12 @@ export default function SuppliersPage() {
 
         {supplierPreviewBlocked && (
           <div style={styles.warningBox}>
-            <strong>AliExpress a masqué les variantes pour ce lien.</strong>
+            <strong>Variantes non récupérées pour ce lien.</strong>
             <span>
-              Boost ne peut pas inventer les photos ou couleurs si AliExpress ne
-              les envoie pas au serveur. La prochaine étape propre sera de
-              brancher un vrai connecteur AliExpress/DSers-like ou un moteur
-              navigateur sécurisé pour récupérer les variantes visibles comme
-              sur la page AliExpress.
+              Si le connecteur Apify produit n’est pas encore configuré, ou si
+              l’acteur choisi ne lit pas les variantes, Boost garde le lien mais
+              ne peut pas afficher les photos/couleurs. Il faudra choisir un
+              acteur Apify AliExpress produit compatible avec les variantes.
             </span>
           </div>
         )}
@@ -1055,6 +1062,18 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid #4c1d95",
     color: "#ddd6fe",
     fontSize: 14,
+  },
+  connectorBox: {
+    display: "grid",
+    gap: 6,
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 12,
+    background: "rgba(34, 211, 238, .08)",
+    border: "1px solid rgba(34, 211, 238, .35)",
+    color: "#cffafe",
+    fontSize: 14,
+    lineHeight: 1.45,
   },
   message: { maxWidth: 1380, color: "#bbf7d0", fontWeight: 900 },
   muted: { color: "#94a3b8", lineHeight: 1.5 },
