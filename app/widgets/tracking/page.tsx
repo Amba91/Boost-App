@@ -514,7 +514,7 @@ export default function TrackingPage() {
           </strong>
           <p style={{ ...styles.muted, marginBottom: 0 }}>
             {emailConnected
-              ? "Les e-mails programmés partiront automatiquement toutes les heures."
+              ? "Les e-mails programmés partiront automatiquement chaque jour."
               : "Le modèle est prêt. Il reste à vérifier le domaine kiidiiz.com et à ajouter la clé sécurisée Resend dans Vercel."}
           </p>
         </div>
