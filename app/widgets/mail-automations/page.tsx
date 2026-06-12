@@ -175,7 +175,7 @@ export default function MailAutomationsPage() {
                   {item.trigger_label} · délai {formatDelay(Number(item.delay_minutes || 0))}
                 </span>
                 <span style={styles.cardMeta}>
-                  File : {countFor(item.scenario, "scheduled")} programmé · {countFor(item.scenario, "sent")} envoyé
+                  File : {countFor(item.scenario, "captured")} capturé · {countFor(item.scenario, "scheduled")} programmé · {countFor(item.scenario, "sent")} envoyé
                 </span>
               </button>
             ))}
