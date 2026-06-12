@@ -222,6 +222,9 @@ export default function HomePage() {
           <h1 style={styles.logo}>Boost</h1>
           <p style={styles.tagline}>More sales. Less effort.</p>
         </div>
+        <Link href="/admin" style={styles.adminLink}>
+          Admin Boost
+        </Link>
       </div>
 
       <section style={styles.launchPanel}>
@@ -397,6 +400,15 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: "18px",
     marginBottom: "50px",
+  },
+  adminLink: {
+    marginLeft: "auto",
+    color: "white",
+    background: "#7c3aed",
+    textDecoration: "none",
+    padding: "13px 16px",
+    borderRadius: 14,
+    fontWeight: 900,
   },
   logoImage: {
     width: 86,
