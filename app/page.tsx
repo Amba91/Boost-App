@@ -3,26 +3,133 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 
-const widgets = [
-  { name: "Sticky Cart", slug: "sticky-cart" },
-  { name: "Sales Popups", slug: "sales-popups" },
-  { name: "Wishlist", slug: "wishlist" },
-  { name: "Reviews", slug: "reviews" },
-  { name: "Boost Mail", slug: "mail-automations" },
-  { name: "Bundles", slug: "bundles" },
-  { name: "Tracking", slug: "tracking" },
-  { name: "Trust Badges", slug: "trust-badges" },
-  { name: "Announcement Bar", slug: "announcement-bar" },
-  { name: "Countdown Timer", slug: "countdown-timer" },
-  { name: "Free Shipping Bar", slug: "free-shipping-bar" },
-  { name: "Related Products", slug: "related-products" },
-  { name: "Recently Viewed", slug: "recently-viewed" },
-  { name: "Upsell", slug: "upsell" },
+type WidgetStatus = "ready" | "partial" | "soon"
+
+const widgets: Array<{
+  name: string
+  slug: string
+  status: WidgetStatus
+  description: string
+  launchNote: string
+}> = [
+  {
+    name: "Reviews",
+    slug: "reviews",
+    status: "ready",
+    description: "Avis produits, import Amazon/AliExpress, photos, publication et widget fiche produit.",
+    launchNote: "Commercialisable en priorité.",
+  },
+  {
+    name: "Tracking",
+    slug: "tracking",
+    status: "ready",
+    description: "Page de suivi commande, configuration boutique et demande d’avis après livraison.",
+    launchNote: "Commercialisable avec Shopify connecté.",
+  },
+  {
+    name: "Boost Mail",
+    slug: "mail-automations",
+    status: "ready",
+    description: "Resend, Klaviyo, scénarios e-mail, prévisualisation test et paniers abandonnés.",
+    launchNote: "Prêt pour les tests sans paiement.",
+  },
+  {
+    name: "Upsell",
+    slug: "upsell",
+    status: "partial",
+    description: "Règles simples pour proposer un produit complémentaire.",
+    launchNote: "À renforcer avant vente large.",
+  },
+  {
+    name: "Sales Popups",
+    slug: "sales-popups",
+    status: "partial",
+    description: "Notifications d’achat visibles sur la boutique.",
+    launchNote: "Fonctionnel, configuration à améliorer.",
+  },
+  {
+    name: "Sticky Cart",
+    slug: "sticky-cart",
+    status: "partial",
+    description: "Barre panier flottante pour accélérer l’achat.",
+    launchNote: "Fonctionnel, personnalisation à finir.",
+  },
+  {
+    name: "Free Shipping Bar",
+    slug: "free-shipping-bar",
+    status: "partial",
+    description: "Barre de livraison offerte basée sur le panier.",
+    launchNote: "Script présent, configuration à renforcer.",
+  },
+  {
+    name: "Recently Viewed",
+    slug: "recently-viewed",
+    status: "partial",
+    description: "Rappelle les produits récemment consultés.",
+    launchNote: "Script présent, page config simple.",
+  },
+  {
+    name: "Bundles",
+    slug: "bundles",
+    status: "soon",
+    description: "Offres groupées pour augmenter le panier moyen.",
+    launchNote: "Page créée, widget boutique à construire.",
+  },
+  {
+    name: "Wishlist",
+    slug: "wishlist",
+    status: "soon",
+    description: "Liste d’envies client.",
+    launchNote: "Page créée, logique client à construire.",
+  },
+  {
+    name: "Trust Badges",
+    slug: "trust-badges",
+    status: "soon",
+    description: "Badges de confiance personnalisables.",
+    launchNote: "Page créée, rendu boutique à construire.",
+  },
+  {
+    name: "Announcement Bar",
+    slug: "announcement-bar",
+    status: "soon",
+    description: "Bandeau d’annonce boutique.",
+    launchNote: "Page créée, script à construire.",
+  },
+  {
+    name: "Countdown Timer",
+    slug: "countdown-timer",
+    status: "soon",
+    description: "Compte à rebours pour offres limitées.",
+    launchNote: "Page créée, script à construire.",
+  },
+  {
+    name: "Related Products",
+    slug: "related-products",
+    status: "soon",
+    description: "Recommandations produits automatiques.",
+    launchNote: "Page créée, moteur à construire.",
+  },
 ]
+
+const statusLabels: Record<WidgetStatus, string> = {
+  ready: "Prêt",
+  partial: "À finaliser",
+  soon: "Bientôt",
+}
+
+const statusColors: Record<WidgetStatus, { background: string; color: string; border: string }> = {
+  ready: { background: "#052e16", color: "#bbf7d0", border: "#16a34a" },
+  partial: { background: "#451a03", color: "#fde68a", border: "#f59e0b" },
+  soon: { background: "#111827", color: "#cbd5e1", border: "#334155" },
+}
 
 export default function HomePage() {
   const [statuses, setStatuses] = useState<Record<string, boolean>>({})
   const [pendingReviewsCount, setPendingReviewsCount] = useState(0)
+  const readyCount = widgets.filter((widget) => widget.status === "ready").length
+  const partialCount = widgets.filter((widget) => widget.status === "partial").length
+  const soonCount = widgets.filter((widget) => widget.status === "soon").length
 
   async function loadStatuses() {
     const results: Record<string, boolean> = {}
@@ -117,6 +224,49 @@ export default function HomePage() {
         </div>
       </div>
 
+      <section style={styles.launchPanel}>
+        <div>
+          <span style={styles.eyebrow}>Sprint commercialisation</span>
+          <h2 style={styles.launchTitle}>Objectif : rendre Boost vendable rapidement</h2>
+          <p style={styles.launchText}>
+            On garde les fonctions solides devant, on marque les autres comme bientôt,
+            puis on construit en priorité AliExpress produits et factures.
+          </p>
+        </div>
+        <div style={styles.launchStats}>
+          <div style={styles.launchStat}>
+            <strong>{readyCount}</strong>
+            <span>prêts</span>
+          </div>
+          <div style={styles.launchStat}>
+            <strong>{partialCount}</strong>
+            <span>à finaliser</span>
+          </div>
+          <div style={styles.launchStat}>
+            <strong>{soonCount}</strong>
+            <span>bientôt</span>
+          </div>
+        </div>
+      </section>
+
+      <section style={styles.nextSteps}>
+        <div style={styles.stepCard}>
+          <span style={styles.stepNumber}>1</span>
+          <strong>Clarifier l’offre MVP</strong>
+          <p>Reviews, Tracking, Boost Mail, Upsell simple et produits Shopify.</p>
+        </div>
+        <div style={styles.stepCard}>
+          <span style={styles.stepNumber}>2</span>
+          <strong>Importer depuis AliExpress</strong>
+          <p>Créer un produit Shopify depuis un lien fournisseur, avec images et variantes.</p>
+        </div>
+        <div style={styles.stepCard}>
+          <span style={styles.stepNumber}>3</span>
+          <strong>Factures pro</strong>
+          <p>Générer des PDF personnalisables pour commandes Shopify.</p>
+        </div>
+      </section>
+
       {pendingReviewsCount > 0 && (
         <Link href="/widgets/reviews" style={styles.notificationLink}>
           <div style={styles.notificationBanner}>
@@ -170,14 +320,26 @@ export default function HomePage() {
             >
               <div style={styles.cardTitleRow}>
                 <h2 style={{ ...styles.title, margin: 0 }}>{widget.name}</h2>
-                {widget.slug === "reviews" && pendingReviewsCount > 0 && (
-                  <span style={styles.reviewBadge}>
-                    {pendingReviewsCount} à traiter
-                  </span>
-                )}
+                <span
+                  style={{
+                    ...styles.maturityBadge,
+                    background: statusColors[widget.status].background,
+                    color: statusColors[widget.status].color,
+                    borderColor: statusColors[widget.status].border,
+                  }}
+                >
+                  {statusLabels[widget.status]}
+                </span>
               </div>
 
-              <p style={styles.text}>Widget Shopify intelligent.</p>
+              {widget.slug === "reviews" && pendingReviewsCount > 0 && (
+                <span style={styles.reviewBadge}>
+                  {pendingReviewsCount} à traiter
+                </span>
+              )}
+
+              <p style={styles.text}>{widget.description}</p>
+              <p style={styles.launchNote}>{widget.launchNote}</p>
 
               <p
                 style={{
@@ -190,12 +352,19 @@ export default function HomePage() {
 
               <button
                 onClick={() => toggleWidget(widget.slug)}
+                disabled={widget.status === "soon"}
                 style={{
                   ...styles.toggleButton,
-                  background: active ? "#dc2626" : "#16a34a",
+                  background:
+                    widget.status === "soon"
+                      ? "#334155"
+                      : active
+                      ? "#dc2626"
+                      : "#16a34a",
+                  cursor: widget.status === "soon" ? "not-allowed" : "pointer",
                 }}
               >
-                {active ? "Désactiver" : "Activer"}
+                {widget.status === "soon" ? "Bientôt disponible" : active ? "Désactiver" : "Activer"}
               </button>
 
               <Link href={`/widgets/${widget.slug}`}>
@@ -247,6 +416,74 @@ const styles: Record<string, React.CSSProperties> = {
     gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))",
     gap: "24px",
   },
+  launchPanel: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1.5fr) minmax(280px, .8fr)",
+    gap: "24px",
+    alignItems: "center",
+    maxWidth: "1180px",
+    marginBottom: "24px",
+    padding: "28px",
+    borderRadius: "28px",
+    background: "linear-gradient(135deg, #111827, #1e1b4b)",
+    border: "1px solid #312e81",
+  },
+  eyebrow: {
+    color: "#a78bfa",
+    textTransform: "uppercase",
+    letterSpacing: "1.8px",
+    fontSize: "12px",
+    fontWeight: 900,
+  },
+  launchTitle: {
+    margin: "10px 0",
+    fontSize: "34px",
+  },
+  launchText: {
+    color: "#cbd5e1",
+    lineHeight: 1.55,
+    margin: 0,
+    maxWidth: "760px",
+  },
+  launchStats: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: "12px",
+  },
+  launchStat: {
+    display: "grid",
+    gap: "6px",
+    justifyItems: "center",
+    padding: "18px 12px",
+    borderRadius: "18px",
+    background: "#020617",
+    border: "1px solid #1f2937",
+  },
+  nextSteps: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: "16px",
+    maxWidth: "1180px",
+    marginBottom: "26px",
+  },
+  stepCard: {
+    display: "grid",
+    gap: "8px",
+    background: "#111827",
+    border: "1px solid #1f2937",
+    borderRadius: "20px",
+    padding: "20px",
+  },
+  stepNumber: {
+    display: "grid",
+    placeItems: "center",
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    background: "#7c3aed",
+    color: "white",
+    fontWeight: 900,
+  },
   notificationLink: {
     display: "block",
     maxWidth: "1000px",
@@ -297,12 +534,23 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: "12px",
   },
   reviewBadge: {
+    display: "inline-flex",
+    width: "fit-content",
+    marginBottom: "12px",
     borderRadius: "999px",
     background: "#f59e0b",
     color: "#111827",
     padding: "7px 10px",
     fontSize: "12px",
     fontWeight: "bold",
+    whiteSpace: "nowrap",
+  },
+  maturityBadge: {
+    border: "1px solid",
+    borderRadius: "999px",
+    padding: "7px 10px",
+    fontSize: "12px",
+    fontWeight: 900,
     whiteSpace: "nowrap",
   },
   productCard: {
@@ -317,7 +565,15 @@ const styles: Record<string, React.CSSProperties> = {
   },
   text: {
     color: "#94a3b8",
+    marginBottom: "10px",
+    lineHeight: 1.45,
+  },
+  launchNote: {
+    color: "#cbd5e1",
+    marginTop: 0,
     marginBottom: "18px",
+    fontSize: "14px",
+    lineHeight: 1.45,
   },
   status: {
     fontSize: "18px",
