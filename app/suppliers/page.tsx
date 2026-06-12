@@ -226,6 +226,90 @@ export default function SuppliersPage() {
     )
   }
 
+  function optionValue(variant: ShopifyVariant, names: string[]) {
+    const rawOptions = variant.selected_options
+    let options: { name?: string; value?: string }[] = []
+    if (Array.isArray(rawOptions)) options = rawOptions
+    if (typeof rawOptions === "string") {
+      try {
+        const parsed = JSON.parse(rawOptions)
+        if (Array.isArray(parsed)) options = parsed
+      } catch {
+        options = []
+      }
+    }
+
+    const normalizedNames = names.map((name) => name.toLowerCase())
+    return (
+      options.find((option) =>
+        normalizedNames.some((name) =>
+          String(option.name || "").toLowerCase().includes(name)
+        )
+      )?.value || ""
+    )
+  }
+
+  function supplierVariantFromShopifyVariant(variant: ShopifyVariant, index: number): SupplierVariantOption {
+    const color = optionValue(variant, ["couleur", "color"])
+    const size = optionValue(variant, ["taille", "size"])
+    const shape = optionValue(variant, ["modèle", "modele", "model", "variant", "pack", "forme"])
+    const label = [color, size, shape].filter(Boolean).join(" / ") || optionsLabel(variant)
+
+    return {
+      id: `auto-${variant.shopify_variant_id}-${index}`,
+      supplier_variant_label: label,
+      supplier_color: color,
+      supplier_size: size,
+      supplier_shape: shape,
+      supplier_sku: variant.sku || "",
+      supplier_price: variant.price || "",
+      supplier_note: "",
+    }
+  }
+
+  function generateSupplierVariantsFromShopify() {
+    if (selectedVariants.length === 0) {
+      setMessage("Synchronise d'abord les produits Shopify pour récupérer les variantes.")
+      return
+    }
+
+    setSupplierVariants(
+      selectedVariants.map((variant, index) =>
+        supplierVariantFromShopifyVariant(variant, index)
+      )
+    )
+    setMessage("Variantes fournisseur générées automatiquement. Tu peux les modifier si AliExpress affiche un nom différent.")
+  }
+
+  function autoLinkSupplierVariants() {
+    if (selectedVariants.length === 0) return
+
+    const variantsToUse =
+      supplierVariants.some((variant) => supplierVariantName(variant) !== "Variante fournisseur")
+        ? supplierVariants
+        : selectedVariants.map((variant, index) =>
+            supplierVariantFromShopifyVariant(variant, index)
+          )
+
+    const nextDrafts: Record<string, SupplierVariantDraft> = {}
+    selectedVariants.forEach((variant, index) => {
+      const supplierVariant = variantsToUse[index] || supplierVariantFromShopifyVariant(variant, index)
+      nextDrafts[variant.shopify_variant_id] = {
+        supplier_variant_label: supplierVariant.supplier_variant_label,
+        supplier_color: supplierVariant.supplier_color,
+        supplier_size: supplierVariant.supplier_size,
+        supplier_shape: supplierVariant.supplier_shape,
+        supplier_sku: supplierVariant.supplier_sku,
+        supplier_price: supplierVariant.supplier_price,
+        supplier_note: supplierVariant.supplier_note,
+      }
+    })
+
+    setSupplierVariants(variantsToUse)
+    setSupplierVariantDrafts(nextDrafts)
+    setMessage("Variantes reliées automatiquement. Vérifie seulement les exceptions, puis enregistre.")
+  }
+
   async function loadData() {
     setLoading(true)
     try {
@@ -359,6 +443,17 @@ export default function SuppliersPage() {
     loadData()
   }, [])
 
+  useEffect(() => {
+    if (selectedVariants.length === 0) return
+
+    setSupplierVariants(
+      selectedVariants.map((variant, index) =>
+        supplierVariantFromShopifyVariant(variant, index)
+      )
+    )
+    setSupplierVariantDrafts({})
+  }, [selectedProductId, shopifyVariants])
+
   return (
     <main style={styles.main}>
       <Link href="/" style={styles.back}>Retour Boost</Link>
@@ -481,14 +576,27 @@ export default function SuppliersPage() {
           <div>
             <h2>Variantes fournisseur</h2>
             <p style={styles.muted}>
-              AliExpress bloque souvent la lecture automatique des variantes.
-              Dans ce cas, ajoute ici les choix visibles chez le fournisseur :
-              couleur, taille, forme, pack ou SKU.
+              Clique d'abord sur génération automatique. Boost crée les variantes
+              fournisseur à partir de tes variantes Shopify pour éviter la saisie
+              manuelle. Tu ajustes seulement si le nom AliExpress est différent.
             </p>
           </div>
-          <button onClick={addSupplierVariant} style={styles.smallButton}>
-            Ajouter une variante fournisseur
-          </button>
+          <div style={styles.actionRow}>
+            <button onClick={generateSupplierVariantsFromShopify} style={styles.smallButton}>
+              Générer les variantes
+            </button>
+            <button onClick={autoLinkSupplierVariants} style={styles.greenSmallButton}>
+              Relier automatiquement
+            </button>
+          </div>
+        </div>
+
+        <div style={styles.helpBox}>
+          <strong>Le fonctionnement simple :</strong>
+          <span>1. Choisis ton produit Shopify.</span>
+          <span>2. Colle le lien AliExpress.</span>
+          <span>3. Clique “Générer les variantes”, puis “Relier automatiquement”.</span>
+          <span>4. Tu corriges uniquement les variantes qui ne correspondent pas.</span>
         </div>
 
         <div style={styles.supplierVariantGrid}>
@@ -550,6 +658,10 @@ export default function SuppliersPage() {
             </div>
           ))}
         </div>
+
+        <button onClick={addSupplierVariant} style={styles.secondaryButton}>
+          Ajouter une variante fournisseur manuellement seulement si besoin
+        </button>
       </section>
 
       <section style={styles.cardWide}>
@@ -578,8 +690,8 @@ export default function SuppliersPage() {
         ) : (
           <div style={styles.variantTable}>
             <div style={styles.variantHeader}>Variante boutique</div>
-            <div style={styles.variantHeader}>Relier au fournisseur</div>
-            <div style={styles.variantHeader}>Détail utilisé</div>
+            <div style={styles.variantHeader}>Variante fournisseur liée</div>
+            <div style={styles.variantHeader}>Ajustement si besoin</div>
             {selectedVariants.map((variant) => {
               const draft = supplierVariantDrafts[variant.shopify_variant_id] || {
                 supplier_variant_label: "",
@@ -608,7 +720,11 @@ export default function SuppliersPage() {
                   <div style={styles.variantInputs}>
                     <select
                       style={styles.compactInput}
-                      value=""
+                      value={
+                        supplierVariants.find((supplierVariant) =>
+                          supplierVariantName(supplierVariant) === draft.supplier_variant_label
+                        )?.id || ""
+                      }
                       onChange={(event) =>
                         applySupplierVariant(variant.shopify_variant_id, event.target.value)
                       }
@@ -831,6 +947,34 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 900,
     cursor: "pointer",
     whiteSpace: "nowrap",
+  },
+  greenSmallButton: {
+    border: "none",
+    borderRadius: 14,
+    padding: "12px 15px",
+    background: "#16a34a",
+    color: "white",
+    fontWeight: 900,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+  actionRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+  helpBox: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 16,
+    background: "rgba(124, 58, 237, .12)",
+    border: "1px solid #4c1d95",
+    color: "#ddd6fe",
+    fontSize: 14,
   },
   message: { maxWidth: 1380, color: "#bbf7d0", fontWeight: 900 },
   muted: { color: "#94a3b8", lineHeight: 1.5 },
