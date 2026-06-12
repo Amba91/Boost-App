@@ -262,6 +262,7 @@ export default function HomePage() {
           <span style={styles.stepNumber}>2</span>
           <strong>Importer depuis AliExpress</strong>
           <p>Créer un produit Shopify depuis un lien fournisseur, avec images et variantes.</p>
+          <Link href="/suppliers" style={styles.stepLink}>Ouvrir Fournisseurs</Link>
         </div>
         <div style={styles.stepCard}>
           <span style={styles.stepNumber}>3</span>
@@ -495,6 +496,12 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#7c3aed",
     color: "white",
     fontWeight: 900,
+  },
+  stepLink: {
+    width: "fit-content",
+    color: "#a78bfa",
+    fontWeight: 900,
+    textDecoration: "none",
   },
   notificationLink: {
     display: "block",
