@@ -8,6 +8,7 @@ const widgets = [
   { name: "Sales Popups", slug: "sales-popups" },
   { name: "Wishlist", slug: "wishlist" },
   { name: "Reviews", slug: "reviews" },
+  { name: "Boost Mail", slug: "mail-automations" },
   { name: "Bundles", slug: "bundles" },
   { name: "Tracking", slug: "tracking" },
   { name: "Trust Badges", slug: "trust-badges" },

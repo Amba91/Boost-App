@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "crypto"
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
 import { ensureReviewRequestTrackingTables } from "../../../../lib/review-request-tracking"
+import { seedDefaultMailAutomations } from "../../../../lib/mail-automation-settings"
 
 function validShopifyHmac(rawBody: string, receivedHmac: string | null) {
   const secret = process.env.SHOPIFY_API_SECRET
@@ -146,6 +147,99 @@ async function scheduleReviewRequests(
   return scheduled
 }
 
+function firstNameFromOrder(body: Record<string, unknown>) {
+  const customer = body.customer as { first_name?: string } | undefined
+  const shipping = body.shipping_address as { first_name?: string } | undefined
+  const billing = body.billing_address as { first_name?: string } | undefined
+  return customer?.first_name || shipping?.first_name || billing?.first_name || ""
+}
+
+function firstProductFromOrder(body: Record<string, unknown>) {
+  const items = Array.isArray(body.line_items) ? body.line_items : []
+  const first = items[0] as
+    | {
+        title?: string
+        product_id?: string | number
+        variant_id?: string | number
+        image?: { src?: string }
+      }
+    | undefined
+
+  return {
+    title: first?.title || "votre commande",
+    handle: first?.product_id ? String(first.product_id) : first?.variant_id ? String(first.variant_id) : "",
+    image: first?.image?.src || "",
+  }
+}
+
+async function scheduleOrderAutomation(
+  shop: string,
+  scenario: "order_confirmation" | "post_purchase_upsell",
+  body: Record<string, unknown>
+) {
+  await seedDefaultMailAutomations(shop)
+
+  const settingsResult = await sql`
+    SELECT *
+    FROM mail_automation_settings
+    WHERE shop = ${shop} AND scenario = ${scenario}
+    LIMIT 1
+  `
+  const settings = settingsResult.rows[0]
+  if (!settings?.active) return 0
+
+  const email = String(body.email || body.contact_email || "")
+  if (!email || !email.includes("@")) return 0
+
+  const product = firstProductFromOrder(body)
+  const orderId = String(body.id || "")
+  const orderName = String(body.name || "")
+  const orderStatusUrl = String(body.order_status_url || "https://kiidiiz.com")
+  const scheduledFor = new Date(
+    Date.now() + Number(settings.delay_minutes || 0) * 60000
+  )
+
+  await sql`
+    INSERT INTO mail_automation_queue (
+      shop,
+      scenario,
+      customer_email,
+      customer_first_name,
+      order_id,
+      order_name,
+      product_handle,
+      product_title,
+      product_image_url,
+      action_url,
+      subtotal_amount,
+      currency,
+      scheduled_for,
+      status,
+      updated_at
+    )
+    VALUES (
+      ${shop},
+      ${scenario},
+      ${email},
+      ${firstNameFromOrder(body)},
+      ${orderId},
+      ${orderName},
+      ${product.handle},
+      ${product.title},
+      ${product.image},
+      ${orderStatusUrl},
+      ${String(body.subtotal_price || "")},
+      ${String(body.currency || "")},
+      ${scheduledFor.toISOString()},
+      'scheduled',
+      NOW()
+    )
+    ON CONFLICT DO NOTHING
+  `
+
+  return 1
+}
+
 export async function POST(request: Request) {
   const rawBody = await request.text()
   const hmac = request.headers.get("x-shopify-hmac-sha256")
@@ -169,6 +263,25 @@ export async function POST(request: Request) {
     )
 
     return NextResponse.json({ success: true, received: true, scheduled })
+  }
+
+  if (topic === "orders/create") {
+    const confirmation = await scheduleOrderAutomation(
+      shop,
+      "order_confirmation",
+      body
+    )
+    const upsell = await scheduleOrderAutomation(
+      shop,
+      "post_purchase_upsell",
+      body
+    )
+
+    return NextResponse.json({
+      success: true,
+      received: true,
+      scheduled: confirmation + upsell,
+    })
   }
 
   return NextResponse.json({ success: true, received: true, scheduled: 0 })
