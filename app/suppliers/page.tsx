@@ -22,6 +22,17 @@ type SupplierProduct = {
   status: string
 }
 
+type ShopifyVariant = {
+  id: number
+  product_db_id: number
+  shopify_variant_id: string
+  variant_title: string
+  sku?: string
+  selected_options?: { name?: string; value?: string }[] | string
+  image_url?: string
+  price?: string
+}
+
 type SupplierMapping = {
   id: number
   product_title: string
@@ -33,6 +44,30 @@ type SupplierMapping = {
   country_scope: string
   supplier_message: string
   status: string
+}
+
+type VariantMapping = {
+  id: number
+  supplier_mapping_id: number
+  product_db_id: number
+  shopify_variant_id: string
+  shopify_variant_title: string
+  supplier_variant_label: string
+  supplier_color: string
+  supplier_size: string
+  supplier_shape: string
+  supplier_sku: string
+  supplier_price: string
+}
+
+type SupplierVariantDraft = {
+  supplier_variant_label: string
+  supplier_color: string
+  supplier_size: string
+  supplier_shape: string
+  supplier_sku: string
+  supplier_price: string
+  supplier_note: string
 }
 
 const mappingLabels: Record<string, string> = {
@@ -62,8 +97,10 @@ function defaultSupplierMessage(productTitle: string, mappingType: string, notes
 
 export default function SuppliersPage() {
   const [shopifyProducts, setShopifyProducts] = useState<ShopifyProduct[]>([])
+  const [shopifyVariants, setShopifyVariants] = useState<ShopifyVariant[]>([])
   const [supplierProducts, setSupplierProducts] = useState<SupplierProduct[]>([])
   const [mappings, setMappings] = useState<SupplierMapping[]>([])
+  const [savedVariantMappings, setSavedVariantMappings] = useState<VariantMapping[]>([])
   const [selectedProductId, setSelectedProductId] = useState("")
   const [supplierUrl, setSupplierUrl] = useState("")
   const [supplierTitle, setSupplierTitle] = useState("")
@@ -76,6 +113,7 @@ export default function SuppliersPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [supplierVariantDrafts, setSupplierVariantDrafts] = useState<Record<string, SupplierVariantDraft>>({})
 
   const selectedProduct = useMemo(
     () => shopifyProducts.find((product) => String(product.id) === selectedProductId),
@@ -88,6 +126,56 @@ export default function SuppliersPage() {
     notes
   )
 
+  const selectedVariants = useMemo(
+    () => shopifyVariants.filter((variant) => String(variant.product_db_id) === selectedProductId),
+    [selectedProductId, shopifyVariants]
+  )
+
+  const mappedVariantCount = savedVariantMappings.filter(
+    (mapping) => String(mapping.product_db_id) === selectedProductId
+  ).length
+
+  function optionsLabel(variant: ShopifyVariant) {
+    const rawOptions = variant.selected_options
+    let options: { name?: string; value?: string }[] = []
+    if (Array.isArray(rawOptions)) options = rawOptions
+    if (typeof rawOptions === "string") {
+      try {
+        const parsed = JSON.parse(rawOptions)
+        if (Array.isArray(parsed)) options = parsed
+      } catch {
+        options = []
+      }
+    }
+
+    const label = options
+      .map((option) => `${option.name}: ${option.value}`)
+      .join(" · ")
+
+    return label || variant.variant_title || "Variante par défaut"
+  }
+
+  function updateSupplierVariantDraft(variantId: string, field: keyof SupplierVariantDraft, value: string) {
+    const emptyDraft: SupplierVariantDraft = {
+      supplier_variant_label: "",
+      supplier_color: "",
+      supplier_size: "",
+      supplier_shape: "",
+      supplier_sku: "",
+      supplier_price: "",
+      supplier_note: "",
+    }
+
+    setSupplierVariantDrafts((current) => ({
+      ...current,
+      [variantId]: {
+        ...emptyDraft,
+        ...(current[variantId] || {}),
+        [field]: value,
+      },
+    }))
+  }
+
   async function loadData() {
     setLoading(true)
     try {
@@ -95,8 +183,10 @@ export default function SuppliersPage() {
       const data = await res.json()
       if (data.success) {
         setShopifyProducts(data.products || [])
+        setShopifyVariants(data.variants || [])
         setSupplierProducts(data.supplier_products || [])
         setMappings(data.mappings || [])
+        setSavedVariantMappings(data.variant_mappings || [])
         if (!selectedProductId && data.products?.[0]?.id) {
           setSelectedProductId(String(data.products[0].id))
         }
@@ -176,6 +266,10 @@ export default function SuppliersPage() {
           variant_label: variantLabel,
           country_scope: countryScope,
           notes,
+          variant_mappings: selectedVariants.map((variant) => ({
+            shopify_variant_id: variant.shopify_variant_id,
+            ...(supplierVariantDrafts[variant.shopify_variant_id] || {}),
+          })),
         }),
       })
       const data = await res.json()
@@ -189,6 +283,7 @@ export default function SuppliersPage() {
       setSupplierTitle("")
       setVariantLabel("")
       setNotes("")
+      setSupplierVariantDrafts({})
       await loadData()
     } catch {
       setMessage("Mapping impossible.")
@@ -317,6 +412,119 @@ export default function SuppliersPage() {
       </section>
 
       {message && <p style={styles.message}>{message}</p>}
+
+      <section style={styles.cardWide}>
+        <div style={styles.sectionHeader}>
+          <div>
+            <h2>Mapping des variantes</h2>
+            <p style={styles.muted}>
+              À gauche : les variantes réelles de ta boutique. À droite : ce
+              qu'il faut choisir chez le fournisseur pour envoyer la bonne
+              couleur, taille ou forme au client.
+            </p>
+          </div>
+          <span style={styles.badge}>{mappedVariantCount} liée(s)</span>
+        </div>
+
+        {loading ? (
+          <p style={styles.muted}>Chargement des variantes...</p>
+        ) : selectedVariants.length === 0 ? (
+          <div style={styles.warningBox}>
+            <strong>Variantes non synchronisées.</strong>
+            <p>
+              Clique sur “Synchroniser les produits Shopify”. Boost récupérera
+              les couleurs, tailles, formes et prix disponibles dans Shopify.
+            </p>
+          </div>
+        ) : (
+          <div style={styles.variantTable}>
+            <div style={styles.variantHeader}>Variante boutique</div>
+            <div style={styles.variantHeader}>Variante fournisseur</div>
+            <div style={styles.variantHeader}>Infos fournisseur</div>
+            {selectedVariants.map((variant) => {
+              const draft = supplierVariantDrafts[variant.shopify_variant_id] || {
+                supplier_variant_label: "",
+                supplier_color: "",
+                supplier_size: "",
+                supplier_shape: "",
+                supplier_sku: "",
+                supplier_price: "",
+                supplier_note: "",
+              }
+
+              return (
+                <div key={variant.shopify_variant_id} style={styles.variantRow}>
+                  <div style={styles.shopifyVariant}>
+                    {variant.image_url ? (
+                      <img src={variant.image_url} alt={variant.variant_title} style={styles.variantImage} />
+                    ) : (
+                      <div style={styles.variantImageEmpty}>Var.</div>
+                    )}
+                    <div>
+                      <strong>{optionsLabel(variant)}</strong>
+                      <p style={styles.muted}>SKU : {variant.sku || "N/A"} · Prix : {variant.price || "N/A"}</p>
+                    </div>
+                  </div>
+
+                  <div style={styles.variantInputs}>
+                    <input
+                      style={styles.compactInput}
+                      placeholder="Nom fournisseur : Blue / 2pcs..."
+                      value={draft.supplier_variant_label}
+                      onChange={(event) =>
+                        updateSupplierVariantDraft(variant.shopify_variant_id, "supplier_variant_label", event.target.value)
+                      }
+                    />
+                    <input
+                      style={styles.compactInput}
+                      placeholder="SKU fournisseur"
+                      value={draft.supplier_sku}
+                      onChange={(event) =>
+                        updateSupplierVariantDraft(variant.shopify_variant_id, "supplier_sku", event.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div style={styles.variantInputs}>
+                    <input
+                      style={styles.compactInput}
+                      placeholder="Couleur"
+                      value={draft.supplier_color}
+                      onChange={(event) =>
+                        updateSupplierVariantDraft(variant.shopify_variant_id, "supplier_color", event.target.value)
+                      }
+                    />
+                    <input
+                      style={styles.compactInput}
+                      placeholder="Taille"
+                      value={draft.supplier_size}
+                      onChange={(event) =>
+                        updateSupplierVariantDraft(variant.shopify_variant_id, "supplier_size", event.target.value)
+                      }
+                    />
+                    <input
+                      style={styles.compactInput}
+                      placeholder="Forme / Pack"
+                      value={draft.supplier_shape}
+                      onChange={(event) =>
+                        updateSupplierVariantDraft(variant.shopify_variant_id, "supplier_shape", event.target.value)
+                      }
+                    />
+                    <input
+                      style={styles.compactInput}
+                      placeholder="Prix fournisseur"
+                      value={draft.supplier_price}
+                      onChange={(event) =>
+                        updateSupplierVariantDraft(variant.shopify_variant_id, "supplier_price", event.target.value)
+                      }
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
 
       <section style={styles.cardWide}>
         <div style={styles.sectionHeader}>
@@ -486,6 +694,68 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "Arial, sans-serif",
   },
   mappingGrid: { display: "grid", gap: 16 },
+  warningBox: {
+    border: "1px solid #f59e0b",
+    borderRadius: 18,
+    padding: 18,
+    background: "rgba(245, 158, 11, .08)",
+    color: "#fde68a",
+  },
+  variantTable: {
+    display: "grid",
+    gridTemplateColumns: "minmax(260px, 1fr) minmax(260px, 1fr) minmax(280px, 1.1fr)",
+    gap: 10,
+    marginTop: 16,
+  },
+  variantHeader: {
+    color: "#a78bfa",
+    fontWeight: 900,
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    fontSize: 12,
+  },
+  variantRow: {
+    gridColumn: "1 / -1",
+    display: "grid",
+    gridTemplateColumns: "minmax(260px, 1fr) minmax(260px, 1fr) minmax(280px, 1.1fr)",
+    gap: 10,
+    padding: 14,
+    borderRadius: 18,
+    background: "#020617",
+    border: "1px solid #1f2937",
+  },
+  shopifyVariant: {
+    display: "grid",
+    gridTemplateColumns: "58px minmax(0, 1fr)",
+    gap: 12,
+    alignItems: "center",
+  },
+  variantImage: { width: 58, height: 58, objectFit: "cover", borderRadius: 12 },
+  variantImageEmpty: {
+    display: "grid",
+    placeItems: "center",
+    width: 58,
+    height: 58,
+    borderRadius: 12,
+    background: "#111827",
+    color: "#94a3b8",
+    fontWeight: 900,
+  },
+  variantInputs: {
+    display: "grid",
+    gap: 8,
+  },
+  compactInput: {
+    width: "100%",
+    boxSizing: "border-box",
+    border: "1px solid #334155",
+    borderRadius: 12,
+    padding: "10px 11px",
+    background: "#0f172a",
+    color: "white",
+    font: "inherit",
+    fontSize: 13,
+  },
   mappingCard: {
     display: "grid",
     gridTemplateColumns: "minmax(220px, .8fr) minmax(220px, .7fr) minmax(260px, 1.2fr)",

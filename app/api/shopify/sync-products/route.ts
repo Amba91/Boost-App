@@ -15,10 +15,41 @@ type ShopifyProductNode = {
   variants?: {
     edges?: {
       node?: {
+        id?: string
+        title?: string
+        sku?: string
         price?: string
+        selectedOptions?: {
+          name?: string
+          value?: string
+        }[]
+        image?: {
+          url?: string
+        } | null
       }
     }[]
   }
+}
+
+async function ensureProductVariantsTable() {
+  await sql`
+    CREATE TABLE IF NOT EXISTS product_variants (
+      id SERIAL PRIMARY KEY,
+      shop TEXT NOT NULL,
+      product_db_id INTEGER,
+      shopify_product_id TEXT NOT NULL,
+      shopify_variant_id TEXT NOT NULL UNIQUE,
+      product_title TEXT NOT NULL,
+      product_handle TEXT NOT NULL,
+      variant_title TEXT NOT NULL,
+      sku TEXT NOT NULL DEFAULT '',
+      selected_options JSONB NOT NULL DEFAULT '[]',
+      image_url TEXT NOT NULL DEFAULT '',
+      price TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `
 }
 
 async function getShopConnectionFromCookies() {
@@ -59,6 +90,7 @@ async function getShopConnectionFromDatabase() {
 
 export async function POST() {
   try {
+    await ensureProductVariantsTable()
     const cookieConnection = await getShopConnectionFromCookies()
     const databaseConnection = cookieConnection || (await getShopConnectionFromDatabase())
 
@@ -88,10 +120,20 @@ export async function POST() {
                 url
                 altText
               }
-              variants(first: 1) {
+              variants(first: 50) {
                 edges {
                   node {
+                    id
+                    title
+                    sku
                     price
+                    selectedOptions {
+                      name
+                      value
+                    }
+                    image {
+                      url
+                    }
                   }
                 }
               }
@@ -118,7 +160,8 @@ export async function POST() {
     const products =
       data?.data?.products?.edges?.map((edge: { node: ShopifyProductNode }) => {
         const product = edge.node
-        const firstVariant = product.variants?.edges?.[0]?.node
+        const variants = product.variants?.edges || []
+        const firstVariant = variants[0]?.node
 
         return {
           shopify_product_id: product.id,
@@ -127,13 +170,15 @@ export async function POST() {
           status: product.status,
           image_url: product.featuredImage?.url || "",
           price: firstVariant?.price || "",
+          variants: variants.map((variantEdge) => variantEdge.node).filter(Boolean),
         }
       }) || []
 
     let synced = 0
+    let variantsSynced = 0
 
     for (const product of products) {
-      await sql`
+      const productResult = await sql`
         INSERT INTO products (
           shop,
           shopify_product_id,
@@ -163,7 +208,60 @@ export async function POST() {
           price = EXCLUDED.price,
           status = EXCLUDED.status,
           updated_at = NOW()
+        RETURNING id
       `
+
+      const productDbId = productResult.rows[0]?.id
+
+      for (const variant of product.variants || []) {
+        if (!variant?.id) continue
+
+        await sql`
+          INSERT INTO product_variants (
+            shop,
+            product_db_id,
+            shopify_product_id,
+            shopify_variant_id,
+            product_title,
+            product_handle,
+            variant_title,
+            sku,
+            selected_options,
+            image_url,
+            price,
+            updated_at
+          )
+          VALUES (
+            ${shop},
+            ${productDbId},
+            ${product.shopify_product_id},
+            ${variant.id},
+            ${product.title},
+            ${product.handle},
+            ${variant.title || "Default Title"},
+            ${variant.sku || ""},
+            ${JSON.stringify(variant.selectedOptions || [])}::jsonb,
+            ${variant.image?.url || product.image_url || ""},
+            ${variant.price || ""},
+            NOW()
+          )
+          ON CONFLICT (shopify_variant_id)
+          DO UPDATE SET
+            shop = EXCLUDED.shop,
+            product_db_id = EXCLUDED.product_db_id,
+            shopify_product_id = EXCLUDED.shopify_product_id,
+            product_title = EXCLUDED.product_title,
+            product_handle = EXCLUDED.product_handle,
+            variant_title = EXCLUDED.variant_title,
+            sku = EXCLUDED.sku,
+            selected_options = EXCLUDED.selected_options,
+            image_url = EXCLUDED.image_url,
+            price = EXCLUDED.price,
+            updated_at = NOW()
+        `
+
+        variantsSynced++
+      }
 
       synced++
     }
@@ -172,6 +270,7 @@ export async function POST() {
       success: true,
       shop,
       synced,
+      variants_synced: variantsSynced,
       products,
     })
   } catch (error) {
