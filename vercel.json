@@ -1,3 +1,9 @@
 {
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/tracking/process-emails",
+      "schedule": "0 * * * *"
+    }
+  ]
 }

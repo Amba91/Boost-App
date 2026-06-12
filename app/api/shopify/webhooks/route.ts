@@ -52,6 +52,9 @@ async function getOrderDetails(shop: string, orderId: string) {
                   title
                   product {
                     handle
+                    featuredImage {
+                      url
+                    }
                   }
                 }
               }
@@ -109,6 +112,7 @@ async function scheduleReviewRequests(
         customer_first_name,
         product_handle,
         product_title,
+        product_image_url,
         delivered_at,
         scheduled_for,
         status,
@@ -122,6 +126,7 @@ async function scheduleReviewRequests(
         ${order.customer?.firstName || ""},
         ${productHandle},
         ${lineItem.title || ""},
+        ${lineItem.product?.featuredImage?.url || ""},
         ${deliveredDate.toISOString()},
         ${scheduledFor.toISOString()},
         'scheduled',
@@ -131,6 +136,8 @@ async function scheduleReviewRequests(
       DO UPDATE SET
         delivered_at = EXCLUDED.delivered_at,
         scheduled_for = EXCLUDED.scheduled_for,
+        product_title = EXCLUDED.product_title,
+        product_image_url = EXCLUDED.product_image_url,
         updated_at = NOW()
     `
     scheduled += 1

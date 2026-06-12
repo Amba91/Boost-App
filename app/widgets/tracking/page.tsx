@@ -23,6 +23,23 @@ type TrackingSettings = {
   primary_color: string
   background_color: string
   text_color: string
+  confirmed_message: string
+  shipped_message: string
+  in_transit_message: string
+  delivered_message: string
+}
+
+type ReviewEmailSettings = {
+  sender_name: string
+  sender_email: string
+  subject: string
+  heading: string
+  message: string
+  button_text: string
+  reward_type: "none" | "discount" | "ebook" | "custom"
+  reward_label: string
+  reward_code: string
+  reward_url: string
 }
 
 const defaultTrackingSettings: TrackingSettings = {
@@ -33,6 +50,24 @@ const defaultTrackingSettings: TrackingSettings = {
   primary_color: "#111827",
   background_color: "#f0fffb",
   text_color: "#111827",
+  confirmed_message: "Merci, ta commande est bien confirmée et se prépare avec soin.",
+  shipped_message: "Bonne nouvelle, ton colis a quitté notre entrepôt et se dirige vers toi.",
+  in_transit_message: "Ton colis est en route. Il poursuit son trajet vers ton adresse.",
+  delivered_message: "Ta commande a été livrée. Nous espérons qu’elle te plaît !",
+}
+
+const defaultEmailSettings: ReviewEmailSettings = {
+  sender_name: "Kiidiiz",
+  sender_email: "contact@kiidiiz.com",
+  subject: "{prenom}, que penses-tu de {produit} ?",
+  heading: "Ton avis compte beaucoup pour nous",
+  message:
+    "Bonjour {prenom}, nous espérons que {produit} te plaît. Partage ton expérience pour aider d’autres familles à faire leur choix.",
+  button_text: "Donner mon avis",
+  reward_type: "none",
+  reward_label: "",
+  reward_code: "",
+  reward_url: "",
 }
 
 export default function TrackingPage() {
@@ -47,6 +82,12 @@ export default function TrackingPage() {
   const [trackingSettings, setTrackingSettings] = useState(defaultTrackingSettings)
   const [trackingSettingsSaving, setTrackingSettingsSaving] = useState(false)
   const [trackingSettingsMessage, setTrackingSettingsMessage] = useState("")
+  const [previewStatus, setPreviewStatus] = useState<
+    "confirmed" | "shipped" | "in_transit" | "delivered"
+  >("shipped")
+  const [emailSettings, setEmailSettings] = useState(defaultEmailSettings)
+  const [emailSettingsSaving, setEmailSettingsSaving] = useState(false)
+  const [emailSettingsMessage, setEmailSettingsMessage] = useState("")
 
   async function loadWidget() {
     try {
@@ -111,6 +152,46 @@ export default function TrackingPage() {
     } catch (error) {
       console.error(error)
     }
+  }
+
+  async function loadEmailSettings() {
+    try {
+      const res = await fetch("/api/tracking/email-settings", { cache: "no-store" })
+      const data = await res.json()
+      if (data.success && data.settings) {
+        setEmailSettings({ ...defaultEmailSettings, ...data.settings })
+        setEmailConnected(Boolean(data.connection?.connected))
+      }
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  async function saveEmailSettings() {
+    setEmailSettingsSaving(true)
+    setEmailSettingsMessage("")
+    try {
+      const res = await fetch("/api/tracking/email-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailSettings),
+      })
+      const data = await res.json()
+      setEmailSettingsMessage(
+        data.success ? "Le modèle d’e-mail est enregistré." : data.error || "Enregistrement impossible."
+      )
+    } catch {
+      setEmailSettingsMessage("Enregistrement impossible.")
+    } finally {
+      setEmailSettingsSaving(false)
+    }
+  }
+
+  function updateEmailSetting<K extends keyof ReviewEmailSettings>(
+    key: K,
+    value: ReviewEmailSettings[K]
+  ) {
+    setEmailSettings((current) => ({ ...current, [key]: value }))
   }
 
   async function saveTrackingSettings() {
@@ -180,7 +261,21 @@ export default function TrackingPage() {
     loadWidget()
     loadReviewRequests()
     loadTrackingSettings()
+    loadEmailSettings()
   }, [])
+
+  const trackingPreview = {
+    confirmed: { label: "Commande confirmée", step: 1, message: trackingSettings.confirmed_message },
+    shipped: { label: "Commande expédiée", step: 2, message: trackingSettings.shipped_message },
+    in_transit: { label: "Colis en transit", step: 3, message: trackingSettings.in_transit_message },
+    delivered: { label: "Commande livrée", step: 4, message: trackingSettings.delivered_message },
+  }[previewStatus]
+
+  const emailPreviewText = emailSettings.message
+    .replaceAll("{prenom}", "Sophie")
+    .replaceAll("{produit}", "AdventureTrack")
+    .replaceAll("{commande}", "#1234")
+    .replaceAll("{recompense}", emailSettings.reward_label)
 
   return (
     <main style={styles.main}>
@@ -287,6 +382,38 @@ export default function TrackingPage() {
               style={styles.colorInput}
             />
           </label>
+          <label style={{ ...styles.fieldLabel, ...styles.fullField }}>
+            Message « Commande confirmée »
+            <input
+              value={trackingSettings.confirmed_message}
+              onChange={(e) => updateTrackingSetting("confirmed_message", e.target.value)}
+              style={styles.input}
+            />
+          </label>
+          <label style={{ ...styles.fieldLabel, ...styles.fullField }}>
+            Message « Commande expédiée »
+            <input
+              value={trackingSettings.shipped_message}
+              onChange={(e) => updateTrackingSetting("shipped_message", e.target.value)}
+              style={styles.input}
+            />
+          </label>
+          <label style={{ ...styles.fieldLabel, ...styles.fullField }}>
+            Message « En transit »
+            <input
+              value={trackingSettings.in_transit_message}
+              onChange={(e) => updateTrackingSetting("in_transit_message", e.target.value)}
+              style={styles.input}
+            />
+          </label>
+          <label style={{ ...styles.fieldLabel, ...styles.fullField }}>
+            Message « Livrée »
+            <input
+              value={trackingSettings.delivered_message}
+              onChange={(e) => updateTrackingSetting("delivered_message", e.target.value)}
+              style={styles.input}
+            />
+          </label>
         </div>
 
         <div
@@ -310,6 +437,49 @@ export default function TrackingPage() {
               {trackingSettings.button_text}
             </span>
           </div>
+
+          <label style={{ ...styles.fieldLabel, color: trackingSettings.text_color }}>
+            Voir l’étape suivante
+            <select
+              value={previewStatus}
+              onChange={(e) => setPreviewStatus(e.target.value as typeof previewStatus)}
+              style={styles.input}
+            >
+              <option value="confirmed">Commande confirmée</option>
+              <option value="shipped">Commande expédiée</option>
+              <option value="in_transit">Colis en transit</option>
+              <option value="delivered">Commande livrée</option>
+            </select>
+          </label>
+          <div style={styles.trackingResultPreview}>
+            <div style={styles.previewStatusLine}>
+              <strong>Commande #1234</strong>
+              <span style={{ ...styles.previewStatusPill, background: trackingSettings.primary_color }}>
+                {trackingPreview.label}
+              </span>
+            </div>
+            <p style={styles.previewReassurance}>Sophie, {trackingPreview.message}</p>
+            <div style={styles.previewSteps}>
+              {["Confirmée", "Expédiée", "En transit", "Livrée"].map((label, index) => (
+                <span
+                  key={label}
+                  style={{
+                    ...styles.previewStep,
+                    background:
+                      index + 1 <= trackingPreview.step
+                        ? trackingSettings.primary_color
+                        : "#cbd5e1",
+                  }}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+            <div style={styles.previewProduct}>
+              <span style={styles.previewProductImage}>Photo</span>
+              <strong>AdventureTrack · Quantité 1</strong>
+            </div>
+          </div>
         </div>
 
         <button
@@ -324,6 +494,97 @@ export default function TrackingPage() {
         {trackingSettingsMessage && (
           <p style={styles.success}>{trackingSettingsMessage}</p>
         )}
+      </div>
+
+      <div style={styles.cardWide}>
+        <p style={styles.eyebrow}>E-MAIL PERSONNALISÉ</p>
+        <h2 style={styles.sectionTitle}>Demande d’avis après livraison</h2>
+        <p style={styles.muted}>
+          Les champs entre accolades sont remplacés automatiquement : {"{prenom}"}, {"{produit}"}, {"{commande}"} et {"{recompense}"}.
+        </p>
+
+        <div
+          style={{
+            ...styles.connectionBox,
+            borderColor: emailConnected ? "#16a34a" : "#f59e0b",
+          }}
+        >
+          <strong style={{ color: emailConnected ? "#22c55e" : "#fbbf24" }}>
+            contact@kiidiiz.com : {emailConnected ? "prêt à envoyer" : "dernière autorisation requise"}
+          </strong>
+          <p style={{ ...styles.muted, marginBottom: 0 }}>
+            {emailConnected
+              ? "Les e-mails programmés partiront automatiquement toutes les heures."
+              : "Le modèle est prêt. Il reste à vérifier le domaine kiidiiz.com et à ajouter la clé sécurisée Resend dans Vercel."}
+          </p>
+        </div>
+
+        <div style={styles.settingsGrid}>
+          <label style={styles.fieldLabel}>Nom de l’expéditeur
+            <input style={styles.input} value={emailSettings.sender_name} onChange={(e) => updateEmailSetting("sender_name", e.target.value)} />
+          </label>
+          <label style={styles.fieldLabel}>E-mail de réponse
+            <input style={styles.input} value={emailSettings.sender_email} onChange={(e) => updateEmailSetting("sender_email", e.target.value)} />
+          </label>
+          <label style={{ ...styles.fieldLabel, ...styles.fullField }}>Objet
+            <input style={styles.input} value={emailSettings.subject} onChange={(e) => updateEmailSetting("subject", e.target.value)} />
+          </label>
+          <label style={{ ...styles.fieldLabel, ...styles.fullField }}>Grand titre
+            <input style={styles.input} value={emailSettings.heading} onChange={(e) => updateEmailSetting("heading", e.target.value)} />
+          </label>
+          <label style={{ ...styles.fieldLabel, ...styles.fullField }}>Message personnel
+            <textarea style={styles.textarea} value={emailSettings.message} onChange={(e) => updateEmailSetting("message", e.target.value)} />
+          </label>
+          <label style={styles.fieldLabel}>Texte du bouton
+            <input style={styles.input} value={emailSettings.button_text} onChange={(e) => updateEmailSetting("button_text", e.target.value)} />
+          </label>
+          <label style={styles.fieldLabel}>Récompense proposée
+            <select style={styles.input} value={emailSettings.reward_type} onChange={(e) => updateEmailSetting("reward_type", e.target.value as ReviewEmailSettings["reward_type"])}>
+              <option value="none">Aucune récompense</option>
+              <option value="discount">Code de réduction</option>
+              <option value="ebook">E-book gratuit</option>
+              <option value="custom">Autre cadeau</option>
+            </select>
+          </label>
+          {emailSettings.reward_type !== "none" && (
+            <>
+              <label style={{ ...styles.fieldLabel, ...styles.fullField }}>Description de la récompense
+                <input style={styles.input} placeholder="Ex. 10 % sur votre prochaine commande" value={emailSettings.reward_label} onChange={(e) => updateEmailSetting("reward_label", e.target.value)} />
+              </label>
+              {emailSettings.reward_type === "discount" && (
+                <label style={styles.fieldLabel}>Code promotionnel
+                  <input style={styles.input} placeholder="MERCI10" value={emailSettings.reward_code} onChange={(e) => updateEmailSetting("reward_code", e.target.value)} />
+                </label>
+              )}
+              <label style={styles.fieldLabel}>Lien du cadeau ou de l’offre
+                <input style={styles.input} placeholder="https://..." value={emailSettings.reward_url} onChange={(e) => updateEmailSetting("reward_url", e.target.value)} />
+              </label>
+            </>
+          )}
+        </div>
+
+        <div style={styles.emailPreview}>
+          <small style={styles.emailPreviewFrom}>De : {emailSettings.sender_name} &lt;{emailSettings.sender_email}&gt;</small>
+          <strong style={styles.emailPreviewSubject}>
+            {emailSettings.subject.replaceAll("{prenom}", "Sophie").replaceAll("{produit}", "AdventureTrack")}
+          </strong>
+          <div style={styles.emailProductPhoto}>Photo automatique du produit</div>
+          <h3>{emailSettings.heading}</h3>
+          <p style={styles.emailPreviewMessage}>{emailPreviewText}</p>
+          <span style={styles.emailPreviewButton}>{emailSettings.button_text}</span>
+          {emailSettings.reward_type !== "none" && emailSettings.reward_label && (
+            <div style={styles.rewardPreview}>
+              <strong>Un merci pour ton avis honnête</strong>
+              <span>{emailSettings.reward_label}</span>
+              {emailSettings.reward_code && <code style={styles.rewardCode}>{emailSettings.reward_code}</code>}
+            </div>
+          )}
+        </div>
+
+        <button onClick={saveEmailSettings} disabled={emailSettingsSaving} style={styles.saveButton}>
+          {emailSettingsSaving ? "Enregistrement..." : "Enregistrer le modèle d’e-mail"}
+        </button>
+        {emailSettingsMessage && <p style={styles.success}>{emailSettingsMessage}</p>}
       </div>
 
       <div style={styles.cardWide}>
@@ -507,6 +768,18 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "12px",
     fontSize: "15px",
   },
+  textarea: {
+    display: "block",
+    width: "100%",
+    minHeight: "120px",
+    marginTop: "8px",
+    padding: "13px",
+    border: "none",
+    borderRadius: "12px",
+    fontSize: "15px",
+    fontFamily: "Arial",
+    resize: "vertical",
+  },
   settingsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
@@ -554,6 +827,124 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "12px 18px",
     borderRadius: "10px",
     color: "white",
+    fontWeight: "bold",
+  },
+  trackingResultPreview: {
+    marginTop: "20px",
+    padding: "18px",
+    borderRadius: "15px",
+    background: "rgba(255,255,255,.78)",
+    color: "#111827",
+  },
+  previewStatusLine: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px",
+  },
+  previewStatusPill: {
+    padding: "7px 10px",
+    borderRadius: "999px",
+    color: "white",
+    fontSize: "12px",
+    fontWeight: "bold",
+  },
+  previewReassurance: {
+    margin: "18px 0",
+    lineHeight: 1.5,
+    fontWeight: "bold",
+  },
+  previewSteps: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: "7px",
+  },
+  previewStep: {
+    padding: "8px 4px",
+    borderRadius: "8px",
+    color: "white",
+    textAlign: "center",
+    fontSize: "11px",
+    fontWeight: "bold",
+  },
+  previewProduct: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    marginTop: "15px",
+    paddingTop: "15px",
+    borderTop: "1px solid #e2e8f0",
+  },
+  previewProductImage: {
+    display: "grid",
+    placeItems: "center",
+    width: "62px",
+    height: "62px",
+    borderRadius: "11px",
+    background: "#e2e8f0",
+    color: "#64748b",
+    fontSize: "11px",
+  },
+  emailPreview: {
+    maxWidth: "600px",
+    margin: "26px auto 0",
+    padding: "28px",
+    borderRadius: "20px",
+    background: "#f6faf9",
+    color: "#172033",
+    textAlign: "center",
+  },
+  emailPreviewFrom: {
+    display: "block",
+    color: "#64748b",
+    textAlign: "left",
+  },
+  emailPreviewSubject: {
+    display: "block",
+    margin: "10px 0 20px",
+    textAlign: "left",
+    fontSize: "18px",
+  },
+  emailProductPhoto: {
+    display: "grid",
+    placeItems: "center",
+    width: "220px",
+    height: "150px",
+    margin: "0 auto 20px",
+    borderRadius: "16px",
+    background: "#dbeafe",
+    color: "#475569",
+    fontWeight: "bold",
+  },
+  emailPreviewMessage: {
+    color: "#4b5563",
+    lineHeight: 1.6,
+  },
+  emailPreviewButton: {
+    display: "inline-block",
+    marginTop: "10px",
+    padding: "13px 20px",
+    borderRadius: "11px",
+    background: "#111827",
+    color: "white",
+    fontWeight: "bold",
+  },
+  rewardPreview: {
+    display: "grid",
+    gap: "8px",
+    marginTop: "22px",
+    padding: "16px",
+    borderRadius: "13px",
+    border: "1px solid #a7f3d0",
+    background: "#ecfdf5",
+    color: "#047857",
+  },
+  rewardCode: {
+    justifySelf: "center",
+    padding: "8px 12px",
+    border: "2px dashed #059669",
+    borderRadius: "8px",
+    color: "#111827",
     fontWeight: "bold",
   },
   connectionBox: {

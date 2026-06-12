@@ -1,4 +1,8 @@
 import { sql } from "@vercel/postgres"
+import {
+  ensureReviewEmailSettingsTable,
+  ensureReviewQueueEmailColumns,
+} from "./review-email-settings"
 
 export const defaultReviewRequestSettings = {
   active: false,
@@ -34,4 +38,7 @@ export async function ensureReviewRequestTrackingTables() {
       UNIQUE (shop, order_id, product_handle)
     )
   `
+
+  await ensureReviewEmailSettingsTable()
+  await ensureReviewQueueEmailColumns()
 }

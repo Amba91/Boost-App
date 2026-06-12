@@ -67,7 +67,7 @@
       if (data.widgets["reviews"]) {
         const script = document.createElement("script")
         script.src =
-          "https://boost-app-9e6w.vercel.app/api/widgets/reviews/script?v=14"
+          "https://boost-app-9e6w.vercel.app/api/widgets/reviews/script?v=15"
         script.defer = true
         document.body.appendChild(script)
       }
@@ -75,7 +75,7 @@
       if (data.widgets["tracking"]) {
         const script = document.createElement("script")
         script.src =
-          "https://boost-app-9e6w.vercel.app/api/widgets/tracking/script?v=1"
+          "https://boost-app-9e6w.vercel.app/api/widgets/tracking/script?v=2"
         script.defer = true
         document.body.appendChild(script)
       }

@@ -67,16 +67,24 @@ export async function POST(request: Request) {
       primary_color: color(body.primary_color, defaultTrackingWidgetSettings.primary_color),
       background_color: color(body.background_color, defaultTrackingWidgetSettings.background_color),
       text_color: color(body.text_color, defaultTrackingWidgetSettings.text_color),
+      confirmed_message: text(body.confirmed_message, defaultTrackingWidgetSettings.confirmed_message, 240),
+      shipped_message: text(body.shipped_message, defaultTrackingWidgetSettings.shipped_message, 240),
+      in_transit_message: text(body.in_transit_message, defaultTrackingWidgetSettings.in_transit_message, 240),
+      delivered_message: text(body.delivered_message, defaultTrackingWidgetSettings.delivered_message, 240),
     }
 
     const result = await sql`
       INSERT INTO tracking_widget_settings (
         shop, page_path, title, subtitle, button_text,
-        primary_color, background_color, text_color, updated_at
+        primary_color, background_color, text_color,
+        confirmed_message, shipped_message, in_transit_message,
+        delivered_message, updated_at
       ) VALUES (
         ${SHOP}, ${settings.page_path}, ${settings.title}, ${settings.subtitle},
         ${settings.button_text}, ${settings.primary_color},
-        ${settings.background_color}, ${settings.text_color}, NOW()
+        ${settings.background_color}, ${settings.text_color},
+        ${settings.confirmed_message}, ${settings.shipped_message},
+        ${settings.in_transit_message}, ${settings.delivered_message}, NOW()
       )
       ON CONFLICT (shop) DO UPDATE SET
         page_path = EXCLUDED.page_path,
@@ -86,6 +94,10 @@ export async function POST(request: Request) {
         primary_color = EXCLUDED.primary_color,
         background_color = EXCLUDED.background_color,
         text_color = EXCLUDED.text_color,
+        confirmed_message = EXCLUDED.confirmed_message,
+        shipped_message = EXCLUDED.shipped_message,
+        in_transit_message = EXCLUDED.in_transit_message,
+        delivered_message = EXCLUDED.delivered_message,
         updated_at = NOW()
       RETURNING *
     `

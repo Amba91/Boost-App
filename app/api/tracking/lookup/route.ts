@@ -33,6 +33,17 @@ type ShopifyOrder = {
   displayFulfillmentStatus?: string | null
   statusPageUrl?: string | null
   fulfillments?: Fulfillment[]
+  customer?: { firstName?: string | null } | null
+  lineItems?: {
+    nodes?: Array<{
+      title?: string | null
+      quantity?: number | null
+      product?: {
+        handle?: string | null
+        featuredImage?: { url?: string | null; altText?: string | null } | null
+      } | null
+    }>
+  }
 }
 
 function normalizeOrderNumber(value: unknown) {
@@ -120,6 +131,22 @@ export async function POST(request: Request) {
                   displayFinancialStatus
                   displayFulfillmentStatus
                   statusPageUrl
+                  customer {
+                    firstName
+                  }
+                  lineItems(first: 20) {
+                    nodes {
+                      title
+                      quantity
+                      product {
+                        handle
+                        featuredImage {
+                          url
+                          altText
+                        }
+                      }
+                    }
+                  }
                   fulfillments {
                     createdAt
                     inTransitAt
@@ -197,6 +224,14 @@ export async function POST(request: Request) {
               }
             : null,
           status_page_url: order.statusPageUrl || null,
+          first_name: order.customer?.firstName || null,
+          items: (order.lineItems?.nodes || []).map((item) => ({
+            title: item.title || "Produit Kiidiiz",
+            quantity: item.quantity || 1,
+            handle: item.product?.handle || null,
+            image_url: item.product?.featuredImage?.url || null,
+            image_alt: item.product?.featuredImage?.altText || item.title || "Produit Kiidiiz",
+          })),
         },
       },
       { headers: corsHeaders }

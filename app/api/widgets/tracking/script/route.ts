@@ -46,6 +46,7 @@ export async function GET() {
       ".boost-track-order-line{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:24px}",
       ".boost-track-order-name{font-size:20px;font-weight:800}",
       ".boost-track-status{padding:7px 11px;border-radius:999px;background:" + settings.primary_color + ";color:#fff;font-size:13px;font-weight:800}",
+      ".boost-track-reassurance{margin:0 0 22px;padding:18px;border-radius:15px;background:rgba(255,255,255,.72);font-size:16px;line-height:1.55;font-weight:700}",
       ".boost-track-steps{display:grid;grid-template-columns:repeat(4,1fr);position:relative;margin:20px 0 26px}",
       ".boost-track-steps:before{content:\"\";position:absolute;top:15px;left:12.5%;right:12.5%;height:3px;background:rgba(15,23,42,.15)}",
       ".boost-track-step{position:relative;text-align:center;font-size:12px;font-weight:700;z-index:1}",
@@ -53,6 +54,11 @@ export async function GET() {
       ".boost-track-step.is-done .boost-track-dot{border-color:" + settings.primary_color + ";background:" + settings.primary_color + ";color:#fff}",
       ".boost-track-details{padding:17px;border-radius:14px;background:rgba(255,255,255,.7);line-height:1.6}",
       ".boost-track-details p{margin:4px 0}",
+      ".boost-track-products{display:grid;gap:12px;margin:0 0 18px}",
+      ".boost-track-product{display:flex;align-items:center;gap:14px;padding:12px;border-radius:14px;background:rgba(255,255,255,.72)}",
+      ".boost-track-product img{width:72px;height:72px;object-fit:cover;border-radius:12px;background:#fff}",
+      ".boost-track-product-name{font-weight:800;line-height:1.35}",
+      ".boost-track-product-quantity{margin-top:4px;font-size:12px;opacity:.65}",
       ".boost-track-link{display:inline-block;margin-top:11px;color:" + settings.primary_color + ";font-weight:800;text-decoration:underline}",
       ".boost-track-security{margin:14px 0 0;font-size:12px;opacity:.6}",
       "@media(max-width:720px){#boost-tracking-widget{margin:25px 16px;padding:24px 18px}.boost-track-form{grid-template-columns:1fr}.boost-track-submit{width:100%}.boost-track-order-line{align-items:flex-start;flex-direction:column}.boost-track-step{font-size:10px}.boost-track-dot{width:28px;height:28px}.boost-track-steps:before{top:13px}}"
@@ -146,6 +152,19 @@ export async function GET() {
         top.appendChild(status);
         resultBox.appendChild(top);
 
+        var messageByStatus = {
+          confirmed: settings.confirmed_message,
+          shipped: settings.shipped_message,
+          in_transit: settings.in_transit_message,
+          out_for_delivery: settings.in_transit_message,
+          delivered: settings.delivered_message,
+          cancelled: "Cette commande a été annulée. Notre équipe reste disponible si tu as besoin d’aide."
+        };
+        var reassurance = document.createElement("p");
+        reassurance.className = "boost-track-reassurance";
+        reassurance.textContent = (order.first_name ? order.first_name + ", " : "") + (messageByStatus[order.status.key] || settings.confirmed_message);
+        resultBox.appendChild(reassurance);
+
         if (order.status.step > 0) {
           var labels = ["Confirmée", "Expédiée", "En transit", "Livrée"];
           var steps = document.createElement("div");
@@ -158,6 +177,36 @@ export async function GET() {
             steps.appendChild(step);
           });
           resultBox.appendChild(steps);
+        }
+
+        if (order.items && order.items.length) {
+          var products = document.createElement("div");
+          products.className = "boost-track-products";
+          order.items.forEach(function (item) {
+            var product = document.createElement("div");
+            product.className = "boost-track-product";
+            if (item.image_url) {
+              var image = document.createElement("img");
+              image.src = item.image_url;
+              image.alt = item.image_alt || item.title;
+              image.loading = "lazy";
+              product.appendChild(image);
+            }
+            var productText = document.createElement("div");
+            var productName = document.createElement("div");
+            productName.className = "boost-track-product-name";
+            productName.textContent = item.title;
+            productText.appendChild(productName);
+            if (item.quantity > 1) {
+              var quantity = document.createElement("div");
+              quantity.className = "boost-track-product-quantity";
+              quantity.textContent = "Quantité : " + item.quantity;
+              productText.appendChild(quantity);
+            }
+            product.appendChild(productText);
+            products.appendChild(product);
+          });
+          resultBox.appendChild(products);
         }
 
         var details = document.createElement("div");

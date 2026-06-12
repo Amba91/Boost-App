@@ -540,6 +540,14 @@ export async function GET() {
       openFormButton.textContent = reviewForm.hidden ? "Écrire un avis" : "Fermer le formulaire"
     })
 
+    if (new URLSearchParams(window.location.search).get("boost_review") === "1") {
+      reviewForm.hidden = false
+      openFormButton.textContent = "Fermer le formulaire"
+      setTimeout(function () {
+        container.scrollIntoView({ behavior: "smooth", block: "center" })
+      }, 250)
+    }
+
     reviewForm.addEventListener("submit", async function (event) {
       event.preventDefault()
       submitButton.disabled = true
