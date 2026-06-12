@@ -9,7 +9,7 @@ export async function GET() {
 
   const scopes =
     process.env.SHOPIFY_SCOPES ||
-    "read_products,read_orders,write_orders,read_customers,read_inventory"
+    "read_products,read_orders,write_orders,read_customers,read_inventory,read_fulfillments"
 
   if (!apiKey) {
     return NextResponse.json(

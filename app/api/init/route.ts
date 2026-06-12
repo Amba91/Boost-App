@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
+import { ensureReviewRequestTrackingTables } from "../../../lib/review-request-tracking"
 
 export async function GET() {
   try {
@@ -106,6 +107,8 @@ export async function GET() {
         updated_at TIMESTAMP DEFAULT NOW()
       )
     `
+
+    await ensureReviewRequestTrackingTables()
 
     return NextResponse.json({
       success: true,
