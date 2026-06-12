@@ -148,12 +148,12 @@ export default function ReviewsPage() {
     return matchesSelectedProduct
   })
 
-  const numberedProductReviews: ReviewWithVisualNumber[] = productReviews
-    .filter((review) => review.source !== "storefront")
-    .map((review, index) => ({
+  const numberedProductReviews: ReviewWithVisualNumber[] = productReviews.map(
+    (review, index) => ({
       ...review,
       visualNumber: index + 1,
-    }))
+    })
+  )
 
   const publishedReviewsCount = productReviews.filter(
     (item) => item.visible

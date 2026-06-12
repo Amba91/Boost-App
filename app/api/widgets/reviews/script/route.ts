@@ -18,10 +18,12 @@ export async function GET() {
       var responses = await Promise.all([
         fetch(
           "https://boost-app-9e6w.vercel.app/api/reviews/list?shop=kiidiiz.com&product_handle=" +
-            encodeURIComponent(productHandle)
+            encodeURIComponent(productHandle),
+          { cache: "no-store" }
         ),
         fetch(
-          "https://boost-app-9e6w.vercel.app/api/reviews/widget-settings"
+          "https://boost-app-9e6w.vercel.app/api/reviews/widget-settings",
+          { cache: "no-store" }
         ),
       ])
       var data = await responses[0].json()
@@ -594,6 +596,10 @@ export async function GET() {
   }
 
   setTimeout(loadReviews, 800)
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible") loadReviews()
+  })
 })()
 `
 
