@@ -40,6 +40,11 @@ type ReviewEmailSettings = {
   reward_label: string
   reward_code: string
   reward_url: string
+  provider_mode: "manual" | "fallback" | "quota"
+  primary_provider: "resend" | "klaviyo"
+  fallback_provider: "resend" | "klaviyo"
+  resend_monthly_limit: number
+  klaviyo_monthly_limit: number
 }
 
 const defaultTrackingSettings: TrackingSettings = {
@@ -68,6 +73,11 @@ const defaultEmailSettings: ReviewEmailSettings = {
   reward_label: "",
   reward_code: "",
   reward_url: "",
+  provider_mode: "fallback",
+  primary_provider: "resend",
+  fallback_provider: "klaviyo",
+  resend_monthly_limit: 3000,
+  klaviyo_monthly_limit: 500,
 }
 
 export default function TrackingPage() {
@@ -88,6 +98,10 @@ export default function TrackingPage() {
   const [emailSettings, setEmailSettings] = useState(defaultEmailSettings)
   const [emailSettingsSaving, setEmailSettingsSaving] = useState(false)
   const [emailSettingsMessage, setEmailSettingsMessage] = useState("")
+  const [providerState, setProviderState] = useState({
+    resend: { connected: false, used: 0 },
+    klaviyo: { connected: false, used: 0 },
+  })
 
   async function loadWidget() {
     try {
@@ -161,6 +175,7 @@ export default function TrackingPage() {
       if (data.success && data.settings) {
         setEmailSettings({ ...defaultEmailSettings, ...data.settings })
         setEmailConnected(Boolean(data.connection?.connected))
+        if (data.connection?.providers) setProviderState(data.connection.providers)
       }
     } catch (error) {
       console.error(error)
@@ -515,7 +530,63 @@ export default function TrackingPage() {
           <p style={{ ...styles.muted, marginBottom: 0 }}>
             {emailConnected
               ? "Les e-mails programmés partiront automatiquement chaque jour."
-              : "Le modèle est prêt. Il reste à vérifier le domaine kiidiiz.com et à ajouter la clé sécurisée Resend dans Vercel."}
+              : "Le modèle est prêt. Connecte au moins un fournisseur d’envoi et vérifie le domaine kiidiiz.com."}
+          </p>
+        </div>
+
+        <div style={styles.providerPanel}>
+          <h3 style={{ marginTop: 0 }}>Fournisseurs Boost Mail</h3>
+          <p style={styles.muted}>
+            Boost garde une seule interface et peut confier l’envoi à plusieurs moteurs. Klaviyo nécessite un Flow déclenché par l’événement « Boost Review Request Ready ».
+          </p>
+          <div style={styles.providerCards}>
+            <div style={styles.providerCard}>
+              <strong>Resend</strong>
+              <span style={{ color: providerState.resend.connected ? "#22c55e" : "#fbbf24" }}>
+                {providerState.resend.connected ? "Connecté" : "À connecter"}
+              </span>
+              <small>{providerState.resend.used} / {emailSettings.resend_monthly_limit} utilisés ce mois</small>
+            </div>
+            <div style={styles.providerCard}>
+              <strong>Klaviyo</strong>
+              <span style={{ color: providerState.klaviyo.connected ? "#22c55e" : "#fbbf24" }}>
+                {providerState.klaviyo.connected ? "Connecté" : "À connecter"}
+              </span>
+              <small>{providerState.klaviyo.used} / {emailSettings.klaviyo_monthly_limit} événements ce mois</small>
+            </div>
+          </div>
+
+          <div style={styles.settingsGrid}>
+            <label style={styles.fieldLabel}>Mode d’envoi
+              <select style={styles.input} value={emailSettings.provider_mode} onChange={(e) => updateEmailSetting("provider_mode", e.target.value as ReviewEmailSettings["provider_mode"])}>
+                <option value="manual">Un seul fournisseur</option>
+                <option value="fallback">Secours seulement en cas d’erreur</option>
+                <option value="quota">Bascule à la limite configurée</option>
+              </select>
+            </label>
+            <label style={styles.fieldLabel}>Fournisseur principal
+              <select style={styles.input} value={emailSettings.primary_provider} onChange={(e) => updateEmailSetting("primary_provider", e.target.value as ReviewEmailSettings["primary_provider"])}>
+                <option value="resend">Resend</option>
+                <option value="klaviyo">Klaviyo</option>
+              </select>
+            </label>
+            {emailSettings.provider_mode !== "manual" && (
+              <label style={styles.fieldLabel}>Fournisseur de secours
+                <select style={styles.input} value={emailSettings.fallback_provider} onChange={(e) => updateEmailSetting("fallback_provider", e.target.value as ReviewEmailSettings["fallback_provider"])}>
+                  <option value="klaviyo">Klaviyo</option>
+                  <option value="resend">Resend</option>
+                </select>
+              </label>
+            )}
+            <label style={styles.fieldLabel}>Limite mensuelle Resend
+              <input type="number" min={0} style={styles.input} value={emailSettings.resend_monthly_limit} onChange={(e) => updateEmailSetting("resend_monthly_limit", Number(e.target.value))} />
+            </label>
+            <label style={styles.fieldLabel}>Limite mensuelle Klaviyo
+              <input type="number" min={0} style={styles.input} value={emailSettings.klaviyo_monthly_limit} onChange={(e) => updateEmailSetting("klaviyo_monthly_limit", Number(e.target.value))} />
+            </label>
+          </div>
+          <p style={styles.connectionHelp}>
+            Les limites sont des garde-fous Boost. Elles ne remplacent pas les règles, consentements et quotas officiels de chaque fournisseur.
           </p>
         </div>
 
@@ -953,6 +1024,27 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid",
     borderRadius: "16px",
     background: "#050816",
+  },
+  providerPanel: {
+    marginTop: "22px",
+    padding: "20px",
+    borderRadius: "16px",
+    background: "#0b1020",
+    border: "1px solid #27324a",
+  },
+  providerCards: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "12px",
+    marginTop: "16px",
+  },
+  providerCard: {
+    display: "grid",
+    gap: "7px",
+    padding: "16px",
+    borderRadius: "13px",
+    background: "#050816",
+    color: "#cbd5e1",
   },
   shopifyConnectButton: {
     display: "block",

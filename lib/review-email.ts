@@ -80,37 +80,3 @@ export function buildReviewEmail({
 
   return { subject, html, reviewUrl }
 }
-
-export async function sendReviewEmail({
-  to,
-  settings,
-  subject,
-  html,
-}: {
-  to: string
-  settings: EmailSettings
-  subject: string
-  html: string
-}) {
-  const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey) throw new Error("RESEND_API_KEY manquante")
-
-  const senderEmail = process.env.RESEND_FROM_EMAIL || settings.sender_email
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: `${settings.sender_name} <${senderEmail}>`,
-      to: [to],
-      reply_to: settings.sender_email,
-      subject,
-      html,
-    }),
-  })
-  const result = await response.json()
-  if (!response.ok) throw new Error(result.message || "Envoi Resend impossible")
-  return result as { id?: string }
-}
