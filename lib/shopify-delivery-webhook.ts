@@ -13,9 +13,10 @@ export async function registerMailAutomationWebhooks(
   const results = await Promise.all(
     topics.map((topic) => registerWebhook(shop, accessToken, topic))
   )
+  const ordersWebhook = results.find((result) => result.topic === "ORDERS_CREATE")
 
   return {
-    success: results.every((result) => result.success || result.alreadyExists),
+    success: Boolean(ordersWebhook?.success || ordersWebhook?.alreadyExists),
     results,
   }
 }
@@ -71,10 +72,14 @@ async function registerWebhook(
   const alreadyExists = errors.some((error: { message?: string }) =>
     String(error.message || "").toLowerCase().includes("already")
   )
+  const unsupported = errors.some((error: { message?: string }) =>
+    String(error.message || "").toLowerCase().includes("specified topic")
+  )
 
   return {
     success: response.ok && !result.errors && (errors.length === 0 || alreadyExists),
     alreadyExists,
+    unsupported,
     topic,
     errors: result.errors || errors,
   }
