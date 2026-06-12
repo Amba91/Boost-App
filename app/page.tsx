@@ -21,6 +21,7 @@ const widgets = [
 
 export default function HomePage() {
   const [statuses, setStatuses] = useState<Record<string, boolean>>({})
+  const [pendingReviewsCount, setPendingReviewsCount] = useState(0)
 
   async function loadStatuses() {
     const results: Record<string, boolean> = {}
@@ -54,9 +55,42 @@ export default function HomePage() {
     loadStatuses()
   }
 
+  async function loadReviewNotifications() {
+    try {
+      const res = await fetch("/api/reviews/notifications", {
+        cache: "no-store",
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setPendingReviewsCount(Number(data.pending_count || 0))
+      }
+    } catch (error) {
+      console.error("REVIEW NOTIFICATION ERROR:", error)
+    }
+  }
+
   useEffect(() => {
     loadStatuses()
+    loadReviewNotifications()
+
+    const interval = window.setInterval(loadReviewNotifications, 30000)
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") loadReviewNotifications()
+    }
+    document.addEventListener("visibilitychange", refreshWhenVisible)
+
+    return () => {
+      window.clearInterval(interval)
+      document.removeEventListener("visibilitychange", refreshWhenVisible)
+    }
   }, [])
+
+  useEffect(() => {
+    document.title = pendingReviewsCount
+      ? `(${pendingReviewsCount}) Avis à traiter - Boost`
+      : "Boost"
+  }, [pendingReviewsCount])
 
   useEffect(() => {
     document.documentElement.style.height = "auto"
@@ -75,6 +109,24 @@ export default function HomePage() {
   return (
     <main style={styles.main}>
       <h1 style={styles.logo}>🚀 BOOST</h1>
+
+      {pendingReviewsCount > 0 && (
+        <Link href="/widgets/reviews" style={styles.notificationLink}>
+          <div style={styles.notificationBanner}>
+            <div>
+              <strong style={styles.notificationTitle}>
+                {pendingReviewsCount > 1
+                  ? `${pendingReviewsCount} nouveaux avis clients attendent`
+                  : "1 nouvel avis client attend"}
+              </strong>
+              <p style={styles.notificationText}>
+                Clique ici pour publier ou supprimer les avis reçus sur la boutique.
+              </p>
+            </div>
+            <span style={styles.notificationAction}>Traiter maintenant →</span>
+          </div>
+        </Link>
+      )}
 
       <div style={styles.grid}>
         <div style={styles.productCard}>
@@ -100,8 +152,23 @@ export default function HomePage() {
           const active = statuses[widget.slug] || false
 
           return (
-            <div key={widget.slug} style={styles.card}>
-              <h2 style={styles.title}>{widget.name}</h2>
+            <div
+              key={widget.slug}
+              style={{
+                ...styles.card,
+                ...(widget.slug === "reviews" && pendingReviewsCount > 0
+                  ? styles.reviewCardAlert
+                  : {}),
+              }}
+            >
+              <div style={styles.cardTitleRow}>
+                <h2 style={{ ...styles.title, margin: 0 }}>{widget.name}</h2>
+                {widget.slug === "reviews" && pendingReviewsCount > 0 && (
+                  <span style={styles.reviewBadge}>
+                    {pendingReviewsCount} à traiter
+                  </span>
+                )}
+              </div>
 
               <p style={styles.text}>Widget Shopify intelligent.</p>
 
@@ -154,10 +221,63 @@ const styles: Record<string, React.CSSProperties> = {
     gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))",
     gap: "24px",
   },
+  notificationLink: {
+    display: "block",
+    maxWidth: "1000px",
+    marginBottom: "28px",
+    color: "inherit",
+    textDecoration: "none",
+  },
+  notificationBanner: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "20px",
+    padding: "22px 26px",
+    border: "2px solid #f59e0b",
+    borderRadius: "20px",
+    background: "linear-gradient(135deg, #451a03, #111827)",
+  },
+  notificationTitle: {
+    color: "#fbbf24",
+    fontSize: "19px",
+  },
+  notificationText: {
+    margin: "7px 0 0",
+    color: "#e2e8f0",
+  },
+  notificationAction: {
+    flexShrink: 0,
+    borderRadius: "12px",
+    background: "#f59e0b",
+    color: "#111827",
+    padding: "12px 16px",
+    fontWeight: "bold",
+  },
   card: {
     background: "#111827",
     borderRadius: "24px",
     padding: "30px",
+  },
+  reviewCardAlert: {
+    border: "2px solid #f59e0b",
+    boxShadow: "0 0 0 4px rgba(245, 158, 11, 0.12)",
+  },
+  cardTitleRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+    marginBottom: "12px",
+  },
+  reviewBadge: {
+    borderRadius: "999px",
+    background: "#f59e0b",
+    color: "#111827",
+    padding: "7px 10px",
+    fontSize: "12px",
+    fontWeight: "bold",
+    whiteSpace: "nowrap",
   },
   productCard: {
     background: "linear-gradient(135deg, #111827, #064e3b)",
