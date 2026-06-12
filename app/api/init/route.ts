@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
 import { ensureReviewRequestTrackingTables } from "../../../lib/review-request-tracking"
+import { ensureTrackingWidgetSettingsTable } from "../../../lib/tracking-widget-settings"
 
 export async function GET() {
   try {
@@ -109,6 +110,7 @@ export async function GET() {
     `
 
     await ensureReviewRequestTrackingTables()
+    await ensureTrackingWidgetSettingsTable()
 
     return NextResponse.json({
       success: true,

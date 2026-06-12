@@ -15,6 +15,26 @@ type ReviewRequest = {
   status: "scheduled" | "ready" | "sent"
 }
 
+type TrackingSettings = {
+  page_path: string
+  title: string
+  subtitle: string
+  button_text: string
+  primary_color: string
+  background_color: string
+  text_color: string
+}
+
+const defaultTrackingSettings: TrackingSettings = {
+  page_path: "/pages/suivre-ma-commande",
+  title: "Suivre ma commande",
+  subtitle: "Entre ton numéro de commande et l’e-mail utilisé lors de l’achat.",
+  button_text: "Voir le suivi",
+  primary_color: "#111827",
+  background_color: "#f0fffb",
+  text_color: "#111827",
+}
+
 export default function TrackingPage() {
   const [active, setActive] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -24,6 +44,9 @@ export default function TrackingPage() {
   const [queue, setQueue] = useState<ReviewRequest[]>([])
   const [emailConnected, setEmailConnected] = useState(false)
   const [message, setMessage] = useState("")
+  const [trackingSettings, setTrackingSettings] = useState(defaultTrackingSettings)
+  const [trackingSettingsSaving, setTrackingSettingsSaving] = useState(false)
+  const [trackingSettingsMessage, setTrackingSettingsMessage] = useState("")
 
   async function loadWidget() {
     try {
@@ -78,6 +101,50 @@ export default function TrackingPage() {
     }
   }
 
+  async function loadTrackingSettings() {
+    try {
+      const res = await fetch("/api/tracking/settings", { cache: "no-store" })
+      const data = await res.json()
+      if (data.success && data.settings) {
+        setTrackingSettings({ ...defaultTrackingSettings, ...data.settings })
+      }
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  async function saveTrackingSettings() {
+    setTrackingSettingsSaving(true)
+    setTrackingSettingsMessage("")
+
+    try {
+      const res = await fetch("/api/tracking/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(trackingSettings),
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setTrackingSettings({ ...defaultTrackingSettings, ...data.settings })
+        setTrackingSettingsMessage("Le suivi de la boutique est enregistré.")
+      } else {
+        setTrackingSettingsMessage(data.error || "Enregistrement impossible.")
+      }
+    } catch {
+      setTrackingSettingsMessage("Enregistrement impossible.")
+    } finally {
+      setTrackingSettingsSaving(false)
+    }
+  }
+
+  function updateTrackingSetting<K extends keyof TrackingSettings>(
+    key: K,
+    value: TrackingSettings[K]
+  ) {
+    setTrackingSettings((current) => ({ ...current, [key]: value }))
+  }
+
   async function saveReviewRequestSettings() {
     setSaving(true)
     setMessage("")
@@ -112,6 +179,7 @@ export default function TrackingPage() {
   useEffect(() => {
     loadWidget()
     loadReviewRequests()
+    loadTrackingSettings()
   }, [])
 
   return (
@@ -151,6 +219,114 @@ export default function TrackingPage() {
       </div>
 
       <div style={styles.cardWide}>
+        <p style={styles.eyebrow}>SUIVI SUR LA BOUTIQUE</p>
+        <h2 style={styles.sectionTitle}>Configurer la page de suivi</h2>
+        <p style={styles.muted}>
+          Le client retrouve sa commande avec son numéro et l’e-mail utilisé
+          lors de l’achat. Cette double vérification protège ses informations.
+        </p>
+
+        <div style={styles.settingsGrid}>
+          <label style={styles.fieldLabel}>
+            Adresse de la page Shopify
+            <input
+              value={trackingSettings.page_path}
+              onChange={(e) => updateTrackingSetting("page_path", e.target.value)}
+              style={styles.input}
+              placeholder="/pages/suivre-ma-commande"
+            />
+          </label>
+          <label style={styles.fieldLabel}>
+            Titre du formulaire
+            <input
+              value={trackingSettings.title}
+              onChange={(e) => updateTrackingSetting("title", e.target.value)}
+              style={styles.input}
+            />
+          </label>
+          <label style={{ ...styles.fieldLabel, ...styles.fullField }}>
+            Texte d’aide
+            <input
+              value={trackingSettings.subtitle}
+              onChange={(e) => updateTrackingSetting("subtitle", e.target.value)}
+              style={styles.input}
+            />
+          </label>
+          <label style={styles.fieldLabel}>
+            Texte du bouton
+            <input
+              value={trackingSettings.button_text}
+              onChange={(e) => updateTrackingSetting("button_text", e.target.value)}
+              style={styles.input}
+            />
+          </label>
+          <label style={styles.fieldLabel}>
+            Couleur du bouton
+            <input
+              type="color"
+              value={trackingSettings.primary_color}
+              onChange={(e) => updateTrackingSetting("primary_color", e.target.value)}
+              style={styles.colorInput}
+            />
+          </label>
+          <label style={styles.fieldLabel}>
+            Couleur du fond
+            <input
+              type="color"
+              value={trackingSettings.background_color}
+              onChange={(e) => updateTrackingSetting("background_color", e.target.value)}
+              style={styles.colorInput}
+            />
+          </label>
+          <label style={styles.fieldLabel}>
+            Couleur du texte
+            <input
+              type="color"
+              value={trackingSettings.text_color}
+              onChange={(e) => updateTrackingSetting("text_color", e.target.value)}
+              style={styles.colorInput}
+            />
+          </label>
+        </div>
+
+        <div
+          style={{
+            ...styles.preview,
+            background: trackingSettings.background_color,
+            color: trackingSettings.text_color,
+          }}
+        >
+          <strong style={styles.previewTitle}>{trackingSettings.title}</strong>
+          <p style={styles.previewText}>{trackingSettings.subtitle}</p>
+          <div style={styles.previewForm}>
+            <span style={styles.previewInput}>#1234</span>
+            <span style={styles.previewInput}>client@exemple.com</span>
+            <span
+              style={{
+                ...styles.previewButton,
+                background: trackingSettings.primary_color,
+              }}
+            >
+              {trackingSettings.button_text}
+            </span>
+          </div>
+        </div>
+
+        <button
+          onClick={saveTrackingSettings}
+          disabled={trackingSettingsSaving}
+          style={styles.saveButton}
+        >
+          {trackingSettingsSaving
+            ? "Enregistrement..."
+            : "Enregistrer le suivi de la boutique"}
+        </button>
+        {trackingSettingsMessage && (
+          <p style={styles.success}>{trackingSettingsMessage}</p>
+        )}
+      </div>
+
+      <div style={styles.cardWide}>
         <p style={styles.eyebrow}>AUTOMATISATION APRÈS LIVRAISON</p>
         <h2 style={styles.sectionTitle}>Demander un avis au bon moment</h2>
         <p style={styles.muted}>
@@ -158,7 +334,11 @@ export default function TrackingPage() {
           la demande d’avis pour les produits de cette commande.
         </p>
 
-        <a href="/api/shopify/install" style={styles.shopifyConnectButton}>
+        <a
+          href="https://boost-app-9e6w.vercel.app/api/shopify/install"
+          target="_top"
+          style={styles.shopifyConnectButton}
+        >
           Autoriser le suivi des livraisons Shopify
         </a>
         <p style={styles.connectionHelp}>
@@ -326,6 +506,55 @@ const styles: Record<string, React.CSSProperties> = {
     border: "none",
     borderRadius: "12px",
     fontSize: "15px",
+  },
+  settingsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    columnGap: "18px",
+  },
+  fullField: {
+    gridColumn: "1 / -1",
+  },
+  colorInput: {
+    display: "block",
+    width: "100%",
+    height: "48px",
+    marginTop: "8px",
+    padding: "5px",
+    border: "none",
+    borderRadius: "12px",
+    background: "white",
+  },
+  preview: {
+    marginTop: "24px",
+    padding: "24px",
+    borderRadius: "18px",
+  },
+  previewTitle: {
+    display: "block",
+    fontSize: "23px",
+  },
+  previewText: {
+    margin: "8px 0 18px",
+    opacity: 0.75,
+  },
+  previewForm: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "9px",
+  },
+  previewInput: {
+    flex: "1 1 180px",
+    padding: "12px",
+    borderRadius: "10px",
+    background: "white",
+    color: "#64748b",
+  },
+  previewButton: {
+    padding: "12px 18px",
+    borderRadius: "10px",
+    color: "white",
+    fontWeight: "bold",
   },
   connectionBox: {
     marginTop: "22px",
