@@ -103,6 +103,7 @@ export default function SuppliersPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [supplierPreviewBlocked, setSupplierPreviewBlocked] = useState(false)
   const [supplierVariantDrafts, setSupplierVariantDrafts] = useState<Record<string, SupplierVariantDraft>>({})
   const [supplierVariants, setSupplierVariants] = useState<SupplierVariantOption[]>([
     {
@@ -364,6 +365,7 @@ export default function SuppliersPage() {
 
     setSaving(true)
     setMessage("")
+    setSupplierPreviewBlocked(false)
     try {
       const res = await fetch("/api/suppliers/preview", {
         method: "POST",
@@ -389,13 +391,16 @@ export default function SuppliersPage() {
             }))
           )
           setSupplierVariantDrafts({})
+          setSupplierPreviewBlocked(false)
+        } else {
+          setSupplierPreviewBlocked(true)
         }
         setMessage(
           data.variants?.length
             ? `${data.variants.length} variante(s) AliExpress récupérée(s) avec images.`
             : data.product?.image_urls?.length
               ? "Fiche fournisseur récupérée."
-            : "Lien enregistré. AliExpress bloque parfois la lecture automatique, mais le mapping peut continuer."
+            : "Lien enregistré, mais AliExpress n'a pas laissé Boost lire les variantes automatiquement pour ce lien."
         )
         await loadData()
       } else {
@@ -602,9 +607,10 @@ export default function SuppliersPage() {
           <div>
             <h2>Variantes fournisseur</h2>
             <p style={styles.muted}>
-              Clique d'abord sur génération automatique. Boost crée les variantes
-              fournisseur à partir de tes variantes Shopify pour éviter la saisie
-              manuelle. Tu ajustes seulement si le nom AliExpress est différent.
+              Colle le lien AliExpress puis clique sur “Tester / enregistrer le
+              lien”. Si AliExpress laisse lire la fiche, Boost affiche ici les
+              variantes réelles avec leurs photos. Ensuite tu relies simplement
+              chaque variante Shopify à la bonne variante fournisseur.
             </p>
           </div>
           <div style={styles.actionRow}>
@@ -621,9 +627,22 @@ export default function SuppliersPage() {
           <strong>Le fonctionnement simple :</strong>
           <span>1. Choisis ton produit Shopify.</span>
           <span>2. Colle le lien AliExpress.</span>
-          <span>3. Clique “Générer les variantes”, puis “Relier automatiquement”.</span>
-          <span>4. Tu corriges uniquement les variantes qui ne correspondent pas.</span>
+          <span>3. Boost récupère les variantes AliExpress avec leurs images quand elles sont accessibles.</span>
+          <span>4. Tu sélectionnes la bonne variante fournisseur pour chaque variante Shopify.</span>
         </div>
+
+        {supplierPreviewBlocked && (
+          <div style={styles.warningBox}>
+            <strong>AliExpress a masqué les variantes pour ce lien.</strong>
+            <span>
+              Boost ne peut pas inventer les photos ou couleurs si AliExpress ne
+              les envoie pas au serveur. La prochaine étape propre sera de
+              brancher un vrai connecteur AliExpress/DSers-like ou un moteur
+              navigateur sécurisé pour récupérer les variantes visibles comme
+              sur la page AliExpress.
+            </span>
+          </div>
+        )}
 
         <div style={styles.supplierVariantGrid}>
           {supplierVariants.map((variant, index) => (
