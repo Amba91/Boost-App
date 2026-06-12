@@ -51,6 +51,12 @@ export default function MailAutomationsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState("")
+  const [testLoading, setTestLoading] = useState(false)
+  const [testPreview, setTestPreview] = useState<{
+    subject: string
+    html: string
+    note: string
+  } | null>(null)
 
   const selected = useMemo(
     () => automations.find((item) => item.scenario === selectedScenario) || automations[0],
@@ -94,6 +100,34 @@ export default function MailAutomationsPage() {
       setMessage("Enregistrement impossible.")
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function previewTestEmail() {
+    if (!selected) return
+    setTestLoading(true)
+    setMessage("")
+    setTestPreview(null)
+    try {
+      const res = await fetch("/api/mail/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scenario: selected.scenario }),
+      })
+      const data = await res.json()
+      if (!data.success) {
+        setMessage(data.error || "Prévisualisation impossible.")
+        return
+      }
+      setTestPreview({
+        subject: data.subject || "",
+        html: data.html || "",
+        note: data.note || "",
+      })
+    } catch {
+      setMessage("Prévisualisation impossible.")
+    } finally {
+      setTestLoading(false)
     }
   }
 
@@ -300,6 +334,34 @@ export default function MailAutomationsPage() {
                 {saving ? "Enregistrement..." : "Enregistrer ce scénario"}
               </button>
               {message && <p style={styles.message}>{message}</p>}
+
+              <div style={styles.testBox}>
+                <span style={styles.eyebrow}>Mode test sans paiement</span>
+                <h3 style={styles.testTitle}>Voir ce que le client recevra</h3>
+                <p style={styles.muted}>
+                  Boost simule une commande avec un produit Kiidiiz. Aucun e-mail
+                  ne part et aucune vraie commande Shopify n’est créée.
+                </p>
+                <button
+                  onClick={previewTestEmail}
+                  disabled={testLoading}
+                  style={styles.secondaryButton}
+                >
+                  {testLoading ? "Préparation..." : "Prévisualiser le test"}
+                </button>
+
+                {testPreview && (
+                  <div style={styles.previewBox}>
+                    <strong>Objet : {testPreview.subject}</strong>
+                    <small>{testPreview.note}</small>
+                    <iframe
+                      title="Prévisualisation e-mail Boost"
+                      srcDoc={testPreview.html}
+                      style={styles.previewFrame}
+                    />
+                  </div>
+                )}
+              </div>
             </section>
           )}
         </div>
@@ -393,6 +455,41 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 900,
     fontSize: 16,
     cursor: "pointer",
+  },
+  secondaryButton: {
+    marginTop: 14,
+    border: "1px solid #7c3aed",
+    borderRadius: 14,
+    padding: 14,
+    background: "#020617",
+    color: "white",
+    fontWeight: 900,
+    fontSize: 15,
+    cursor: "pointer",
+  },
+  testBox: {
+    marginTop: 26,
+    padding: 20,
+    borderRadius: 20,
+    background: "#020617",
+    border: "1px solid #334155",
+  },
+  testTitle: { margin: "8px 0", fontSize: 22 },
+  previewBox: {
+    display: "grid",
+    gap: 10,
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 16,
+    background: "#0f172a",
+    border: "1px solid #1f2937",
+  },
+  previewFrame: {
+    width: "100%",
+    minHeight: 560,
+    border: "1px solid #334155",
+    borderRadius: 14,
+    background: "white",
   },
   message: { color: "#86efac", fontWeight: 800 },
 }
