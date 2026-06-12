@@ -5,8 +5,13 @@ import { registerMailAutomationWebhooks } from "../../../../lib/shopify-delivery
 const SHOP = "hy4nf1-dt.myshopify.com"
 
 function authorized(request: Request) {
-  const secret = process.env.CRON_SECRET
-  return Boolean(secret && request.headers.get("authorization") === `Bearer ${secret}`)
+  const received = request.headers.get("authorization")
+  const cronSecret = process.env.CRON_SECRET
+  const syncSecret = process.env.SHOPIFY_WEBHOOK_SYNC_SECRET
+  return Boolean(
+    (cronSecret && received === `Bearer ${cronSecret}`) ||
+      (syncSecret && received === `Bearer ${syncSecret}`)
+  )
 }
 
 export async function POST(request: Request) {
