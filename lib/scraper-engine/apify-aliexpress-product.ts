@@ -50,7 +50,10 @@ function getApifyToken() {
 }
 
 function getActorId() {
-  return process.env.APIFY_ALIEXPRESS_PRODUCT_ACTOR_ID || ""
+  return (
+    process.env.APIFY_ALIEXPRESS_PRODUCT_ACTOR_ID ||
+    "nifty.codes~aliexpress-product-ariants-scraper"
+  ).replace("/", "~")
 }
 
 function getActorInput(productUrl: string) {
@@ -65,9 +68,8 @@ function getActorInput(productUrl: string) {
   }
 
   return {
-    startUrls: [{ url: productUrl }],
-    maxItems: 1,
-    proxyConfiguration: { useApifyProxy: true },
+    urls: [productUrl],
+    maxItems: 100,
   }
 }
 
@@ -182,10 +184,12 @@ function labelFromNode(node: Record<string, any>) {
     node.name,
     node.title,
     node.value,
-    node.displayName,
-    node.propertyValueDisplayName,
-    node.propertyValueName,
-    node.skuPropertyValueName,
+      node.displayName,
+      node.variantDisplayName,
+      node.variantAttribute,
+      node.propertyValueDisplayName,
+      node.propertyValueName,
+      node.skuPropertyValueName,
     node.optionName,
     node.variantName
   )
@@ -198,6 +202,8 @@ function imageFromNode(node: Record<string, any>) {
       node.image_url ||
       node.imgUrl ||
       node.thumbnail ||
+      node.variantImage ||
+      node.mainImage ||
       node.propertyValueImage ||
       node.propertyValueImageUrl ||
       node.skuPropertyImagePath ||
@@ -210,6 +216,7 @@ function priceFromNode(node: Record<string, any>) {
   return firstString(
     node.price,
     node.salePrice,
+    node.originalPrice,
     node.priceText,
     node.formattedPrice,
     node.salePrice?.formattedPrice,
@@ -218,7 +225,65 @@ function priceFromNode(node: Record<string, any>) {
 }
 
 function skuFromNode(node: Record<string, any>) {
-  return firstString(node.sku, node.skuId, node.skuCode, node.skuAttr, node.id)
+  return firstString(node.sku, node.variantSkuId, node.skuId, node.skuCode, node.skuAttr, node.id)
+}
+
+function parseSkuProperties(value: unknown) {
+  if (!value) return {}
+
+  if (typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>
+  }
+
+  if (typeof value !== "string") return {}
+
+  try {
+    const parsed = JSON.parse(value)
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {}
+  } catch {
+    return {}
+  }
+}
+
+function variantFromDatasetItem(item: ApifyDatasetItem, index: number): SupplierProductVariant | null {
+  const skuProperties = parseSkuProperties(item.skuProperties)
+  const propertyLabel = Object.entries(skuProperties)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join(" / ")
+  const attribute = firstString(item.variantAttribute)
+  const displayName = firstString(item.variantDisplayName)
+  const label = propertyLabel || [attribute, displayName].filter(Boolean).join(": ") || displayName
+  const imageUrl = normalizeImageUrl(item.variantImage || item.mainImage)
+  const sku = firstString(item.variantSkuId, item.sku, item.skuId)
+  const price = firstString(item.salePrice, item.originalPrice, item.price)
+
+  if (!label && !imageUrl && !sku) return null
+
+  const lowerAttribute = attribute.toLowerCase()
+  const lowerLabel = label.toLowerCase()
+  const isColor =
+    lowerAttribute.includes("color") ||
+    lowerAttribute.includes("couleur") ||
+    lowerLabel.includes("color") ||
+    lowerLabel.includes("couleur")
+  const isSize =
+    lowerAttribute.includes("size") ||
+    lowerAttribute.includes("taille") ||
+    lowerLabel.includes("size") ||
+    lowerLabel.includes("taille")
+
+  return {
+    id: sku || `apify-variant-${index}`,
+    label: label || "Variante fournisseur",
+    color: isColor ? displayName || label : "",
+    size: isSize ? displayName || label : "",
+    shape: !isColor && !isSize ? displayName || label : "",
+    sku,
+    price,
+    image_url: imageUrl,
+  }
 }
 
 function extractVariants(root: unknown) {
@@ -318,16 +383,25 @@ function normalizeProduct(items: ApifyDatasetItem[]): SupplierProductDetails | n
   const item = items.find((entry) => entry && typeof entry === "object") || null
   if (!item) return null
 
-  const variants = extractVariants(item)
-  const imageUrls = collectImages(item)
+  const datasetVariants = items
+    .map(variantFromDatasetItem)
+    .filter((variant): variant is SupplierProductVariant => variant !== null)
+
+  const variants = datasetVariants.length > 0 ? datasetVariants : extractVariants(item)
+  const imageUrls = Array.from(
+    new Set([
+      ...items.flatMap((entry) => collectImages(entry)),
+      ...collectImages(item),
+    ])
+  )
 
   return {
     title: firstString(item.title, item.name, item.productTitle),
     description: firstString(item.description, item.productDescription),
     image_urls: imageUrls.slice(0, 12),
-    price: firstString(item.price, item.salePrice, item.priceText, item.finalPrice),
+    price: firstString(item.price, item.salePrice, item.priceText, item.finalPrice, item.originalPrice),
     currency: firstString(item.currency, item.priceCurrency) || "EUR",
-    supplier_name: "AliExpress",
+    supplier_name: firstString(item.storeName) || "AliExpress",
     variants,
   }
 }
