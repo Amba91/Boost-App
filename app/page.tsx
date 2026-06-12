@@ -109,7 +109,13 @@ export default function HomePage() {
 
   return (
     <main style={styles.main}>
-      <h1 style={styles.logo}>🚀 BOOST</h1>
+      <div style={styles.brandHeader}>
+        <img src="/logo.png" alt="Boost" style={styles.logoImage} />
+        <div>
+          <h1 style={styles.logo}>Boost</h1>
+          <p style={styles.tagline}>More sales. Less effort.</p>
+        </div>
+      </div>
 
       {pendingReviewsCount > 0 && (
         <Link href="/widgets/reviews" style={styles.notificationLink}>
@@ -215,7 +221,26 @@ const styles: Record<string, React.CSSProperties> = {
   logo: {
     fontSize: "58px",
     fontWeight: "bold",
+    margin: 0,
+  },
+  brandHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "18px",
     marginBottom: "50px",
+  },
+  logoImage: {
+    width: 86,
+    height: 86,
+    borderRadius: 22,
+    boxShadow: "0 18px 45px rgba(59,130,246,.25)",
+  },
+  tagline: {
+    margin: "4px 0 0",
+    color: "#a78bfa",
+    fontWeight: 900,
+    letterSpacing: "2px",
+    textTransform: "uppercase",
   },
   grid: {
     display: "grid",

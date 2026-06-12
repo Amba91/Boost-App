@@ -58,7 +58,19 @@ export default function HomePage() {
         fontFamily: "Arial, sans-serif",
       }}
     >
-      <h1 style={{ fontSize: "48px", marginBottom: "40px" }}>🚀 BOOST</h1>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 40 }}>
+        <img
+          src="/logo.png"
+          alt="Boost"
+          style={{ width: 78, height: 78, borderRadius: 20, boxShadow: "0 18px 45px rgba(59,130,246,.25)" }}
+        />
+        <div>
+          <h1 style={{ fontSize: "48px", margin: 0 }}>Boost</h1>
+          <p style={{ margin: "4px 0 0", color: "#a78bfa", fontWeight: 900, letterSpacing: 2, textTransform: "uppercase" }}>
+            More sales. Less effort.
+          </p>
+        </div>
+      </div>
 
       <div
         style={{

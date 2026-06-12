@@ -19,7 +19,10 @@ export default function Sidebar({
 }) {
   return (
     <aside style={styles.sidebar}>
-      <h1 style={styles.logo}>🚀 BOOST</h1>
+      <div style={styles.brand}>
+        <img src="/logo.png" alt="Boost" style={styles.logoImage} />
+        <h1 style={styles.logo}>Boost</h1>
+      </div>
       <p style={styles.sub}>Shopify SaaS</p>
 
       <nav style={styles.nav}>
@@ -47,6 +50,8 @@ const styles: Record<string, React.CSSProperties> = {
     borderRight: "1px solid #1e293b",
     padding: "24px",
   },
+  brand: { display: "flex", alignItems: "center", gap: 12 },
+  logoImage: { width: 46, height: 46, borderRadius: 12 },
   logo: { color: "white", margin: 0 },
   sub: { color: "#94a3b8", marginBottom: "34px" },
   nav: { display: "grid", gap: "12px" },

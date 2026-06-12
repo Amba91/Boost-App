@@ -78,7 +78,13 @@ export default function DashboardPage() {
             </div>
 
             <div style={styles.largeCard}>
-              <h2 style={styles.largeTitle}>🤖 Boost AI</h2>
+              <div style={styles.loginBrand}>
+                <img src="/logo.png" alt="Boost" style={styles.loginLogo} />
+                <div>
+                  <h2 style={styles.largeTitle}>Boost AI</h2>
+                  <p style={styles.brandTagline}>More sales. Less effort.</p>
+                </div>
+              </div>
 
               <p style={styles.aiText}>
                 Votre boutique pourrait générer entre 2 156€ et 3 421€
@@ -125,6 +131,25 @@ const styles: Record<string, React.CSSProperties> = {
   subtitle: {
     color: "#94a3b8",
     marginBottom: "40px",
+  },
+  loginBrand: {
+    display: "flex",
+    alignItems: "center",
+    gap: 16,
+    marginBottom: 18,
+  },
+  loginLogo: {
+    width: 70,
+    height: 70,
+    borderRadius: 18,
+    boxShadow: "0 18px 45px rgba(59,130,246,.25)",
+  },
+  brandTagline: {
+    margin: "4px 0 0",
+    color: "#a78bfa",
+    fontWeight: 900,
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
   },
 
   statsGrid: {
