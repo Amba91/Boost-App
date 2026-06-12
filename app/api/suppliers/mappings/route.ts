@@ -135,6 +135,7 @@ async function ensureSupplierTables() {
       supplier_shape TEXT NOT NULL DEFAULT '',
       supplier_sku TEXT NOT NULL DEFAULT '',
       supplier_price TEXT NOT NULL DEFAULT '',
+      supplier_image_url TEXT NOT NULL DEFAULT '',
       supplier_note TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'active',
       created_at TIMESTAMP DEFAULT NOW(),
@@ -355,6 +356,7 @@ export async function POST(request: Request) {
           supplier_shape,
           supplier_sku,
           supplier_price,
+          supplier_image_url,
           supplier_note,
           status,
           updated_at
@@ -372,6 +374,7 @@ export async function POST(request: Request) {
           ${cleanText(variantMapping.supplier_shape, 120)},
           ${cleanText(variantMapping.supplier_sku, 160)},
           ${cleanText(variantMapping.supplier_price, 80)},
+          ${cleanText(variantMapping.supplier_image_url, 500)},
           ${cleanText(variantMapping.supplier_note, 300)},
           'active',
           NOW()

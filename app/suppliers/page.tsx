@@ -67,6 +67,7 @@ type SupplierVariantDraft = {
   supplier_shape: string
   supplier_sku: string
   supplier_price: string
+  supplier_image_url: string
   supplier_note: string
 }
 
@@ -112,6 +113,7 @@ export default function SuppliersPage() {
       supplier_shape: "",
       supplier_sku: "",
       supplier_price: "",
+      supplier_image_url: "",
       supplier_note: "",
     },
   ])
@@ -161,6 +163,7 @@ export default function SuppliersPage() {
       supplier_shape: "",
       supplier_sku: "",
       supplier_price: "",
+      supplier_image_url: "",
       supplier_note: "",
     }
 
@@ -193,6 +196,7 @@ export default function SuppliersPage() {
         supplier_shape: "",
         supplier_sku: "",
         supplier_price: "",
+        supplier_image_url: "",
         supplier_note: "",
       },
     ])
@@ -211,6 +215,7 @@ export default function SuppliersPage() {
         supplier_shape: supplierVariant.supplier_shape,
         supplier_sku: supplierVariant.supplier_sku,
         supplier_price: supplierVariant.supplier_price,
+        supplier_image_url: supplierVariant.supplier_image_url,
         supplier_note: supplierVariant.supplier_note,
       },
     }))
@@ -263,6 +268,7 @@ export default function SuppliersPage() {
       supplier_shape: shape,
       supplier_sku: variant.sku || "",
       supplier_price: variant.price || "",
+      supplier_image_url: variant.image_url || "",
       supplier_note: "",
     }
   }
@@ -301,6 +307,7 @@ export default function SuppliersPage() {
         supplier_shape: supplierVariant.supplier_shape,
         supplier_sku: supplierVariant.supplier_sku,
         supplier_price: supplierVariant.supplier_price,
+        supplier_image_url: supplierVariant.supplier_image_url,
         supplier_note: supplierVariant.supplier_note,
       }
     })
@@ -367,9 +374,27 @@ export default function SuppliersPage() {
       if (data.success) {
         setSupplierTitle(data.product?.title || supplierTitle)
         setSupplierName(data.product?.supplier_name || supplierName)
+        if (Array.isArray(data.variants) && data.variants.length > 0) {
+          setSupplierVariants(
+            data.variants.map((variant: any, index: number) => ({
+              id: String(variant.id || `supplier-${index}`),
+              supplier_variant_label: String(variant.label || ""),
+              supplier_color: String(variant.color || ""),
+              supplier_size: String(variant.size || ""),
+              supplier_shape: String(variant.shape || ""),
+              supplier_sku: String(variant.sku || ""),
+              supplier_price: String(variant.price || ""),
+              supplier_image_url: String(variant.image_url || ""),
+              supplier_note: "",
+            }))
+          )
+          setSupplierVariantDrafts({})
+        }
         setMessage(
-          data.product?.image_urls?.length
-            ? "Fiche fournisseur récupérée."
+          data.variants?.length
+            ? `${data.variants.length} variante(s) AliExpress récupérée(s) avec images.`
+            : data.product?.image_urls?.length
+              ? "Fiche fournisseur récupérée."
             : "Lien enregistré. AliExpress bloque parfois la lecture automatique, mais le mapping peut continuer."
         )
         await loadData()
@@ -428,6 +453,7 @@ export default function SuppliersPage() {
           supplier_shape: "",
           supplier_sku: "",
           supplier_price: "",
+          supplier_image_url: "",
           supplier_note: "",
         },
       ])
@@ -602,7 +628,21 @@ export default function SuppliersPage() {
         <div style={styles.supplierVariantGrid}>
           {supplierVariants.map((variant, index) => (
             <div key={variant.id} style={styles.supplierVariantCard}>
-              <strong>Variante fournisseur #{index + 1}</strong>
+              <div style={styles.supplierVariantTop}>
+                {variant.supplier_image_url ? (
+                  <img
+                    src={variant.supplier_image_url}
+                    alt={supplierVariantName(variant)}
+                    style={styles.supplierVariantImage}
+                  />
+                ) : (
+                  <div style={styles.supplierVariantImageEmpty}>Ali</div>
+                )}
+                <div>
+                  <strong>{supplierVariantName(variant)}</strong>
+                  <p style={styles.muted}>Variante fournisseur #{index + 1}</p>
+                </div>
+              </div>
               <input
                 style={styles.compactInput}
                 placeholder="Nom exact : Blue / 2pcs / 26x26..."
@@ -647,6 +687,14 @@ export default function SuppliersPage() {
                   }
                 />
               </div>
+              <input
+                style={styles.compactInput}
+                placeholder="URL image variante AliExpress"
+                value={variant.supplier_image_url}
+                onChange={(event) =>
+                  updateSupplierVariantOption(variant.id, "supplier_image_url", event.target.value)
+                }
+              />
               <input
                 style={styles.compactInput}
                 placeholder="SKU fournisseur"
@@ -700,6 +748,7 @@ export default function SuppliersPage() {
                 supplier_shape: "",
                 supplier_sku: "",
                 supplier_price: "",
+                supplier_image_url: "",
                 supplier_note: "",
               }
 
@@ -747,6 +796,18 @@ export default function SuppliersPage() {
                   </div>
 
                   <div style={styles.variantInputs}>
+                    <div style={styles.linkedSupplierPreview}>
+                      {draft.supplier_image_url ? (
+                        <img
+                          src={draft.supplier_image_url}
+                          alt={draft.supplier_variant_label}
+                          style={styles.linkedSupplierImage}
+                        />
+                      ) : (
+                        <div style={styles.linkedSupplierImageEmpty}>Ali</div>
+                      )}
+                      <strong>{draft.supplier_variant_label || "Pas encore reliée"}</strong>
+                    </div>
                     <input
                       style={styles.compactInput}
                       placeholder="Couleur"
@@ -1029,6 +1090,29 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#020617",
     border: "1px solid #1f2937",
   },
+  supplierVariantTop: {
+    display: "grid",
+    gridTemplateColumns: "76px minmax(0, 1fr)",
+    gap: 12,
+    alignItems: "center",
+  },
+  supplierVariantImage: {
+    width: 76,
+    height: 76,
+    objectFit: "cover",
+    borderRadius: 14,
+    background: "#111827",
+  },
+  supplierVariantImageEmpty: {
+    display: "grid",
+    placeItems: "center",
+    width: 76,
+    height: 76,
+    borderRadius: 14,
+    background: "#111827",
+    color: "#a78bfa",
+    fontWeight: 900,
+  },
   twoColumns: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
@@ -1084,6 +1168,33 @@ const styles: Record<string, React.CSSProperties> = {
   variantInputs: {
     display: "grid",
     gap: 8,
+  },
+  linkedSupplierPreview: {
+    display: "grid",
+    gridTemplateColumns: "48px minmax(0, 1fr)",
+    gap: 10,
+    alignItems: "center",
+    padding: 8,
+    borderRadius: 12,
+    background: "#0f172a",
+    border: "1px solid #1f2937",
+  },
+  linkedSupplierImage: {
+    width: 48,
+    height: 48,
+    objectFit: "cover",
+    borderRadius: 10,
+  },
+  linkedSupplierImageEmpty: {
+    display: "grid",
+    placeItems: "center",
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    background: "#020617",
+    color: "#a78bfa",
+    fontWeight: 900,
+    fontSize: 12,
   },
   compactInput: {
     width: "100%",

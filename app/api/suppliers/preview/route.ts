@@ -13,6 +13,18 @@ type SupplierProduct = {
   price: string
   currency: string
   supplier_name: string
+  variants: SupplierVariant[]
+}
+
+type SupplierVariant = {
+  id: string
+  label: string
+  color: string
+  size: string
+  shape: string
+  sku: string
+  price: string
+  image_url: string
 }
 
 function cleanText(value: unknown, maxLength: number) {
@@ -118,6 +130,216 @@ function decodeHtml(value: string) {
     .replaceAll("&gt;", ">")
 }
 
+function normalizeImageUrl(value: unknown) {
+  const raw = decodeHtml(String(value || ""))
+    .replace(/\\u002F/g, "/")
+    .replace(/\\/g, "")
+    .trim()
+
+  if (!raw) return ""
+  if (raw.startsWith("//")) return `https:${raw}`
+  if (raw.startsWith("http")) return raw
+  return ""
+}
+
+function extractJsonBlocks(html: string) {
+  const blocks: string[] = []
+  const scriptRegex =
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
+  const dataRegex =
+    /window\.(?:runParams|__INIT_DATA__|__AER_DATA__|__INITIAL_STATE__)\s*=\s*({[\s\S]*?});/gi
+  let match
+
+  while ((match = scriptRegex.exec(html)) !== null) {
+    if (match[1]) blocks.push(match[1].trim())
+  }
+
+  while ((match = dataRegex.exec(html)) !== null) {
+    if (match[1]) blocks.push(match[1].trim())
+  }
+
+  return blocks
+}
+
+function safeJsonParse(value: string) {
+  try {
+    return JSON.parse(value)
+  } catch {
+    return null
+  }
+}
+
+function firstString(...values: unknown[]) {
+  for (const value of values) {
+    const text = cleanText(value, 180)
+    if (text) return text
+  }
+  return ""
+}
+
+function imageFromNode(node: Record<string, any>) {
+  return normalizeImageUrl(
+    node.skuPropertyImagePath ||
+      node.propertyValueImage ||
+      node.propertyValueImageUrl ||
+      node.imageUrl ||
+      node.imgUrl ||
+      node.url ||
+      node.src
+  )
+}
+
+function labelFromNode(node: Record<string, any>) {
+  return firstString(
+    node.propertyValueDisplayName,
+    node.skuPropertyValueName,
+    node.propertyValueName,
+    node.displayName,
+    node.name,
+    node.value,
+    node.text
+  )
+}
+
+function extractSupplierVariantsFromObject(root: unknown) {
+  const variants = new Map<string, SupplierVariant>()
+
+  function addVariant(node: Record<string, any>, parentName = "") {
+    const label = labelFromNode(node)
+    const imageUrl = imageFromNode(node)
+    const sku = firstString(node.skuId, node.skuAttr, node.skuCode, node.id)
+    const price = firstString(
+      node.salePrice?.formattedPrice,
+      node.salePrice,
+      node.price,
+      node.priceText,
+      node.formattedPrice
+    )
+
+    if (!label && !imageUrl) return
+    if (
+      !imageUrl &&
+      !parentName.toLowerCase().includes("color") &&
+      !parentName.toLowerCase().includes("couleur") &&
+      label.length < 2
+    ) {
+      return
+    }
+
+    const id = sku || `${parentName}-${label}-${imageUrl}` || String(variants.size + 1)
+    variants.set(id, {
+      id,
+      label: label || parentName || "Variante fournisseur",
+      color:
+        parentName.toLowerCase().includes("color") ||
+        parentName.toLowerCase().includes("couleur")
+          ? label
+          : "",
+      size:
+        parentName.toLowerCase().includes("size") ||
+        parentName.toLowerCase().includes("taille")
+          ? label
+          : "",
+      shape:
+        !parentName.toLowerCase().includes("color") &&
+        !parentName.toLowerCase().includes("couleur") &&
+        !parentName.toLowerCase().includes("size") &&
+        !parentName.toLowerCase().includes("taille")
+          ? label
+          : "",
+      sku,
+      price,
+      image_url: imageUrl,
+    })
+  }
+
+  function walk(node: any, parentName = "") {
+    if (!node) return
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item, parentName)
+      return
+    }
+    if (typeof node !== "object") return
+
+    const propertyName = firstString(
+      node.skuPropertyName,
+      node.propertyName,
+      node.name,
+      parentName
+    )
+
+    if (Array.isArray(node.skuPropertyValues)) {
+      for (const value of node.skuPropertyValues) {
+        if (value && typeof value === "object") addVariant(value, propertyName)
+      }
+    }
+
+    if (Array.isArray(node.propertyValueList)) {
+      for (const value of node.propertyValueList) {
+        if (value && typeof value === "object") addVariant(value, propertyName)
+      }
+    }
+
+    if (
+      node.skuPropertyValueName ||
+      node.propertyValueDisplayName ||
+      node.propertyValueName ||
+      node.skuPropertyImagePath ||
+      node.propertyValueImageUrl
+    ) {
+      addVariant(node, parentName)
+    }
+
+    for (const key of Object.keys(node)) {
+      walk(node[key], propertyName || parentName)
+    }
+  }
+
+  walk(root)
+
+  return Array.from(variants.values()).slice(0, 80)
+}
+
+function extractSupplierVariants(html: string) {
+  const variants: SupplierVariant[] = []
+
+  for (const block of extractJsonBlocks(html)) {
+    const parsed = safeJsonParse(block)
+    if (!parsed) continue
+    variants.push(...extractSupplierVariantsFromObject(parsed))
+  }
+
+  if (variants.length > 0) {
+    const seen = new Set<string>()
+    return variants.filter((variant) => {
+      const key = `${variant.label}-${variant.image_url}-${variant.sku}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }
+
+  const propertyRegex =
+    /"propertyValueDisplayName"\s*:\s*"([^"]+)"[\s\S]{0,500}?"skuPropertyImagePath"\s*:\s*"([^"]+)"/gi
+  let match
+  while ((match = propertyRegex.exec(html)) !== null) {
+    const label = decodeHtml(match[1])
+    const imageUrl = normalizeImageUrl(match[2])
+    variants.push({
+      id: `${label}-${imageUrl}`,
+      label,
+      color: label,
+      size: "",
+      shape: "",
+      sku: "",
+      price: "",
+      image_url: imageUrl,
+    })
+  }
+
+  return variants.slice(0, 80)
+}
+
 function getTitleFromHtml(html: string) {
   const ogTitle = getMeta(html, "og:title") || getMeta(html, "twitter:title")
   if (ogTitle) return ogTitle
@@ -170,6 +392,7 @@ async function scrapeSupplierProduct(url: string): Promise<SupplierProduct> {
       price: "",
       currency: "EUR",
       supplier_name: source === "aliexpress" ? "AliExpress" : "Fournisseur",
+      variants: [],
     }
   }
 
@@ -180,6 +403,7 @@ async function scrapeSupplierProduct(url: string): Promise<SupplierProduct> {
   )
   const imageUrls = extractImages(html)
   const price = extractPrice(html)
+  const variants = extractSupplierVariants(html)
 
   return {
     source,
@@ -191,6 +415,7 @@ async function scrapeSupplierProduct(url: string): Promise<SupplierProduct> {
     price,
     currency: getMeta(html, "product:price:currency") || "EUR",
     supplier_name: source === "aliexpress" ? "AliExpress" : "Fournisseur",
+    variants,
   }
 }
 
@@ -255,6 +480,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       product: result.rows[0],
+      variants: product.variants,
       next_step:
         "Prévisualisation enregistrée. La création Shopify sera branchée à l’étape suivante.",
     })
