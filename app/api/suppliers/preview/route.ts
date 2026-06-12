@@ -153,8 +153,26 @@ function extractPrice(html: string) {
 }
 
 async function scrapeSupplierProduct(url: string): Promise<SupplierProduct> {
-  const html = await fetchProductHtml(url)
   const source = getSource(url)
+  let html = ""
+
+  try {
+    html = await fetchProductHtml(url)
+  } catch {
+    return {
+      source,
+      source_url: url,
+      external_id: cleanText(getExternalId(url), 180),
+      title: source === "aliexpress" ? "Produit AliExpress à compléter" : "Produit fournisseur à compléter",
+      description:
+        "Le fournisseur bloque la lecture automatique. Le lien est enregistré pour permettre le mapping manuel.",
+      image_urls: [],
+      price: "",
+      currency: "EUR",
+      supplier_name: source === "aliexpress" ? "AliExpress" : "Fournisseur",
+    }
+  }
+
   const title = cleanText(getTitleFromHtml(html), 240)
   const description = cleanText(
     getMeta(html, "og:description") || getMeta(html, "description"),
