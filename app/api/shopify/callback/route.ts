@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
+import { registerDeliveryWebhook } from "../../../../lib/shopify-delivery-webhook"
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -58,10 +59,15 @@ export async function GET(request: Request) {
       updated_at = NOW()
   `
 
+  const deliveryWebhook = await registerDeliveryWebhook(shop, data.access_token)
+
   const appUrl =
     process.env.SHOPIFY_APP_URL || "https://boost-app-9e6w.vercel.app"
 
-  const redirect = NextResponse.redirect(`${appUrl}/?shop=${shop}&connected=true`)
+  const redirect = NextResponse.redirect(
+    `${appUrl}/widgets/tracking?shop=${encodeURIComponent(shop)}` +
+      `&connected=true&delivery_webhook=${deliveryWebhook.success ? "ok" : "error"}`
+  )
 
   redirect.cookies.set("boost_shop", shop, {
     httpOnly: true,

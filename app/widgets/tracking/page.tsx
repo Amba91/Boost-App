@@ -158,6 +158,14 @@ export default function TrackingPage() {
           la demande d’avis pour les produits de cette commande.
         </p>
 
+        <a href="/api/shopify/install" style={styles.shopifyConnectButton}>
+          Autoriser le suivi des livraisons Shopify
+        </a>
+        <p style={styles.connectionHelp}>
+          À faire une seule fois : Shopify demandera l’autorisation de lire les
+          événements de livraison, puis te ramènera ici automatiquement.
+        </p>
+
         <label style={styles.switchLabel}>
           <input
             type="checkbox"
@@ -325,6 +333,23 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid",
     borderRadius: "16px",
     background: "#050816",
+  },
+  shopifyConnectButton: {
+    display: "block",
+    marginTop: "20px",
+    padding: "14px 16px",
+    borderRadius: "13px",
+    background: "#16a34a",
+    color: "white",
+    textAlign: "center",
+    textDecoration: "none",
+    fontWeight: "bold",
+  },
+  connectionHelp: {
+    margin: "9px 0 0",
+    color: "#94a3b8",
+    fontSize: "13px",
+    lineHeight: 1.4,
   },
   saveButton: {
     width: "100%",
