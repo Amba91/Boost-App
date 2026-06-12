@@ -7,6 +7,14 @@ function cleanText(value: unknown, maxLength: number) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, maxLength)
 }
 
+function cleanMessage(value: unknown, maxLength: number) {
+  return String(value || "")
+    .trim()
+    .replace(/\r\n/g, "\n")
+    .replace(/\n{4,}/g, "\n\n\n")
+    .slice(0, maxLength)
+}
+
 function normalizeUrl(value: unknown) {
   const raw = cleanText(value, 1200)
   if (!raw) return ""
@@ -36,22 +44,12 @@ function getExternalId(url: string) {
   }
 }
 
-function supplierMessage(productTitle: string, mappingType: string, notes: string) {
-  const offerLabel =
-    mappingType === "bogo"
-      ? "une offre BOGO"
-      : mappingType === "bundle"
-        ? "un pack bundle"
-        : "une commande dropshipping"
-
-  return [
-    `Bonjour, je souhaite passer ${offerLabel} pour le produit : ${productTitle}.`,
-    "Merci d'expédier la commande sans facture, sans publicité, sans carte fournisseur et sans information indiquant l'origine de la plateforme.",
-    "Merci d'utiliser un emballage neutre et propre. Le client final doit recevoir uniquement le produit.",
-    notes ? `Instructions complémentaires : ${notes}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n")
+function supplierMessage(customMessage: unknown) {
+  return cleanMessage(
+    customMessage ||
+      "ALIEXPRESS STANDARD SHIPPING\n\n***VERY IMPORTANT***\nPLEASE DO NOT JOIN ANY INVOICE, PRICE TAG & PROMOTIONS IN THE PACKET!\nTHIS IS A DROPSHIP FOR A CUSTOMER.\nTHANK YOU VERY MUCH.\n\nPS : PLEASE PUT « Kiidiiz » AS SENDER\n\nTHANKS MY FRIENDS.",
+    1200
+  )
 }
 
 async function ensureSupplierTables() {
@@ -285,7 +283,7 @@ export async function POST(request: Request) {
       RETURNING id
     `
 
-    const message = supplierMessage(product.title, mappingType, notes)
+    const message = supplierMessage(body.supplier_message)
 
     const mapping = await sql`
       INSERT INTO supplier_mappings (

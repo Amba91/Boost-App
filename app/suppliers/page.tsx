@@ -70,6 +70,10 @@ type SupplierVariantDraft = {
   supplier_note: string
 }
 
+type SupplierVariantOption = SupplierVariantDraft & {
+  id: string
+}
+
 const mappingLabels: Record<string, string> = {
   standard: "Produit simple",
   backup: "Fournisseur de secours",
@@ -77,23 +81,8 @@ const mappingLabels: Record<string, string> = {
   bundle: "Bundle / Pack",
 }
 
-function defaultSupplierMessage(productTitle: string, mappingType: string, notes: string) {
-  const offer =
-    mappingType === "bogo"
-      ? "une offre BOGO"
-      : mappingType === "bundle"
-        ? "un pack bundle"
-        : "une commande dropshipping"
-
-  return [
-    `Bonjour, je souhaite passer ${offer} pour le produit : ${productTitle || "[produit]"}.`,
-    "Merci d'expédier la commande sans facture, sans publicité, sans carte fournisseur et sans information indiquant l'origine de la plateforme.",
-    "Merci d'utiliser un emballage neutre et propre. Le client final doit recevoir uniquement le produit.",
-    notes ? `Instructions complémentaires : ${notes}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n")
-}
+const defaultSupplierMessage =
+  "ALIEXPRESS STANDARD SHIPPING\n\n***VERY IMPORTANT***\nPLEASE DO NOT JOIN ANY INVOICE, PRICE TAG & PROMOTIONS IN THE PACKET!\nTHIS IS A DROPSHIP FOR A CUSTOMER.\nTHANK YOU VERY MUCH.\n\nPS : PLEASE PUT « Kiidiiz » AS SENDER\n\nTHANKS MY FRIENDS."
 
 export default function SuppliersPage() {
   const [shopifyProducts, setShopifyProducts] = useState<ShopifyProduct[]>([])
@@ -114,17 +103,26 @@ export default function SuppliersPage() {
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [supplierVariantDrafts, setSupplierVariantDrafts] = useState<Record<string, SupplierVariantDraft>>({})
+  const [supplierVariants, setSupplierVariants] = useState<SupplierVariantOption[]>([
+    {
+      id: "supplier-1",
+      supplier_variant_label: "",
+      supplier_color: "",
+      supplier_size: "",
+      supplier_shape: "",
+      supplier_sku: "",
+      supplier_price: "",
+      supplier_note: "",
+    },
+  ])
+  const [supplierMessageText, setSupplierMessageText] = useState(defaultSupplierMessage)
 
   const selectedProduct = useMemo(
     () => shopifyProducts.find((product) => String(product.id) === selectedProductId),
     [selectedProductId, shopifyProducts]
   )
 
-  const supplierPreviewMessage = defaultSupplierMessage(
-    selectedProduct?.title || "",
-    mappingType,
-    notes
-  )
+  const supplierPreviewMessage = supplierMessageText
 
   const selectedVariants = useMemo(
     () => shopifyVariants.filter((variant) => String(variant.product_db_id) === selectedProductId),
@@ -174,6 +172,58 @@ export default function SuppliersPage() {
         [field]: value,
       },
     }))
+  }
+
+  function updateSupplierVariantOption(id: string, field: keyof SupplierVariantDraft, value: string) {
+    setSupplierVariants((current) =>
+      current.map((variant) =>
+        variant.id === id ? { ...variant, [field]: value } : variant
+      )
+    )
+  }
+
+  function addSupplierVariant() {
+    setSupplierVariants((current) => [
+      ...current,
+      {
+        id: `supplier-${Date.now()}`,
+        supplier_variant_label: "",
+        supplier_color: "",
+        supplier_size: "",
+        supplier_shape: "",
+        supplier_sku: "",
+        supplier_price: "",
+        supplier_note: "",
+      },
+    ])
+  }
+
+  function applySupplierVariant(shopifyVariantId: string, supplierVariantId: string) {
+    const supplierVariant = supplierVariants.find((variant) => variant.id === supplierVariantId)
+    if (!supplierVariant) return
+
+    setSupplierVariantDrafts((current) => ({
+      ...current,
+      [shopifyVariantId]: {
+        supplier_variant_label: supplierVariant.supplier_variant_label,
+        supplier_color: supplierVariant.supplier_color,
+        supplier_size: supplierVariant.supplier_size,
+        supplier_shape: supplierVariant.supplier_shape,
+        supplier_sku: supplierVariant.supplier_sku,
+        supplier_price: supplierVariant.supplier_price,
+        supplier_note: supplierVariant.supplier_note,
+      },
+    }))
+  }
+
+  function supplierVariantName(variant: SupplierVariantOption) {
+    return (
+      variant.supplier_variant_label ||
+      [variant.supplier_color, variant.supplier_size, variant.supplier_shape]
+        .filter(Boolean)
+        .join(" / ") ||
+      "Variante fournisseur"
+    )
   }
 
   async function loadData() {
@@ -266,6 +316,7 @@ export default function SuppliersPage() {
           variant_label: variantLabel,
           country_scope: countryScope,
           notes,
+          supplier_message: supplierMessageText,
           variant_mappings: selectedVariants.map((variant) => ({
             shopify_variant_id: variant.shopify_variant_id,
             ...(supplierVariantDrafts[variant.shopify_variant_id] || {}),
@@ -284,6 +335,18 @@ export default function SuppliersPage() {
       setVariantLabel("")
       setNotes("")
       setSupplierVariantDrafts({})
+      setSupplierVariants([
+        {
+          id: "supplier-1",
+          supplier_variant_label: "",
+          supplier_color: "",
+          supplier_size: "",
+          supplier_shape: "",
+          supplier_sku: "",
+          supplier_price: "",
+          supplier_note: "",
+        },
+      ])
       await loadData()
     } catch {
       setMessage("Mapping impossible.")
@@ -406,7 +469,7 @@ export default function SuppliersPage() {
             onChange={(event) => setNotes(event.target.value)}
           />
           <button onClick={saveMapping} disabled={saving} style={styles.button}>
-            {saving ? "Enregistrement..." : "Enregistrer le mapping"}
+            {saving ? "Enregistrement..." : "Enregistrer le produit fournisseur"}
           </button>
         </div>
       </section>
@@ -416,11 +479,87 @@ export default function SuppliersPage() {
       <section style={styles.cardWide}>
         <div style={styles.sectionHeader}>
           <div>
+            <h2>Variantes fournisseur</h2>
+            <p style={styles.muted}>
+              AliExpress bloque souvent la lecture automatique des variantes.
+              Dans ce cas, ajoute ici les choix visibles chez le fournisseur :
+              couleur, taille, forme, pack ou SKU.
+            </p>
+          </div>
+          <button onClick={addSupplierVariant} style={styles.smallButton}>
+            Ajouter une variante fournisseur
+          </button>
+        </div>
+
+        <div style={styles.supplierVariantGrid}>
+          {supplierVariants.map((variant, index) => (
+            <div key={variant.id} style={styles.supplierVariantCard}>
+              <strong>Variante fournisseur #{index + 1}</strong>
+              <input
+                style={styles.compactInput}
+                placeholder="Nom exact : Blue / 2pcs / 26x26..."
+                value={variant.supplier_variant_label}
+                onChange={(event) =>
+                  updateSupplierVariantOption(variant.id, "supplier_variant_label", event.target.value)
+                }
+              />
+              <div style={styles.twoColumns}>
+                <input
+                  style={styles.compactInput}
+                  placeholder="Couleur"
+                  value={variant.supplier_color}
+                  onChange={(event) =>
+                    updateSupplierVariantOption(variant.id, "supplier_color", event.target.value)
+                  }
+                />
+                <input
+                  style={styles.compactInput}
+                  placeholder="Taille"
+                  value={variant.supplier_size}
+                  onChange={(event) =>
+                    updateSupplierVariantOption(variant.id, "supplier_size", event.target.value)
+                  }
+                />
+              </div>
+              <div style={styles.twoColumns}>
+                <input
+                  style={styles.compactInput}
+                  placeholder="Forme / Pack"
+                  value={variant.supplier_shape}
+                  onChange={(event) =>
+                    updateSupplierVariantOption(variant.id, "supplier_shape", event.target.value)
+                  }
+                />
+                <input
+                  style={styles.compactInput}
+                  placeholder="Prix fournisseur"
+                  value={variant.supplier_price}
+                  onChange={(event) =>
+                    updateSupplierVariantOption(variant.id, "supplier_price", event.target.value)
+                  }
+                />
+              </div>
+              <input
+                style={styles.compactInput}
+                placeholder="SKU fournisseur"
+                value={variant.supplier_sku}
+                onChange={(event) =>
+                  updateSupplierVariantOption(variant.id, "supplier_sku", event.target.value)
+                }
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={styles.cardWide}>
+        <div style={styles.sectionHeader}>
+          <div>
             <h2>Mapping des variantes</h2>
             <p style={styles.muted}>
-              À gauche : les variantes réelles de ta boutique. À droite : ce
-              qu'il faut choisir chez le fournisseur pour envoyer la bonne
-              couleur, taille ou forme au client.
+              Choisis une variante fournisseur pour chaque variante de ta
+              boutique. Exemple : “Couleur Bleu” côté Shopify = “Blue / 4 cars”
+              côté AliExpress.
             </p>
           </div>
           <span style={styles.badge}>{mappedVariantCount} liée(s)</span>
@@ -439,8 +578,8 @@ export default function SuppliersPage() {
         ) : (
           <div style={styles.variantTable}>
             <div style={styles.variantHeader}>Variante boutique</div>
-            <div style={styles.variantHeader}>Variante fournisseur</div>
-            <div style={styles.variantHeader}>Infos fournisseur</div>
+            <div style={styles.variantHeader}>Relier au fournisseur</div>
+            <div style={styles.variantHeader}>Détail utilisé</div>
             {selectedVariants.map((variant) => {
               const draft = supplierVariantDrafts[variant.shopify_variant_id] || {
                 supplier_variant_label: "",
@@ -467,20 +606,26 @@ export default function SuppliersPage() {
                   </div>
 
                   <div style={styles.variantInputs}>
+                    <select
+                      style={styles.compactInput}
+                      value=""
+                      onChange={(event) =>
+                        applySupplierVariant(variant.shopify_variant_id, event.target.value)
+                      }
+                    >
+                      <option value="">Choisir la variante fournisseur</option>
+                      {supplierVariants.map((supplierVariant) => (
+                        <option key={supplierVariant.id} value={supplierVariant.id}>
+                          {supplierVariantName(supplierVariant)}
+                        </option>
+                      ))}
+                    </select>
                     <input
                       style={styles.compactInput}
-                      placeholder="Nom fournisseur : Blue / 2pcs..."
+                      placeholder="ou écris directement : Blue / 2pcs..."
                       value={draft.supplier_variant_label}
                       onChange={(event) =>
                         updateSupplierVariantDraft(variant.shopify_variant_id, "supplier_variant_label", event.target.value)
-                      }
-                    />
-                    <input
-                      style={styles.compactInput}
-                      placeholder="SKU fournisseur"
-                      value={draft.supplier_sku}
-                      onChange={(event) =>
-                        updateSupplierVariantDraft(variant.shopify_variant_id, "supplier_sku", event.target.value)
                       }
                     />
                   </div>
@@ -524,14 +669,22 @@ export default function SuppliersPage() {
             })}
           </div>
         )}
+
+        <button onClick={saveMapping} disabled={saving} style={styles.button}>
+          {saving ? "Enregistrement..." : "Enregistrer le produit et ses variantes"}
+        </button>
       </section>
 
       <section style={styles.cardWide}>
         <div style={styles.sectionHeader}>
           <h2>Message fournisseur automatique</h2>
-          <span style={styles.badge}>copiable</span>
+          <span style={styles.badge}>unique et modifiable</span>
         </div>
-        <pre style={styles.messageBox}>{supplierPreviewMessage}</pre>
+        <textarea
+          style={styles.messageTextarea}
+          value={supplierPreviewMessage}
+          onChange={(event) => setSupplierMessageText(event.target.value)}
+        />
       </section>
 
       <section style={styles.cardWide}>
@@ -669,6 +822,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 900,
     cursor: "pointer",
   },
+  smallButton: {
+    border: "none",
+    borderRadius: 14,
+    padding: "12px 15px",
+    background: "#7c3aed",
+    color: "white",
+    fontWeight: 900,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
   message: { maxWidth: 1380, color: "#bbf7d0", fontWeight: 900 },
   muted: { color: "#94a3b8", lineHeight: 1.5 },
   productMini: {
@@ -693,7 +856,40 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 18,
     fontFamily: "Arial, sans-serif",
   },
+  messageTextarea: {
+    width: "100%",
+    minHeight: 190,
+    boxSizing: "border-box",
+    whiteSpace: "pre-wrap",
+    lineHeight: 1.55,
+    color: "#dbeafe",
+    background: "#020617",
+    border: "1px solid #1f2937",
+    borderRadius: 18,
+    padding: 18,
+    fontFamily: "Arial, sans-serif",
+    fontSize: 15,
+  },
   mappingGrid: { display: "grid", gap: 16 },
+  supplierVariantGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: 14,
+    marginTop: 16,
+  },
+  supplierVariantCard: {
+    display: "grid",
+    gap: 10,
+    padding: 16,
+    borderRadius: 18,
+    background: "#020617",
+    border: "1px solid #1f2937",
+  },
+  twoColumns: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 8,
+  },
   warningBox: {
     border: "1px solid #f59e0b",
     borderRadius: 18,
