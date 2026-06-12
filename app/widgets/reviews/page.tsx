@@ -19,6 +19,8 @@ type Review = {
   visible: boolean
   merchant_reply: string
   featured: boolean
+  source?: string
+  created_at?: string
 }
 
 type ReviewWithVisualNumber = Review & {
@@ -146,12 +148,12 @@ export default function ReviewsPage() {
     return matchesSelectedProduct
   })
 
-  const numberedProductReviews: ReviewWithVisualNumber[] = productReviews.map(
-    (review, index) => ({
+  const numberedProductReviews: ReviewWithVisualNumber[] = productReviews
+    .filter((review) => review.source !== "storefront")
+    .map((review, index) => ({
       ...review,
       visualNumber: index + 1,
-    })
-  )
+    }))
 
   const publishedReviewsCount = productReviews.filter(
     (item) => item.visible
@@ -160,6 +162,12 @@ export default function ReviewsPage() {
   const featuredReviewsCount = productReviews.filter(
     (item) => item.featured
   ).length
+  const storefrontReviews = reviews.filter(
+    (item) => item.source === "storefront"
+  )
+  const pendingStorefrontReviews = storefrontReviews.filter(
+    (item) => item.source === "storefront" && !item.visible
+  )
 
   const filteredReviews = numberedProductReviews.filter((item) => {
     const query = search.toLowerCase().trim()
@@ -573,6 +581,10 @@ export default function ReviewsPage() {
     setSavingReviewId(null)
   }
 
+  async function publishStorefrontReview(review: Review) {
+    await updateReview({ ...review, visible: true })
+  }
+
   async function deleteReview(id: number) {
     if (!confirm("Supprimer cet avis définitivement ?")) return
 
@@ -789,6 +801,77 @@ export default function ReviewsPage() {
           </div>
         </div>
       )}
+
+      <div style={styles.pendingReviewsCard}>
+        <div style={styles.pendingReviewsHeader}>
+          <div>
+            <p style={styles.pendingLabel}>À TRAITER EN PRIORITÉ</p>
+            <h2 style={{ margin: "6px 0" }}>Avis clients de la boutique</h2>
+            <p style={{ ...styles.muted, margin: 0 }}>
+              Ces avis viennent directement du formulaire de ta fiche produit.
+            </p>
+          </div>
+          <strong style={styles.pendingCount}>
+            {pendingStorefrontReviews.length} à traiter
+          </strong>
+        </div>
+
+        {storefrontReviews.length === 0 ? (
+          <p style={styles.pendingEmpty}>Aucun avis reçu depuis la boutique.</p>
+        ) : (
+          storefrontReviews.map((item) => (
+            <div key={item.id} style={styles.pendingReviewItem}>
+              <div style={styles.reviewHeader}>
+                <span>
+                  {item.customer_first_name} {item.customer_last_name} ·{" "}
+                  {item.rating}/5
+                </span>
+                <span>
+                  {item.visible ? "Publié" : "En attente"} · {item.product_handle}
+                </span>
+              </div>
+
+              <p style={styles.pendingReviewText}>{item.review}</p>
+
+              {item.image_url && (
+                <a href={item.image_url} target="_blank" rel="noreferrer">
+                  <img
+                    src={item.image_url}
+                    alt="Photo envoyée avec l’avis"
+                    style={styles.preview}
+                  />
+                </a>
+              )}
+
+              <div style={styles.pendingActions}>
+                <button
+                  onClick={() =>
+                    item.visible
+                      ? updateReview({ ...item, visible: false })
+                      : publishStorefrontReview(item)
+                  }
+                  disabled={savingReviewId === item.id}
+                  style={
+                    item.visible ? styles.unpublishButton : styles.publishButton
+                  }
+                >
+                  {savingReviewId === item.id
+                    ? "Enregistrement..."
+                    : item.visible
+                    ? "Masquer cet avis"
+                    : "Publier cet avis"}
+                </button>
+                <button
+                  onClick={() => deleteReview(item.id)}
+                  style={styles.rejectButton}
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
 
       <div style={styles.card}>
         <p style={styles.muted}>
@@ -1695,6 +1778,90 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "24px",
     maxWidth: "900px",
     marginTop: "30px",
+  },
+  pendingReviewsCard: {
+    background: "linear-gradient(135deg, #451a03, #111827)",
+    border: "2px solid #f59e0b",
+    padding: "28px",
+    borderRadius: "24px",
+    maxWidth: "900px",
+    marginTop: "30px",
+  },
+  pendingReviewsHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "20px",
+  },
+  pendingLabel: {
+    color: "#fbbf24",
+    fontSize: "12px",
+    fontWeight: "bold",
+    letterSpacing: "1px",
+    margin: 0,
+  },
+  pendingCount: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: "110px",
+    height: "48px",
+    borderRadius: "999px",
+    background: "#f59e0b",
+    color: "#111827",
+    fontSize: "15px",
+    padding: "0 14px",
+  },
+  pendingEmpty: {
+    margin: "20px 0 0",
+    padding: "16px",
+    borderRadius: "14px",
+    background: "rgba(5, 8, 22, 0.55)",
+    color: "#cbd5e1",
+  },
+  pendingReviewItem: {
+    marginTop: "18px",
+    padding: "20px",
+    borderRadius: "16px",
+    background: "#050816",
+  },
+  pendingReviewText: {
+    color: "white",
+    fontSize: "16px",
+    lineHeight: 1.5,
+  },
+  pendingActions: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+    gap: "10px",
+    marginTop: "16px",
+  },
+  publishButton: {
+    background: "#16a34a",
+    color: "white",
+    border: "none",
+    padding: "13px",
+    borderRadius: "12px",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  unpublishButton: {
+    background: "#7c3aed",
+    color: "white",
+    border: "none",
+    padding: "13px",
+    borderRadius: "12px",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  rejectButton: {
+    background: "#dc2626",
+    color: "white",
+    border: "none",
+    padding: "13px",
+    borderRadius: "12px",
+    fontWeight: "bold",
+    cursor: "pointer",
   },
   muted: {
     color: "#94a3b8",

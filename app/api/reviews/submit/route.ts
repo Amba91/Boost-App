@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     const rating = Math.min(Math.max(Math.round(Number(body.rating) || 5), 1), 5)
     const imageUrl = validImageUrl(body.image_url)
 
-    if (!productHandle || !/^[a-z0-9][a-z0-9-_]*$/i.test(productHandle)) {
+    if (!productHandle || productHandle.includes("/") || productHandle.includes("\\")) {
       return NextResponse.json(
         { success: false, error: "Produit invalide." },
         { status: 400, headers: corsHeaders }
@@ -78,7 +78,8 @@ export async function POST(request: Request) {
         verified_purchase,
         visible,
         merchant_reply,
-        featured
+        featured,
+        source
       )
       VALUES (
         'kiidiiz.com',
@@ -94,7 +95,8 @@ export async function POST(request: Request) {
         false,
         false,
         '',
-        false
+        false,
+        'storefront'
       )
     `
 

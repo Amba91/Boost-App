@@ -29,6 +29,7 @@ export async function GET() {
         verified_purchase BOOLEAN DEFAULT true,
         visible BOOLEAN DEFAULT true,
         merchant_reply TEXT,
+        source TEXT DEFAULT 'manual',
         created_at TIMESTAMP DEFAULT NOW()
       )
     `
@@ -41,6 +42,11 @@ export async function GET() {
     await sql`
       ALTER TABLE product_reviews
       ADD COLUMN IF NOT EXISTS featured BOOLEAN DEFAULT false
+    `
+
+    await sql`
+      ALTER TABLE product_reviews
+      ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'manual'
     `
 
     await sql`
