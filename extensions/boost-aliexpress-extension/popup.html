@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Boost Aliexpress extension</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="card">
+      <div class="brand">
+        <img src="icons/boost-128.png" alt="Boost" />
+        <div>
+          <strong>Boost</strong>
+          <span>AliExpress import</span>
+        </div>
+      </div>
+
+      <p class="muted">
+        Ouvre une fiche produit AliExpress, puis clique sur le bouton pour envoyer le titre,
+        les images et les variantes vers Boost.
+      </p>
+
+      <label>
+        URL Boost
+        <input id="boostUrl" type="url" value="https://boost-app-9e6w.vercel.app" />
+      </label>
+
+      <button id="sendButton">Envoyer cette fiche vers Boost</button>
+      <button id="openBoostButton" class="secondary">Ouvrir Boost fournisseurs</button>
+
+      <p id="status" class="status"></p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

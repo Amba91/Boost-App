@@ -22,6 +22,20 @@ type SupplierProduct = {
   status: string
 }
 
+type SupplierProductVariantRow = {
+  id: number
+  supplier_product_id: number
+  external_variant_id?: string
+  label: string
+  color: string
+  size: string
+  shape: string
+  sku: string
+  price: string
+  image_url: string
+  source?: string
+}
+
 type ShopifyVariant = {
   id: number
   product_db_id: number
@@ -394,6 +408,55 @@ export default function SuppliersPage() {
     )
   }
 
+  function supplierVariantFromImportedRow(row: SupplierProductVariantRow): SupplierVariantOption {
+    return {
+      id: String(row.id || row.external_variant_id || row.label),
+      supplier_variant_label: row.label || row.color || row.size || row.shape || "Variante AliExpress",
+      supplier_color: row.color || "",
+      supplier_size: row.size || "",
+      supplier_shape: row.shape || "",
+      supplier_sku: row.sku || row.external_variant_id || "",
+      supplier_price: row.price || "",
+      supplier_image_url: row.image_url || "",
+      supplier_note: row.source ? `Import extension Boost (${row.source})` : "Import extension Boost",
+    }
+  }
+
+  function hydrateExtensionImport(products: SupplierProduct[], rows: SupplierProductVariantRow[]) {
+    if (typeof window === "undefined") return
+
+    const params = new URLSearchParams(window.location.search)
+    const extensionProductId = Number(params.get("extension_product_id") || 0)
+    if (!extensionProductId) return
+
+    const product = products.find((item) => item.id === extensionProductId)
+    const variants = rows.filter((row) => row.supplier_product_id === extensionProductId)
+    if (!product) return
+
+    setSupplierUrl(product.source_url)
+    setSupplierTitle(product.title)
+    setSupplierName(product.supplier_name || "AliExpress")
+    setSupplierConnectorNote(
+      `Import extension Boost : ${variants.length} variante(s) récupérée(s) depuis AliExpress dans le navigateur.`
+    )
+
+    if (variants.length > 0) {
+      setSupplierVariants(variants.map(supplierVariantFromImportedRow))
+      setSupplierVariantDrafts({})
+      setSupplierVariantSource("aliexpress")
+      setSupplierPreviewBlocked(false)
+      setMessage(
+        `${variants.length} variante(s) AliExpress importée(s) par l'extension. Tu peux maintenant relier les variantes Shopify.`
+      )
+    } else {
+      setSupplierVariants([])
+      setSupplierVariantDrafts({})
+      setSupplierVariantSource("none")
+      setSupplierPreviewBlocked(true)
+      setMessage("Produit importé par l'extension, mais aucune variante n'a été détectée sur cette fiche.")
+    }
+  }
+
   async function loadData() {
     setLoading(true)
     try {
@@ -408,6 +471,7 @@ export default function SuppliersPage() {
         setMappings(data.mappings || [])
         setSavedVariantMappings(data.variant_mappings || [])
         setSupplierOrders(ordersData.success ? ordersData.orders || [] : [])
+        hydrateExtensionImport(data.supplier_products || [], data.supplier_product_variants || [])
         if (!selectedProductId && data.products?.[0]?.id) {
           setSelectedProductId(String(data.products[0].id))
         }

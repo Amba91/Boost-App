@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Boost Aliexpress extension",
+  "description": "Envoie une fiche produit AliExpress avec ses variantes vers Boost.",
+  "version": "0.1.0",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Envoyer vers Boost",
+    "default_icon": {
+      "16": "icons/boost-16.png",
+      "48": "icons/boost-48.png",
+      "128": "icons/boost-128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/boost-16.png",
+    "48": "icons/boost-48.png",
+    "128": "icons/boost-128.png"
+  },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "https://*.aliexpress.com/*",
+    "https://boost-app-9e6w.vercel.app/*",
+    "http://localhost:3000/*",
+    "http://localhost:3001/*",
+    "http://localhost:3002/*",
+    "http://localhost:3003/*",
+    "http://localhost:3004/*",
+    "http://localhost:3005/*",
+    "http://localhost:3006/*",
+    "http://localhost:3007/*",
+    "http://localhost:3008/*",
+    "http://localhost:3009/*",
+    "http://localhost:3010/*",
+    "http://localhost:3011/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://*.aliexpress.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -145,6 +145,30 @@ async function ensureSupplierTables() {
 
   await sql`ALTER TABLE supplier_variant_mappings ADD COLUMN IF NOT EXISTS supplier_image_url TEXT NOT NULL DEFAULT ''`
   await sql`ALTER TABLE supplier_variant_mappings ADD COLUMN IF NOT EXISTS supplier_note TEXT NOT NULL DEFAULT ''`
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS supplier_product_variants (
+      id SERIAL PRIMARY KEY,
+      shop TEXT NOT NULL,
+      supplier_product_id INTEGER NOT NULL,
+      external_variant_id TEXT NOT NULL DEFAULT '',
+      label TEXT NOT NULL DEFAULT '',
+      color TEXT NOT NULL DEFAULT '',
+      size TEXT NOT NULL DEFAULT '',
+      shape TEXT NOT NULL DEFAULT '',
+      sku TEXT NOT NULL DEFAULT '',
+      price TEXT NOT NULL DEFAULT '',
+      image_url TEXT NOT NULL DEFAULT '',
+      source TEXT NOT NULL DEFAULT 'extension',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS supplier_product_variants_product_idx
+    ON supplier_product_variants (shop, supplier_product_id)
+  `
 }
 
 export async function GET() {
@@ -191,11 +215,20 @@ export async function GET() {
       LIMIT 2000
     `
 
+    const supplierProductVariants = await sql`
+      SELECT *
+      FROM supplier_product_variants
+      WHERE shop = ${SHOP}
+      ORDER BY updated_at DESC
+      LIMIT 3000
+    `
+
     return NextResponse.json({
       success: true,
       products: products.rows,
       variants: variants.rows,
       supplier_products: supplierProducts.rows,
+      supplier_product_variants: supplierProductVariants.rows,
       mappings: mappings.rows,
       variant_mappings: variantMappings.rows,
     })
@@ -206,6 +239,7 @@ export async function GET() {
         products: [],
         variants: [],
         supplier_products: [],
+        supplier_product_variants: [],
         mappings: [],
         variant_mappings: [],
         error: String(error),
