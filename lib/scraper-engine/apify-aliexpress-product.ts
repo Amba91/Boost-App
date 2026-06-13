@@ -56,19 +56,41 @@ function getActorId() {
   ).replace("/", "~")
 }
 
+function canonicalAliExpressUrl(productUrl: string) {
+  try {
+    const url = new URL(productUrl)
+    const itemMatch = url.pathname.match(/\/item\/(\d+)\.html/i)
+
+    if (itemMatch?.[1]) {
+      return `https://www.aliexpress.com/item/${itemMatch[1]}.html`
+    }
+
+    if (url.hostname.endsWith("aliexpress.com")) {
+      url.hostname = "www.aliexpress.com"
+      url.search = ""
+      return url.toString()
+    }
+  } catch {
+    // The actor will validate the original URL if parsing fails.
+  }
+
+  return productUrl
+}
+
 function getActorInput(productUrl: string) {
   const template = process.env.APIFY_ALIEXPRESS_PRODUCT_INPUT_JSON
+  const canonicalUrl = canonicalAliExpressUrl(productUrl)
 
   if (template) {
     try {
-      return JSON.parse(template.replaceAll("{url}", productUrl))
+      return JSON.parse(template.replaceAll("{url}", canonicalUrl))
     } catch {
       // Fallback below keeps Boost usable if the template is malformed.
     }
   }
 
   return {
-    urls: [productUrl],
+    urls: [canonicalUrl],
     maxItems: 100,
   }
 }
