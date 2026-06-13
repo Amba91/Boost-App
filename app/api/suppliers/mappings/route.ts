@@ -142,6 +142,9 @@ async function ensureSupplierTables() {
       updated_at TIMESTAMP DEFAULT NOW()
     )
   `
+
+  await sql`ALTER TABLE supplier_variant_mappings ADD COLUMN IF NOT EXISTS supplier_image_url TEXT NOT NULL DEFAULT ''`
+  await sql`ALTER TABLE supplier_variant_mappings ADD COLUMN IF NOT EXISTS supplier_note TEXT NOT NULL DEFAULT ''`
 }
 
 export async function GET() {
