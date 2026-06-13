@@ -92,6 +92,55 @@ function getOxylabsCredentials() {
   }
 }
 
+function extractBalancedObject(source: string, startIndex: number) {
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  for (let index = startIndex; index < source.length; index += 1) {
+    const char = source[index]
+
+    if (inString) {
+      if (escaped) {
+        escaped = false
+      } else if (char === "\\") {
+        escaped = true
+      } else if (char === '"') {
+        inString = false
+      }
+      continue
+    }
+
+    if (char === '"') {
+      inString = true
+      continue
+    }
+
+    if (char === "{") depth += 1
+    if (char === "}") depth -= 1
+
+    if (depth === 0) return source.slice(startIndex, index + 1)
+  }
+
+  return ""
+}
+
+function extractJsonNearKeyword(source: string, keyword: string) {
+  const blocks: string[] = []
+  let index = source.indexOf(keyword)
+
+  while (index >= 0 && blocks.length < 12) {
+    const start = source.lastIndexOf("{", index)
+    if (start >= 0) {
+      const block = extractBalancedObject(source, start)
+      if (block) blocks.push(block)
+    }
+    index = source.indexOf(keyword, index + keyword.length)
+  }
+
+  return blocks
+}
+
 function extractJsonBlocks(html: string) {
   const blocks: string[] = []
   const scriptRegex =
@@ -106,6 +155,18 @@ function extractJsonBlocks(html: string) {
 
   while ((match = stateRegex.exec(html)) !== null) {
     if (match[1]) blocks.push(match[1].trim())
+  }
+
+  for (const script of html.match(/<script[^>]*>([\s\S]*?)<\/script>/gi) || []) {
+    if (!/sku|variant|product/i.test(script)) continue
+    const body = script.replace(/^<script[^>]*>/i, "").replace(/<\/script>$/i, "")
+    blocks.push(
+      ...extractJsonNearKeyword(body, "skuPropertyList"),
+      ...extractJsonNearKeyword(body, "skuModule"),
+      ...extractJsonNearKeyword(body, "skuPriceList"),
+      ...extractJsonNearKeyword(body, "productSKUPropertyList"),
+      ...extractJsonNearKeyword(body, "inventoryComponent")
+    )
   }
 
   return blocks
@@ -354,6 +415,97 @@ function normalizeFromContent(content: unknown): OxylabsSupplierProduct | null {
   }
 }
 
+type OxylabsPayload = Record<string, unknown>
+
+function getOxylabsPayloads(productUrl: string) {
+  const canonicalUrl = canonicalAliExpressUrl(productUrl)
+  const configuredSource = process.env.OXYLABS_ALIEXPRESS_SOURCE
+  const geoLocation = process.env.OXYLABS_GEO_LOCATION || "France"
+  const shared = {
+    geo_location: geoLocation,
+    user_agent_type: "desktop",
+    render: "html",
+  }
+
+  const payloads: OxylabsPayload[] = []
+
+  if (configuredSource) {
+    payloads.push({
+      source: configuredSource,
+      ...(configuredSource.includes("search") ? { query: canonicalUrl } : { url: canonicalUrl }),
+      ...shared,
+      parse: !configuredSource.includes("universal"),
+    })
+  }
+
+  payloads.push(
+    {
+      source: "aliexpress",
+      url: canonicalUrl,
+      ...shared,
+      parse: true,
+    },
+    {
+      source: "universal",
+      url: canonicalUrl,
+      ...shared,
+      parse: false,
+    }
+  )
+
+  return payloads
+}
+
+function shortError(value: unknown) {
+  if (!value) return ""
+  if (typeof value === "string") return value
+  if (value instanceof Error) return value.message
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+async function postOxylabsPayload(username: string, password: string, payload: OxylabsPayload) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 18000)
+
+  try {
+    const response = await fetch("https://realtime.oxylabs.io/v1/queries", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      throw new Error(shortError(data?.message || data?.error || data) || "requête refusée")
+    }
+
+    const content = data?.results?.[0]?.content || data?.results?.[0] || data
+    const product = normalizeFromContent(content)
+
+    if (!product) {
+      throw new Error("réponse reçue, mais aucun produit/variante lisible")
+    }
+
+    return product
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("délai Oxylabs dépassé")
+    }
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 export async function scrapeAliExpressProductWithOxylabs(productUrl: string) {
   const { username, password } = getOxylabsCredentials()
 
@@ -361,34 +513,19 @@ export async function scrapeAliExpressProductWithOxylabs(productUrl: string) {
     throw new Error("OXYLABS_USERNAME/OXYLABS_PASSWORD manquants dans Vercel.")
   }
 
-  const response = await fetch("https://realtime.oxylabs.io/v1/queries", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`,
-    },
-    body: JSON.stringify({
-      source: process.env.OXYLABS_ALIEXPRESS_SOURCE || "aliexpress",
-      url: canonicalAliExpressUrl(productUrl),
-      geo_location: process.env.OXYLABS_GEO_LOCATION || "France",
-      user_agent_type: "desktop",
-      render: "html",
-      parse: true,
-    }),
-  })
+  const errors: string[] = []
 
-  const data = await response.json()
-
-  if (!response.ok) {
-    throw new Error(data?.message || data?.error || "Oxylabs n'a pas pu lire AliExpress.")
+  for (const payload of getOxylabsPayloads(productUrl)) {
+    try {
+      const product = await postOxylabsPayload(username, password, payload)
+      return {
+        ...product,
+        debug_note: `${product.debug_note || "Oxylabs OK"} Source utilisée : ${payload.source}.`,
+      }
+    } catch (error) {
+      errors.push(`${payload.source}: ${shortError(error).slice(0, 180)}`)
+    }
   }
 
-  const content = data?.results?.[0]?.content || data?.results?.[0] || data
-  const product = normalizeFromContent(content)
-
-  if (!product) {
-    throw new Error("Oxylabs a répondu, mais sans variantes exploitables.")
-  }
-
-  return product
+  throw new Error(`Oxylabs n'a pas pu lire la fiche produit. ${errors.join(" | ")}`)
 }
