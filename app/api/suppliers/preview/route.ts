@@ -401,7 +401,9 @@ async function scrapeSupplierProduct(url: string): Promise<SupplierProduct> {
           currency: apifyProduct.currency,
           supplier_name: apifyProduct.supplier_name,
           variants: apifyProduct.variants,
-          connector_note: `Apify OK : ${apifyProduct.variants.length} variante(s) reçue(s).`,
+          connector_note:
+            apifyProduct.debug_note ||
+            `Apify OK : ${apifyProduct.variants.length} variante(s) reçue(s).`,
         }
       }
       connectorNote = "Apify a répondu, mais sans produit exploitable."

@@ -19,6 +19,7 @@ export type SupplierProductDetails = {
   currency: string
   supplier_name: string
   variants: SupplierProductVariant[]
+  debug_note?: string
 }
 
 function cleanText(value: unknown, maxLength: number) {
@@ -35,6 +36,33 @@ function normalizeImageUrl(value: unknown) {
   if (raw.startsWith("//")) return `https:${raw}`
   if (raw.startsWith("http")) return raw
   return ""
+}
+
+function candidateImageUrls(value: unknown) {
+  if (typeof value !== "string") return [normalizeImageUrl(value)].filter(Boolean)
+
+  return value
+    .split(/\s*\|\|\s*|\s+/)
+    .map((part) => normalizeImageUrl(part))
+    .filter(Boolean)
+}
+
+function normalizeKey(key: string) {
+  return key.toLowerCase().replace(/[^a-z0-9]/g, "")
+}
+
+function looseValue(node: Record<string, any>, ...keys: string[]) {
+  const wanted = new Set(keys.map(normalizeKey))
+
+  for (const [key, value] of Object.entries(node)) {
+    if (wanted.has(normalizeKey(key))) return value
+  }
+
+  return undefined
+}
+
+function looseText(node: Record<string, any>, ...keys: string[]) {
+  return firstString(...keys.map((key) => looseValue(node, key)))
 }
 
 function firstString(...values: unknown[]) {
@@ -173,13 +201,13 @@ function collectImages(root: unknown) {
   function walk(node: any) {
     if (!node || images.size >= 24) return
     if (typeof node === "string") {
-      const image = normalizeImageUrl(node)
-      if (
-        image &&
-        /\.(jpg|jpeg|png|webp)(\?|$)/i.test(image) &&
-        (image.includes("alicdn") || image.includes("aliexpress"))
-      ) {
-        images.add(image)
+      for (const image of candidateImageUrls(node)) {
+        if (
+          /\.(jpg|jpeg|png|webp)(\?|$)/i.test(image) &&
+          (image.includes("alicdn") || image.includes("aliexpress"))
+        ) {
+          images.add(image)
+        }
       }
       return
     }
@@ -189,16 +217,22 @@ function collectImages(root: unknown) {
     }
     if (typeof node !== "object") return
 
-    const directImage = normalizeImageUrl(
-      node.image ||
-        node.imageUrl ||
-        node.image_url ||
-        node.imgUrl ||
-        node.thumbnail ||
-        node.url ||
-        node.src
+    const directImage = looseValue(
+      node,
+      "image",
+      "imageUrl",
+      "image_url",
+      "imgUrl",
+      "thumbnail",
+      "variantImage",
+      "mainImage",
+      "propertyValueImage",
+      "propertyValueImageUrl",
+      "skuPropertyImagePath",
+      "url",
+      "src"
     )
-    if (directImage) images.add(directImage)
+    for (const image of candidateImageUrls(directImage)) images.add(image)
 
     for (const value of Object.values(node)) walk(value)
   }
@@ -209,52 +243,55 @@ function collectImages(root: unknown) {
 
 function labelFromNode(node: Record<string, any>) {
   return firstString(
-    node.label,
-    node.name,
-    node.title,
-    node.value,
-      node.displayName,
-      node.variantDisplayName,
-      node.variantAttribute,
-      node.propertyValueDisplayName,
-      node.propertyValueName,
-      node.skuPropertyValueName,
-    node.optionName,
-    node.variantName
+    looseValue(node, "label"),
+    looseValue(node, "name"),
+    looseValue(node, "title"),
+    looseValue(node, "value"),
+    looseValue(node, "displayName"),
+    looseValue(node, "variantDisplayName"),
+    looseValue(node, "variantAttribute"),
+    looseValue(node, "propertyValueDisplayName"),
+    looseValue(node, "propertyValueName"),
+    looseValue(node, "skuPropertyValueName"),
+    looseValue(node, "optionName"),
+    looseValue(node, "variantName")
   )
 }
 
 function imageFromNode(node: Record<string, any>) {
-  return normalizeImageUrl(
-    node.image ||
-      node.imageUrl ||
-      node.image_url ||
-      node.imgUrl ||
-      node.thumbnail ||
-      node.variantImage ||
-      node.mainImage ||
-      node.propertyValueImage ||
-      node.propertyValueImageUrl ||
-      node.skuPropertyImagePath ||
-      node.url ||
-      node.src
-  )
+  return candidateImageUrls(
+    looseValue(
+      node,
+      "image",
+      "imageUrl",
+      "image_url",
+      "imgUrl",
+      "thumbnail",
+      "variantImage",
+      "mainImage",
+      "propertyValueImage",
+      "propertyValueImageUrl",
+      "skuPropertyImagePath",
+      "url",
+      "src"
+    )
+  )[0] || ""
 }
 
 function priceFromNode(node: Record<string, any>) {
   return firstString(
-    node.price,
-    node.salePrice,
-    node.originalPrice,
-    node.priceText,
-    node.formattedPrice,
-    node.salePrice?.formattedPrice,
-    node.price?.formattedPrice
+    looseValue(node, "price"),
+    looseValue(node, "salePrice"),
+    looseValue(node, "originalPrice"),
+    looseValue(node, "priceText"),
+    looseValue(node, "formattedPrice"),
+    looseValue(node, "salePrice")?.formattedPrice,
+    looseValue(node, "price")?.formattedPrice
   )
 }
 
 function skuFromNode(node: Record<string, any>) {
-  return firstString(node.sku, node.variantSkuId, node.skuId, node.skuCode, node.skuAttr, node.id)
+  return looseText(node, "sku", "variantSkuId", "skuId", "skuCode", "skuAttr", "id")
 }
 
 function parseSkuProperties(value: unknown) {
@@ -277,16 +314,18 @@ function parseSkuProperties(value: unknown) {
 }
 
 function variantFromDatasetItem(item: ApifyDatasetItem, index: number): SupplierProductVariant | null {
-  const skuProperties = parseSkuProperties(item.skuProperties)
+  const skuProperties = parseSkuProperties(
+    looseValue(item, "skuProperties", "sku_properties", "SKU Properties", "variantProperties")
+  )
   const propertyLabel = Object.entries(skuProperties)
     .map(([key, value]) => `${key}: ${value}`)
     .join(" / ")
-  const attribute = firstString(item.variantAttribute)
-  const displayName = firstString(item.variantDisplayName)
+  const attribute = looseText(item, "variantAttribute", "variant_attribute", "attribute", "Variant Attribute")
+  const displayName = looseText(item, "variantDisplayName", "variant_display_name", "displayName", "Variant Display Name")
   const label = propertyLabel || [attribute, displayName].filter(Boolean).join(": ") || displayName
-  const imageUrl = normalizeImageUrl(item.variantImage || item.mainImage)
-  const sku = firstString(item.variantSkuId, item.sku, item.skuId)
-  const price = firstString(item.salePrice, item.originalPrice, item.price)
+  const imageUrl = imageFromNode(item)
+  const sku = looseText(item, "variantSkuId", "variant_sku_id", "sku", "skuId", "SKU ID")
+  const price = priceFromNode(item)
 
   if (!label && !imageUrl && !sku) return null
 
@@ -356,44 +395,48 @@ function extractVariants(root: unknown) {
     if (typeof node !== "object") return
 
     const propertyName = firstString(
-      node.skuPropertyName,
-      node.propertyName,
-      node.optionName,
-      node.name,
+      looseValue(node, "skuPropertyName"),
+      looseValue(node, "propertyName"),
+      looseValue(node, "optionName"),
+      looseValue(node, "name"),
       parentName
     )
 
-    if (Array.isArray(node.variants)) {
-      for (const variant of node.variants) {
+    const nestedVariants = looseValue(node, "variants", "productVariants", "skuVariants")
+    if (Array.isArray(nestedVariants)) {
+      for (const variant of nestedVariants) {
         if (variant && typeof variant === "object") addVariant(variant, propertyName)
       }
     }
 
-    if (Array.isArray(node.skus)) {
-      for (const sku of node.skus) {
+    const skus = looseValue(node, "skus", "skuList", "skuModule")
+    if (Array.isArray(skus)) {
+      for (const sku of skus) {
         if (sku && typeof sku === "object") addVariant(sku, propertyName)
       }
     }
 
-    if (Array.isArray(node.skuPropertyValues)) {
-      for (const value of node.skuPropertyValues) {
+    const skuPropertyValues = looseValue(node, "skuPropertyValues", "propertyValueList")
+    if (Array.isArray(skuPropertyValues)) {
+      for (const value of skuPropertyValues) {
         if (value && typeof value === "object") addVariant(value, propertyName)
       }
     }
 
-    if (Array.isArray(node.propertyValueList)) {
-      for (const value of node.propertyValueList) {
+    const propertyValueList = looseValue(node, "propertyValueList")
+    if (Array.isArray(propertyValueList)) {
+      for (const value of propertyValueList) {
         if (value && typeof value === "object") addVariant(value, propertyName)
       }
     }
 
     if (
-      node.skuPropertyValueName ||
-      node.propertyValueDisplayName ||
-      node.propertyValueName ||
-      node.skuPropertyImagePath ||
-      node.propertyValueImageUrl ||
-      node.variantName
+      looseValue(node, "skuPropertyValueName") ||
+      looseValue(node, "propertyValueDisplayName") ||
+      looseValue(node, "propertyValueName") ||
+      looseValue(node, "skuPropertyImagePath") ||
+      looseValue(node, "propertyValueImageUrl") ||
+      looseValue(node, "variantName")
     ) {
       addVariant(node, propertyName)
     }
@@ -425,13 +468,17 @@ function normalizeProduct(items: ApifyDatasetItem[]): SupplierProductDetails | n
   )
 
   return {
-    title: firstString(item.title, item.name, item.productTitle),
-    description: firstString(item.description, item.productDescription),
+    title: looseText(item, "title", "name", "productTitle", "Product Title"),
+    description: looseText(item, "description", "productDescription", "Product Description"),
     image_urls: imageUrls.slice(0, 12),
-    price: firstString(item.price, item.salePrice, item.priceText, item.finalPrice, item.originalPrice),
-    currency: firstString(item.currency, item.priceCurrency) || "EUR",
-    supplier_name: firstString(item.storeName) || "AliExpress",
+    price: looseText(item, "price", "salePrice", "priceText", "finalPrice", "originalPrice"),
+    currency: looseText(item, "currency", "priceCurrency") || "EUR",
+    supplier_name: looseText(item, "storeName", "sellerName", "supplierName") || "AliExpress",
     variants,
+    debug_note:
+      variants.length === 0
+        ? `Champs Apify reçus : ${Object.keys(item).slice(0, 18).join(", ")}`
+        : "",
   }
 }
 
