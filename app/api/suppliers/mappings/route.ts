@@ -394,3 +394,102 @@ export async function POST(request: Request) {
     )
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    await ensureSupplierTables()
+    const body = await request.json()
+    const id = Number(body.id || 0)
+    const action = cleanText(body.action, 40)
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "Mapping fournisseur introuvable." },
+        { status: 400 }
+      )
+    }
+
+    if (action === "disable" || action === "enable") {
+      const status = action === "disable" ? "disabled" : "active"
+      const result = await sql`
+        UPDATE supplier_mappings
+        SET status = ${status}, updated_at = NOW()
+        WHERE id = ${id} AND shop = ${SHOP}
+        RETURNING *
+      `
+
+      await sql`
+        UPDATE supplier_variant_mappings
+        SET status = ${status}, updated_at = NOW()
+        WHERE supplier_mapping_id = ${id} AND shop = ${SHOP}
+      `
+
+      return NextResponse.json({ success: true, mapping: result.rows[0] || null })
+    }
+
+    if (action === "replace") {
+      const supplierUrl = normalizeUrl(body.supplier_url)
+      const supplierName = cleanText(body.supplier_name, 120) || "AliExpress"
+      if (!supplierUrl) {
+        return NextResponse.json(
+          { success: false, error: "Colle le nouveau lien fournisseur." },
+          { status: 400 }
+        )
+      }
+
+      const result = await sql`
+        UPDATE supplier_mappings
+        SET supplier_url = ${supplierUrl},
+            supplier_name = ${supplierName},
+            status = 'active',
+            updated_at = NOW()
+        WHERE id = ${id} AND shop = ${SHOP}
+        RETURNING *
+      `
+
+      return NextResponse.json({ success: true, mapping: result.rows[0] || null })
+    }
+
+    return NextResponse.json(
+      { success: false, error: "Action fournisseur inconnue." },
+      { status: 400 }
+    )
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: String(error) },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    await ensureSupplierTables()
+    const { searchParams } = new URL(request.url)
+    const id = Number(searchParams.get("id") || 0)
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "Mapping fournisseur introuvable." },
+        { status: 400 }
+      )
+    }
+
+    await sql`
+      DELETE FROM supplier_variant_mappings
+      WHERE supplier_mapping_id = ${id} AND shop = ${SHOP}
+    `
+
+    await sql`
+      DELETE FROM supplier_mappings
+      WHERE id = ${id} AND shop = ${SHOP}
+    `
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: String(error) },
+      { status: 500 }
+    )
+  }
+}

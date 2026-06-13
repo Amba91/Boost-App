@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
 import { ensureReviewRequestTrackingTables } from "../../../../lib/review-request-tracking"
 import { seedDefaultMailAutomations } from "../../../../lib/mail-automation-settings"
+import { createSupplierOrdersFromShopifyOrder } from "../../../../lib/supplier-orders"
 
 function validShopifyHmac(rawBody: string, receivedHmac: string | null) {
   const secret = process.env.SHOPIFY_API_SECRET
@@ -266,6 +267,7 @@ export async function POST(request: Request) {
   }
 
   if (topic === "orders/create") {
+    const supplierOrders = await createSupplierOrdersFromShopifyOrder(shop, body)
     const confirmation = await scheduleOrderAutomation(
       shop,
       "order_confirmation",
@@ -281,6 +283,7 @@ export async function POST(request: Request) {
       success: true,
       received: true,
       scheduled: confirmation + upsell,
+      supplier_orders: supplierOrders,
     })
   }
 

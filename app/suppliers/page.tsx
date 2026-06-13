@@ -60,6 +60,29 @@ type VariantMapping = {
   supplier_price: string
 }
 
+type SupplierOrder = {
+  id: number
+  order_name: string
+  customer_email: string
+  customer_name: string
+  product_title: string
+  product_handle: string
+  shopify_variant_title: string
+  quantity: number
+  supplier_name: string
+  supplier_url: string
+  supplier_variant_label: string
+  supplier_color: string
+  supplier_size: string
+  supplier_shape: string
+  supplier_sku: string
+  supplier_price: string
+  supplier_message: string
+  status: string
+  internal_note: string
+  created_at: string
+}
+
 type SupplierVariantDraft = {
   supplier_variant_label: string
   supplier_color: string
@@ -91,6 +114,7 @@ export default function SuppliersPage() {
   const [supplierProducts, setSupplierProducts] = useState<SupplierProduct[]>([])
   const [mappings, setMappings] = useState<SupplierMapping[]>([])
   const [savedVariantMappings, setSavedVariantMappings] = useState<VariantMapping[]>([])
+  const [supplierOrders, setSupplierOrders] = useState<SupplierOrder[]>([])
   const [selectedProductId, setSelectedProductId] = useState("")
   const [supplierUrl, setSupplierUrl] = useState("")
   const [supplierTitle, setSupplierTitle] = useState("")
@@ -103,6 +127,7 @@ export default function SuppliersPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [syncingOrders, setSyncingOrders] = useState(false)
   const [supplierPreviewBlocked, setSupplierPreviewBlocked] = useState(false)
   const [supplierConnectorNote, setSupplierConnectorNote] = useState("")
   const [supplierVariantDrafts, setSupplierVariantDrafts] = useState<Record<string, SupplierVariantDraft>>({})
@@ -136,6 +161,10 @@ export default function SuppliersPage() {
   const mappedVariantCount = savedVariantMappings.filter(
     (mapping) => String(mapping.product_db_id) === selectedProductId
   ).length
+
+  const pendingSupplierOrders = supplierOrders.filter((order) =>
+    ["pending", "needs_mapping"].includes(order.status)
+  )
 
   function optionsLabel(variant: ShopifyVariant) {
     const rawOptions = variant.selected_options
@@ -324,12 +353,15 @@ export default function SuppliersPage() {
     try {
       const res = await fetch("/api/suppliers/mappings", { cache: "no-store" })
       const data = await res.json()
+      const ordersRes = await fetch("/api/suppliers/orders", { cache: "no-store" })
+      const ordersData = await ordersRes.json()
       if (data.success) {
         setShopifyProducts(data.products || [])
         setShopifyVariants(data.variants || [])
         setSupplierProducts(data.supplier_products || [])
         setMappings(data.mappings || [])
         setSavedVariantMappings(data.variant_mappings || [])
+        setSupplierOrders(ordersData.success ? ordersData.orders || [] : [])
         if (!selectedProductId && data.products?.[0]?.id) {
           setSelectedProductId(String(data.products[0].id))
         }
@@ -340,6 +372,91 @@ export default function SuppliersPage() {
       setMessage("Chargement impossible.")
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function syncSupplierOrders() {
+    setSyncingOrders(true)
+    setMessage("")
+    try {
+      const res = await fetch("/api/suppliers/orders", { method: "POST" })
+      const data = await res.json()
+      if (!data.success) {
+        setMessage(data.error || "Impossible de récupérer les commandes Shopify.")
+        return
+      }
+
+      setMessage(`${data.orders_read} commande(s) Shopify lue(s), ${data.prepared} ligne(s) fournisseur préparée(s).`)
+      await loadData()
+    } catch {
+      setMessage("Impossible de récupérer les commandes Shopify.")
+    } finally {
+      setSyncingOrders(false)
+    }
+  }
+
+  async function updateSupplierOrder(orderId: number, status: string) {
+    try {
+      const res = await fetch("/api/suppliers/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: orderId, status }),
+      })
+      const data = await res.json()
+      setMessage(data.success ? "Commande fournisseur mise à jour." : data.error)
+      await loadData()
+    } catch {
+      setMessage("Mise à jour commande fournisseur impossible.")
+    }
+  }
+
+  async function copySupplierMessage(order: SupplierOrder) {
+    const address = order.customer_name || order.customer_email
+    const text = [
+      `Commande ${order.order_name}`,
+      `Client : ${address}`,
+      `Produit : ${order.product_title}`,
+      `Variante : ${order.supplier_variant_label || order.shopify_variant_title || "N/A"}`,
+      `Quantité : ${order.quantity}`,
+      "",
+      order.supplier_message,
+    ].join("\n")
+
+    try {
+      await navigator.clipboard.writeText(text)
+      setMessage("Message fournisseur copié.")
+    } catch {
+      setMessage("Copie impossible. Tu peux copier le message affiché.")
+    }
+  }
+
+  async function updateMapping(mappingId: number, action: string, payload: Record<string, string> = {}) {
+    try {
+      const res = await fetch("/api/suppliers/mappings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: mappingId, action, ...payload }),
+      })
+      const data = await res.json()
+      setMessage(data.success ? "Fournisseur mis à jour." : data.error)
+      await loadData()
+    } catch {
+      setMessage("Mise à jour fournisseur impossible.")
+    }
+  }
+
+  async function deleteMapping(mappingId: number) {
+    if (!confirm("Supprimer ce fournisseur et ses variantes liées ?")) return
+
+    try {
+      const res = await fetch(`/api/suppliers/mappings?id=${mappingId}`, {
+        method: "DELETE",
+      })
+      const data = await res.json()
+      setMessage(data.success ? "Fournisseur supprimé." : data.error)
+      await loadData()
+    } catch {
+      setMessage("Suppression fournisseur impossible.")
     }
   }
 
@@ -612,6 +729,91 @@ export default function SuppliersPage() {
       </section>
 
       {message && <p style={styles.message}>{message}</p>}
+
+      <section style={styles.cardWide}>
+        <div style={styles.sectionHeader}>
+          <div>
+            <h2>Commandes fournisseur à traiter</h2>
+            <p style={styles.muted}>
+              Quand une commande Shopify arrive, Boost prépare ici ce qu’il faut
+              commander chez le fournisseur : produit, variante, quantité et
+              message dropshipping à envoyer.
+            </p>
+          </div>
+          <div style={styles.actionRow}>
+            <span style={styles.badge}>{pendingSupplierOrders.length} à traiter</span>
+            <button onClick={syncSupplierOrders} disabled={syncingOrders} style={styles.smallButton}>
+              {syncingOrders ? "Lecture..." : "Récupérer les dernières commandes"}
+            </button>
+          </div>
+        </div>
+
+        {supplierOrders.length === 0 ? (
+          <div style={styles.helpBox}>
+            <strong>Aucune commande fournisseur pour le moment.</strong>
+            <span>
+              Dès qu’une commande Shopify arrive, elle apparaîtra ici. Tu peux
+              aussi cliquer sur “Récupérer les dernières commandes”.
+            </span>
+          </div>
+        ) : (
+          <div style={styles.orderGrid}>
+            {supplierOrders.map((order) => (
+              <article key={order.id} style={styles.orderCard}>
+                <div>
+                  <span style={order.status === "needs_mapping" ? styles.orangeBadge : styles.statusBadge}>
+                    {order.status === "needs_mapping"
+                      ? "Mapping manquant"
+                      : order.status === "ordered"
+                        ? "Commandée"
+                        : order.status === "cancelled"
+                          ? "Annulée"
+                          : "À commander"}
+                  </span>
+                  <h3>{order.order_name || "Commande Shopify"}</h3>
+                  <p style={styles.muted}>{order.customer_name || order.customer_email}</p>
+                </div>
+
+                <div>
+                  <strong>{order.product_title}</strong>
+                  <p style={styles.muted}>
+                    Variante : {order.supplier_variant_label || order.shopify_variant_title || "N/A"}
+                  </p>
+                  <p style={styles.muted}>Quantité : {order.quantity}</p>
+                </div>
+
+                <div>
+                  <strong>{order.supplier_name || "Fournisseur à choisir"}</strong>
+                  <p style={styles.muted}>
+                    SKU : {order.supplier_sku || "N/A"} · Prix : {order.supplier_price || "N/A"}
+                  </p>
+                  {order.supplier_url ? (
+                    <a href={order.supplier_url} target="_blank" style={styles.link}>
+                      Ouvrir le fournisseur
+                    </a>
+                  ) : (
+                    <p style={styles.muted}>Aucun fournisseur lié.</p>
+                  )}
+                </div>
+
+                <pre style={styles.smallMessage}>{order.supplier_message || order.internal_note}</pre>
+
+                <div style={styles.actionRow}>
+                  <button onClick={() => copySupplierMessage(order)} style={styles.smallButton}>
+                    Copier message
+                  </button>
+                  <button onClick={() => updateSupplierOrder(order.id, "ordered")} style={styles.greenSmallButton}>
+                    Marquer commandée
+                  </button>
+                  <button onClick={() => updateSupplierOrder(order.id, "cancelled")} style={styles.dangerSmallButton}>
+                    Annuler
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section style={styles.cardWide}>
         <div style={styles.sectionHeader}>
@@ -917,6 +1119,23 @@ export default function SuppliersPage() {
                   <a href={mapping.supplier_url} target="_blank" style={styles.link}>Ouvrir le fournisseur</a>
                 </div>
                 <pre style={styles.smallMessage}>{mapping.supplier_message}</pre>
+                <div style={styles.actionRow}>
+                  <button onClick={() => updateMapping(mapping.id, mapping.status === "active" ? "disable" : "enable")} style={styles.smallButton}>
+                    {mapping.status === "active" ? "Désactiver" : "Réactiver"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const nextUrl = prompt("Nouveau lien fournisseur", mapping.supplier_url)
+                      if (nextUrl) updateMapping(mapping.id, "replace", { supplier_url: nextUrl, supplier_name: mapping.supplier_name })
+                    }}
+                    style={styles.greenSmallButton}
+                  >
+                    Remplacer
+                  </button>
+                  <button onClick={() => deleteMapping(mapping.id)} style={styles.dangerSmallButton}>
+                    Supprimer
+                  </button>
+                </div>
               </article>
             ))}
           </div>
@@ -1049,6 +1268,16 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     whiteSpace: "nowrap",
   },
+  dangerSmallButton: {
+    border: "none",
+    borderRadius: 14,
+    padding: "12px 15px",
+    background: "#dc2626",
+    color: "white",
+    fontWeight: 900,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
   actionRow: {
     display: "flex",
     flexWrap: "wrap",
@@ -1118,6 +1347,37 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 15,
   },
   mappingGrid: { display: "grid", gap: 16 },
+  orderGrid: { display: "grid", gap: 16, marginTop: 16 },
+  orderCard: {
+    display: "grid",
+    gridTemplateColumns: "minmax(190px, .7fr) minmax(220px, 1fr) minmax(220px, .8fr) minmax(260px, 1.1fr)",
+    gap: 16,
+    padding: 18,
+    borderRadius: 20,
+    background: "#020617",
+    border: "1px solid #1f2937",
+    alignItems: "start",
+  },
+  statusBadge: {
+    display: "inline-flex",
+    width: "fit-content",
+    borderRadius: 999,
+    padding: "7px 10px",
+    background: "rgba(22, 163, 74, .15)",
+    color: "#bbf7d0",
+    fontSize: 12,
+    fontWeight: 900,
+  },
+  orangeBadge: {
+    display: "inline-flex",
+    width: "fit-content",
+    borderRadius: 999,
+    padding: "7px 10px",
+    background: "rgba(245, 158, 11, .16)",
+    color: "#fde68a",
+    fontSize: 12,
+    fontWeight: 900,
+  },
   supplierVariantGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
