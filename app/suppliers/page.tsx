@@ -35,6 +35,7 @@ type ShopifyVariant = {
 
 type SupplierMapping = {
   id: number
+  product_db_id?: number
   product_title: string
   product_handle: string
   supplier_name: string
@@ -65,6 +66,8 @@ type SupplierOrder = {
   order_name: string
   customer_email: string
   customer_name: string
+  shipping_address?: Record<string, any> | string
+  product_db_id?: number
   product_title: string
   product_handle: string
   shopify_variant_title: string
@@ -128,6 +131,7 @@ export default function SuppliersPage() {
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [syncingOrders, setSyncingOrders] = useState(false)
+  const [orderMappingSelections, setOrderMappingSelections] = useState<Record<number, string>>({})
   const [supplierPreviewBlocked, setSupplierPreviewBlocked] = useState(false)
   const [supplierConnectorNote, setSupplierConnectorNote] = useState("")
   const [supplierVariantDrafts, setSupplierVariantDrafts] = useState<Record<string, SupplierVariantDraft>>({})
@@ -165,6 +169,42 @@ export default function SuppliersPage() {
   const pendingSupplierOrders = supplierOrders.filter((order) =>
     ["pending", "needs_mapping"].includes(order.status)
   )
+
+  function parseAddress(address: SupplierOrder["shipping_address"]) {
+    if (!address) return {}
+    if (typeof address === "object") return address
+    try {
+      const parsed = JSON.parse(address)
+      return parsed && typeof parsed === "object" ? parsed : {}
+    } catch {
+      return {}
+    }
+  }
+
+  function formatAddress(order: SupplierOrder) {
+    const address = parseAddress(order.shipping_address)
+    return [
+      [address.first_name, address.last_name].filter(Boolean).join(" ") || order.customer_name,
+      address.address1,
+      address.address2,
+      [address.zip, address.city].filter(Boolean).join(" "),
+      address.province,
+      address.country,
+      address.phone ? `Tel : ${address.phone}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n")
+  }
+
+  function mappingsForOrder(order: SupplierOrder) {
+    const exact = mappings.filter(
+      (mapping) =>
+        String(mapping.product_db_id || "") === String(order.product_db_id || "") ||
+        mapping.product_handle === order.product_handle
+    )
+
+    return exact.length > 0 ? exact : mappings
+  }
 
   function optionsLabel(variant: ShopifyVariant) {
     const rawOptions = variant.selected_options
@@ -410,17 +450,47 @@ export default function SuppliersPage() {
     }
   }
 
+  async function assignMappingToOrder(order: SupplierOrder) {
+    const mappingId = orderMappingSelections[order.id]
+    if (!mappingId) {
+      setMessage("Choisis d'abord le fournisseur à utiliser pour cette commande.")
+      return
+    }
+
+    try {
+      const res = await fetch("/api/suppliers/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: order.id,
+          action: "assign_mapping",
+          mapping_id: mappingId,
+        }),
+      })
+      const data = await res.json()
+      setMessage(data.success ? "Fournisseur relié à la commande." : data.error)
+      await loadData()
+    } catch {
+      setMessage("Impossible de relier le fournisseur à cette commande.")
+    }
+  }
+
   async function copySupplierMessage(order: SupplierOrder) {
-    const address = order.customer_name || order.customer_email
     const text = [
       `Commande ${order.order_name}`,
-      `Client : ${address}`,
+      `Client : ${order.customer_name || order.customer_email}`,
+      "",
+      "Adresse de livraison :",
+      formatAddress(order) || "Adresse non disponible",
+      "",
       `Produit : ${order.product_title}`,
       `Variante : ${order.supplier_variant_label || order.shopify_variant_title || "N/A"}`,
       `Quantité : ${order.quantity}`,
+      order.supplier_sku ? `SKU fournisseur : ${order.supplier_sku}` : "",
+      order.supplier_price ? `Prix fournisseur : ${order.supplier_price}` : "",
       "",
       order.supplier_message,
-    ].join("\n")
+    ].filter(Boolean).join("\n")
 
     try {
       await navigator.clipboard.writeText(text)
@@ -772,6 +842,7 @@ export default function SuppliersPage() {
                   </span>
                   <h3>{order.order_name || "Commande Shopify"}</h3>
                   <p style={styles.muted}>{order.customer_name || order.customer_email}</p>
+                  <pre style={styles.addressBox}>{formatAddress(order) || "Adresse non disponible"}</pre>
                 </div>
 
                 <div>
@@ -793,6 +864,30 @@ export default function SuppliersPage() {
                     </a>
                   ) : (
                     <p style={styles.muted}>Aucun fournisseur lié.</p>
+                  )}
+                  {order.status === "needs_mapping" && (
+                    <div style={styles.mappingSelectBox}>
+                      <select
+                        style={styles.compactInput}
+                        value={orderMappingSelections[order.id] || ""}
+                        onChange={(event) =>
+                          setOrderMappingSelections((current) => ({
+                            ...current,
+                            [order.id]: event.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">Choisir un fournisseur existant</option>
+                        {mappingsForOrder(order).map((mapping) => (
+                          <option key={mapping.id} value={mapping.id}>
+                            {mapping.product_title} · {mapping.supplier_name} · {mapping.variant_label || "Toutes variantes"}
+                          </option>
+                        ))}
+                      </select>
+                      <button onClick={() => assignMappingToOrder(order)} style={styles.greenSmallButton}>
+                        Relier
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -1357,6 +1452,23 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#020617",
     border: "1px solid #1f2937",
     alignItems: "start",
+  },
+  addressBox: {
+    margin: "10px 0 0",
+    padding: 10,
+    borderRadius: 12,
+    background: "#0f172a",
+    border: "1px solid #1f2937",
+    color: "#cbd5e1",
+    whiteSpace: "pre-wrap",
+    fontFamily: "Arial, sans-serif",
+    fontSize: 12,
+    lineHeight: 1.45,
+  },
+  mappingSelectBox: {
+    display: "grid",
+    gap: 8,
+    marginTop: 12,
   },
   statusBadge: {
     display: "inline-flex",
