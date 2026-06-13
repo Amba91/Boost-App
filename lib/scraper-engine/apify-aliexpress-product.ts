@@ -84,6 +84,16 @@ function getActorId() {
   ).replace("/", "~")
 }
 
+function getDefaultActorIds() {
+  const configuredActor = process.env.APIFY_ALIEXPRESS_PRODUCT_ACTOR_ID
+  if (configuredActor) return [configuredActor.replace("/", "~")]
+
+  return [
+    "nifty.codes~aliexpress-product-ariants-scraper",
+    "khadinakbar~aliexpress-all-in-one-scraper",
+  ]
+}
+
 function canonicalAliExpressUrl(productUrl: string) {
   try {
     const url = new URL(productUrl)
@@ -105,7 +115,7 @@ function canonicalAliExpressUrl(productUrl: string) {
   return productUrl
 }
 
-function getActorInput(productUrl: string) {
+function getActorInput(productUrl: string, actorId = getActorId()) {
   const template = process.env.APIFY_ALIEXPRESS_PRODUCT_INPUT_JSON
   const canonicalUrl = canonicalAliExpressUrl(productUrl)
   const urls = canonicalUrl === productUrl ? [canonicalUrl] : [productUrl, canonicalUrl]
@@ -118,15 +128,30 @@ function getActorInput(productUrl: string) {
     }
   }
 
+  if (actorId.includes("aliexpress-all-in-one-scraper")) {
+    return {
+      startUrls: urls.map((url) => ({ url })),
+      maxResults: 1,
+      detailedItems: true,
+      includeReviews: false,
+      maxReviews: 1,
+      site: "aliexpress.com",
+      shipCountry: "FR",
+      proxyConfiguration: {
+        useApifyProxy: true,
+        apifyProxyGroups: ["RESIDENTIAL"],
+      },
+    }
+  }
+
   return {
     urls,
     maxItems: 100,
   }
 }
 
-async function runActor(productUrl: string) {
+async function runActor(productUrl: string, actorId: string) {
   const token = getApifyToken()
-  const actorId = getActorId()
 
   if (!token) {
     throw new Error("APIFY_TOKEN manquant dans Vercel.")
@@ -141,7 +166,7 @@ async function runActor(productUrl: string) {
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(getActorInput(productUrl)),
+      body: JSON.stringify(getActorInput(productUrl, actorId)),
     }
   )
 
@@ -314,6 +339,14 @@ function parseSkuProperties(value: unknown) {
 }
 
 function variantFromDatasetItem(item: ApifyDatasetItem, index: number): SupplierProductVariant | null {
+  const looksLikeVariantRow =
+    looseValue(item, "variantSkuId", "variant_sku_id", "SKU ID") ||
+    looseValue(item, "variantDisplayName", "variant_display_name", "Variant Display Name") ||
+    looseValue(item, "variantAttribute", "variant_attribute", "Variant Attribute") ||
+    looseValue(item, "skuProperties", "sku_properties", "SKU Properties")
+
+  if (!looksLikeVariantRow) return null
+
   const skuProperties = parseSkuProperties(
     looseValue(item, "skuProperties", "sku_properties", "SKU Properties", "variantProperties")
   )
@@ -416,7 +449,7 @@ function extractVariants(root: unknown) {
       }
     }
 
-    const skuPropertyValues = looseValue(node, "skuPropertyValues", "propertyValueList")
+    const skuPropertyValues = looseValue(node, "skuPropertyValues", "propertyValueList", "values", "options")
     if (Array.isArray(skuPropertyValues)) {
       for (const value of skuPropertyValues) {
         if (value && typeof value === "object") addVariant(value, propertyName)
@@ -452,7 +485,15 @@ function extractVariants(root: unknown) {
 }
 
 function normalizeProduct(items: ApifyDatasetItem[]): SupplierProductDetails | null {
-  const item = items.find((entry) => entry && typeof entry === "object") || null
+  const item =
+    items.find(
+      (entry) =>
+        entry &&
+        typeof entry === "object" &&
+        (!entry.recordType || String(entry.recordType).toLowerCase() === "product")
+    ) ||
+    items.find((entry) => entry && typeof entry === "object") ||
+    null
   if (!item) return null
 
   const datasetVariants = items
@@ -482,8 +523,8 @@ function normalizeProduct(items: ApifyDatasetItem[]): SupplierProductDetails | n
   }
 }
 
-export async function scrapeAliExpressProductWithApify(productUrl: string) {
-  const run = await runActor(productUrl)
+async function scrapeWithActor(productUrl: string, actorId: string) {
+  const run = await runActor(productUrl, actorId)
 
   if (!run?.id) return null
 
@@ -496,5 +537,52 @@ export async function scrapeAliExpressProductWithApify(productUrl: string) {
   if (!datasetId) return null
 
   const items = await readDatasetItems(datasetId)
-  return normalizeProduct(items)
+  const product = normalizeProduct(items)
+
+  return product
+    ? {
+        ...product,
+        debug_note:
+          product.debug_note ||
+          `Connecteur Apify utilisé : ${actorId.replace("~", "/")} · ${product.variants.length} variante(s)`,
+      }
+    : null
+}
+
+export async function scrapeAliExpressProductWithApify(productUrl: string) {
+  const errors: string[] = []
+  let bestProduct: SupplierProductDetails | null = null
+
+  for (const actorId of getDefaultActorIds()) {
+    try {
+      const product = await scrapeWithActor(productUrl, actorId)
+
+      if (
+        product &&
+        (product.title || product.image_urls.length > 0 || product.variants.length > 0)
+      ) {
+        if (product.variants.length > 0) return product
+        bestProduct ||= product
+        errors.push(`${actorId.replace("~", "/")} : produit lu, mais 0 variante`)
+        continue
+      }
+
+      errors.push(`${actorId.replace("~", "/")} : aucun résultat exploitable`)
+    } catch (error) {
+      errors.push(`${actorId.replace("~", "/")} : ${String(error).slice(0, 160)}`)
+    }
+  }
+
+  if (bestProduct) {
+    return {
+      ...bestProduct,
+      debug_note: `${bestProduct.debug_note || "Produit lu sans variante"} | ${errors.join(" | ")}`,
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(errors.join(" | "))
+  }
+
+  return null
 }
