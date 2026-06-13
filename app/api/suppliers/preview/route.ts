@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
 import { scrapeAliExpressProductWithApify } from "../../../../lib/scraper-engine/apify-aliexpress-product"
+import { scrapeAliExpressProductWithOxylabs } from "../../../../lib/scraper-engine/oxylabs-aliexpress-product"
 
 export const maxDuration = 300
 
@@ -384,6 +385,37 @@ async function scrapeSupplierProduct(url: string): Promise<SupplierProduct> {
 
   if (source === "aliexpress") {
     try {
+      const oxylabsProduct = await scrapeAliExpressProductWithOxylabs(url)
+
+      if (
+        oxylabsProduct &&
+        (oxylabsProduct.title ||
+          oxylabsProduct.image_urls.length > 0 ||
+          oxylabsProduct.variants.length > 0)
+      ) {
+        return {
+          source,
+          source_url: url,
+          external_id: cleanText(getExternalId(url), 180),
+          title: oxylabsProduct.title || "Produit AliExpress à vérifier",
+          description: oxylabsProduct.description,
+          image_urls: oxylabsProduct.image_urls,
+          price: oxylabsProduct.price,
+          currency: oxylabsProduct.currency,
+          supplier_name: oxylabsProduct.supplier_name,
+          variants: oxylabsProduct.variants,
+          connector_note:
+            oxylabsProduct.debug_note ||
+            `Oxylabs OK : ${oxylabsProduct.variants.length} variante(s) reçue(s).`,
+        }
+      }
+      connectorNote = "Oxylabs a répondu, mais sans produit exploitable."
+    } catch (error) {
+      connectorNote = `Oxylabs non configuré ou non exploitable : ${String(error).slice(0, 220)}`
+      // Apify prend le relais si Oxylabs n'est pas connecté ou ne renvoie pas les variantes.
+    }
+
+    try {
       const apifyProduct = await scrapeAliExpressProductWithApify(url)
 
       if (
@@ -408,9 +440,9 @@ async function scrapeSupplierProduct(url: string): Promise<SupplierProduct> {
             `Apify OK : ${apifyProduct.variants.length} variante(s) reçue(s).`,
         }
       }
-      connectorNote = "Apify a répondu, mais sans produit exploitable."
+      connectorNote = `${connectorNote} | Apify a répondu, mais sans produit exploitable.`
     } catch (error) {
-      connectorNote = `Apify non exploitable : ${String(error).slice(0, 240)}`
+      connectorNote = `${connectorNote} | Apify non exploitable : ${String(error).slice(0, 240)}`
       // L'ancien parseur HTML prend le relais si l'acteur choisi échoue.
     }
   }
