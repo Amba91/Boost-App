@@ -239,3 +239,46 @@ export async function POST(request: Request) {
     )
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    await ensureExtensionTables()
+    const body = await request.json().catch(() => ({}))
+    const sourceUrl = normalizeUrl(body.source_url)
+
+    if (!sourceUrl) {
+      return NextResponse.json(
+        { success: false, error: "Lien fournisseur manquant." },
+        { status: 400 }
+      )
+    }
+
+    const product = await sql`
+      SELECT id
+      FROM supplier_products
+      WHERE shop = ${SHOP} AND source_url = ${sourceUrl}
+      LIMIT 1
+    `
+
+    const supplierProductId = product.rows[0]?.id
+
+    if (supplierProductId) {
+      await sql`
+        DELETE FROM supplier_product_variants
+        WHERE shop = ${SHOP} AND supplier_product_id = ${supplierProductId}
+      `
+
+      await sql`
+        DELETE FROM supplier_products
+        WHERE shop = ${SHOP} AND id = ${supplierProductId}
+      `
+    }
+
+    return NextResponse.json({ success: true, deleted: Boolean(supplierProductId) })
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: String(error) },
+      { status: 500 }
+    )
+  }
+}
