@@ -80,17 +80,18 @@ function canonicalAliExpressUrl(productUrl: string) {
 function getActorInput(productUrl: string) {
   const template = process.env.APIFY_ALIEXPRESS_PRODUCT_INPUT_JSON
   const canonicalUrl = canonicalAliExpressUrl(productUrl)
+  const urls = canonicalUrl === productUrl ? [canonicalUrl] : [productUrl, canonicalUrl]
 
   if (template) {
     try {
-      return JSON.parse(template.replaceAll("{url}", canonicalUrl))
+      return JSON.parse(template.replaceAll("{url}", productUrl).replaceAll("{canonicalUrl}", canonicalUrl))
     } catch {
       // Fallback below keeps Boost usable if the template is malformed.
     }
   }
 
   return {
-    urls: [canonicalUrl],
+    urls,
     maxItems: 100,
   }
 }
