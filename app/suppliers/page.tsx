@@ -104,6 +104,7 @@ export default function SuppliersPage() {
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [supplierPreviewBlocked, setSupplierPreviewBlocked] = useState(false)
+  const [supplierConnectorNote, setSupplierConnectorNote] = useState("")
   const [supplierVariantDrafts, setSupplierVariantDrafts] = useState<Record<string, SupplierVariantDraft>>({})
   const [supplierVariants, setSupplierVariants] = useState<SupplierVariantOption[]>([
     {
@@ -366,6 +367,7 @@ export default function SuppliersPage() {
     setSaving(true)
     setMessage("")
     setSupplierPreviewBlocked(false)
+    setSupplierConnectorNote("")
     try {
       const res = await fetch("/api/suppliers/preview", {
         method: "POST",
@@ -374,6 +376,7 @@ export default function SuppliersPage() {
       })
       const data = await res.json()
       if (data.success) {
+        setSupplierConnectorNote(String(data.connector_note || ""))
         setSupplierTitle(data.product?.title || supplierTitle)
         setSupplierName(data.product?.supplier_name || supplierName)
         if (Array.isArray(data.variants) && data.variants.length > 0) {
@@ -648,6 +651,7 @@ export default function SuppliersPage() {
               ne peut pas afficher les photos/couleurs. Il faudra choisir un
               acteur Apify AliExpress produit compatible avec les variantes.
             </span>
+            {supplierConnectorNote && <code style={styles.inlineCode}>{supplierConnectorNote}</code>}
           </div>
         )}
 
@@ -1162,6 +1166,16 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 18,
     background: "rgba(245, 158, 11, .08)",
     color: "#fde68a",
+  },
+  inlineCode: {
+    display: "block",
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 12,
+    background: "rgba(15, 23, 42, .8)",
+    color: "#e2e8f0",
+    whiteSpace: "pre-wrap",
+    fontSize: 12,
   },
   variantTable: {
     display: "grid",

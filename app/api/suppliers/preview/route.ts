@@ -15,6 +15,7 @@ type SupplierProduct = {
   currency: string
   supplier_name: string
   variants: SupplierVariant[]
+  connector_note?: string
 }
 
 type SupplierVariant = {
@@ -377,6 +378,7 @@ function extractPrice(html: string) {
 
 async function scrapeSupplierProduct(url: string): Promise<SupplierProduct> {
   const source = getSource(url)
+  let connectorNote = ""
 
   if (source === "aliexpress") {
     try {
@@ -399,9 +401,12 @@ async function scrapeSupplierProduct(url: string): Promise<SupplierProduct> {
           currency: apifyProduct.currency,
           supplier_name: apifyProduct.supplier_name,
           variants: apifyProduct.variants,
+          connector_note: `Apify OK : ${apifyProduct.variants.length} variante(s) reçue(s).`,
         }
       }
-    } catch {
+      connectorNote = "Apify a répondu, mais sans produit exploitable."
+    } catch (error) {
+      connectorNote = `Apify non exploitable : ${String(error).slice(0, 240)}`
       // L'ancien parseur HTML prend le relais si l'acteur choisi échoue.
     }
   }
@@ -423,6 +428,7 @@ async function scrapeSupplierProduct(url: string): Promise<SupplierProduct> {
       currency: "EUR",
       supplier_name: source === "aliexpress" ? "AliExpress" : "Fournisseur",
       variants: [],
+      connector_note: connectorNote || "Lecture HTML bloquée par le fournisseur.",
     }
   }
 
@@ -446,6 +452,11 @@ async function scrapeSupplierProduct(url: string): Promise<SupplierProduct> {
     currency: getMeta(html, "product:price:currency") || "EUR",
     supplier_name: source === "aliexpress" ? "AliExpress" : "Fournisseur",
     variants,
+    connector_note:
+      connectorNote ||
+      (variants.length > 0
+        ? `HTML OK : ${variants.length} variante(s) détectée(s).`
+        : "Aucune variante détectée par Apify ni par la lecture HTML."),
   }
 }
 
@@ -511,6 +522,7 @@ export async function POST(request: Request) {
       success: true,
       product: result.rows[0],
       variants: product.variants,
+      connector_note: product.connector_note || "",
       next_step:
         "Prévisualisation enregistrée. La création Shopify sera branchée à l’étape suivante.",
     })

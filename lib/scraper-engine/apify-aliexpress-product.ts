@@ -99,7 +99,13 @@ async function runActor(productUrl: string) {
   const token = getApifyToken()
   const actorId = getActorId()
 
-  if (!token || !actorId) return null
+  if (!token) {
+    throw new Error("APIFY_TOKEN manquant dans Vercel.")
+  }
+
+  if (!actorId) {
+    throw new Error("Acteur Apify AliExpress produit manquant.")
+  }
 
   const response = await fetch(
     `https://api.apify.com/v2/actors/${actorId}/runs?token=${token}`,
