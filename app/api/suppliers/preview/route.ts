@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
 import { scrapeAliExpressProductWithApify } from "../../../../lib/scraper-engine/apify-aliexpress-product"
 
+export const maxDuration = 300
+
 const SHOP = "hy4nf1-dt.myshopify.com"
 
 type SupplierProduct = {

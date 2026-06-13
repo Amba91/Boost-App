@@ -184,7 +184,7 @@ async function runActor(productUrl: string, actorId: string) {
 async function waitForRun(runId: string) {
   const token = getApifyToken()
 
-  for (let attempt = 0; attempt < 36; attempt++) {
+  for (let attempt = 0; attempt < 96; attempt++) {
     const response = await fetch(
       `https://api.apify.com/v2/actor-runs/${runId}?token=${token}`,
       { cache: "no-store" }
