@@ -160,7 +160,7 @@ export default function SuppliersPage() {
 
   const readyVariantCount = selectedVariants.filter((variant, index) => {
     const draft = supplierVariantDrafts[variant.shopify_variant_id] || supplierVariants[index]
-    return Boolean(draft.supplier_variant_label || draft.supplier_color || draft.supplier_sku)
+    return Boolean(draft?.supplier_variant_label || draft?.supplier_color || draft?.supplier_sku)
   }).length
 
   const pendingSupplierOrders = supplierOrders.filter((order) =>

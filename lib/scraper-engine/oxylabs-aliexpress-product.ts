@@ -368,12 +368,12 @@ export async function scrapeAliExpressProductWithOxylabs(productUrl: string) {
       Authorization: `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`,
     },
     body: JSON.stringify({
-      source: process.env.OXYLABS_ALIEXPRESS_SOURCE || "universal",
+      source: process.env.OXYLABS_ALIEXPRESS_SOURCE || "aliexpress",
       url: canonicalAliExpressUrl(productUrl),
       geo_location: process.env.OXYLABS_GEO_LOCATION || "France",
       user_agent_type: "desktop",
       render: "html",
-      parse: false,
+      parse: true,
     }),
   })
 
