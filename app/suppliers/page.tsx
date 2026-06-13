@@ -603,6 +603,42 @@ export default function SuppliersPage() {
     }
   }
 
+  async function fastImportSupplier() {
+    if (!selectedProductId || !supplierUrl.trim()) {
+      setMessage("Choisis un produit Shopify et colle le lien fournisseur.")
+      return
+    }
+
+    setSaving(true)
+    setMessage("")
+    try {
+      const res = await fetch("/api/suppliers/fast-import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_id: selectedProductId,
+          supplier_url: supplierUrl,
+          supplier_title: supplierTitle,
+          supplier_name: supplierName,
+          supplier_message: supplierMessageText,
+        }),
+      })
+      const data = await res.json()
+      if (!data.success) {
+        setMessage(data.error || "Import express impossible.")
+        return
+      }
+
+      autoLinkSupplierVariants()
+      setMessage(`${data.message} ${data.variants_created || 0} variante(s) préparée(s).`)
+      await loadData()
+    } catch {
+      setMessage("Import express impossible.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function saveMapping() {
     setSaving(true)
     setMessage("")
@@ -742,11 +778,11 @@ export default function SuppliersPage() {
             onChange={(event) => setSupplierUrl(event.target.value)}
           />
           <div style={styles.connectorBox}>
-            <strong>Mode recommandé : connecteur produit AliExpress</strong>
+            <strong>Mode recommandé : Import express</strong>
             <span>
-              Boost passe maintenant par Apify quand le connecteur est configuré.
-              Objectif : récupérer titre, images, prix et variantes réelles pour
-              faire un mapping visuel comme DSers.
+              Pour aller vite, Boost enregistre le lien fournisseur tout de
+              suite et prépare le mapping avec les variantes Shopify. Tu
+              corriges ensuite seulement les variantes fournisseur qui changent.
             </span>
           </div>
           <input
@@ -761,8 +797,11 @@ export default function SuppliersPage() {
             value={supplierTitle}
             onChange={(event) => setSupplierTitle(event.target.value)}
           />
+          <button onClick={fastImportSupplier} disabled={saving} style={styles.greenButton}>
+            {saving ? "Import..." : "Import express + mapping automatique"}
+          </button>
           <button onClick={previewSupplier} disabled={saving} style={styles.secondaryButton}>
-            Tester / enregistrer le lien
+            Import détaillé AliExpress si disponible
           </button>
         </div>
 
@@ -934,9 +973,9 @@ export default function SuppliersPage() {
         <div style={styles.helpBox}>
           <strong>Le fonctionnement simple :</strong>
           <span>1. Choisis ton produit Shopify.</span>
-          <span>2. Colle le lien AliExpress.</span>
-          <span>3. Boost récupère les variantes AliExpress avec leurs images quand elles sont accessibles.</span>
-          <span>4. Tu sélectionnes la bonne variante fournisseur pour chaque variante Shopify.</span>
+          <span>2. Colle le lien AliExpress ou fournisseur.</span>
+          <span>3. Clique sur Import express pour préparer le mapping en quelques secondes.</span>
+          <span>4. Vérifie seulement les variantes qui ne correspondent pas.</span>
         </div>
 
         {supplierPreviewBlocked && (
@@ -1328,6 +1367,17 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "15px 20px",
     marginTop: 12,
     background: "#7c3aed",
+    color: "white",
+    fontWeight: 900,
+    cursor: "pointer",
+  },
+  greenButton: {
+    width: "100%",
+    border: 0,
+    borderRadius: 14,
+    padding: "15px 20px",
+    marginTop: 12,
+    background: "#16a34a",
     color: "white",
     fontWeight: 900,
     cursor: "pointer",
