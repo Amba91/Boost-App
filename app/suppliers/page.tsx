@@ -101,6 +101,8 @@ type SupplierVariantOption = SupplierVariantDraft & {
   id: string
 }
 
+type SupplierVariantSource = "none" | "aliexpress" | "shopify_fallback" | "manual"
+
 const mappingLabels: Record<string, string> = {
   standard: "Produit simple",
   backup: "Fournisseur de secours",
@@ -135,20 +137,9 @@ export default function SuppliersPage() {
   const [supplierPreviewBlocked, setSupplierPreviewBlocked] = useState(false)
   const [supplierConnectorNote, setSupplierConnectorNote] = useState("")
   const [showAdvancedMapping, setShowAdvancedMapping] = useState(false)
+  const [supplierVariantSource, setSupplierVariantSource] = useState<SupplierVariantSource>("none")
   const [supplierVariantDrafts, setSupplierVariantDrafts] = useState<Record<string, SupplierVariantDraft>>({})
-  const [supplierVariants, setSupplierVariants] = useState<SupplierVariantOption[]>([
-    {
-      id: "supplier-1",
-      supplier_variant_label: "",
-      supplier_color: "",
-      supplier_size: "",
-      supplier_shape: "",
-      supplier_sku: "",
-      supplier_price: "",
-      supplier_image_url: "",
-      supplier_note: "",
-    },
-  ])
+  const [supplierVariants, setSupplierVariants] = useState<SupplierVariantOption[]>([])
   const [supplierMessageText, setSupplierMessageText] = useState(defaultSupplierMessage)
 
   const selectedProduct = useMemo(
@@ -168,7 +159,7 @@ export default function SuppliersPage() {
   ).length
 
   const readyVariantCount = selectedVariants.filter((variant, index) => {
-    const draft = supplierVariantDrafts[variant.shopify_variant_id] || supplierVariantFromShopifyVariant(variant, index)
+    const draft = supplierVariantDrafts[variant.shopify_variant_id] || supplierVariants[index]
     return Boolean(draft.supplier_variant_label || draft.supplier_color || draft.supplier_sku)
   }).length
 
@@ -263,6 +254,7 @@ export default function SuppliersPage() {
   }
 
   function addSupplierVariant() {
+    setSupplierVariantSource("manual")
     setSupplierVariants((current) => [
       ...current,
       {
@@ -361,22 +353,26 @@ export default function SuppliersPage() {
         supplierVariantFromShopifyVariant(variant, index)
       )
     )
-    setMessage("Variantes fournisseur générées automatiquement. Tu peux les modifier si AliExpress affiche un nom différent.")
+    setSupplierVariantSource("shopify_fallback")
+    setMessage("Mode secours activé : variantes copiées depuis Shopify. Ce ne sont pas des variantes AliExpress réelles.")
   }
 
   function autoLinkSupplierVariants() {
     if (selectedVariants.length === 0) return
+    if (supplierVariants.length === 0) {
+      setMessage("Aucune vraie variante fournisseur à relier. Lance d'abord l'import détaillé AliExpress.")
+      return
+    }
 
     const variantsToUse =
       supplierVariants.some((variant) => supplierVariantName(variant) !== "Variante fournisseur")
         ? supplierVariants
-        : selectedVariants.map((variant, index) =>
-            supplierVariantFromShopifyVariant(variant, index)
-          )
+        : supplierVariants
 
     const nextDrafts: Record<string, SupplierVariantDraft> = {}
     selectedVariants.forEach((variant, index) => {
-      const supplierVariant = variantsToUse[index] || supplierVariantFromShopifyVariant(variant, index)
+      const supplierVariant = variantsToUse[index]
+      if (!supplierVariant) return
       nextDrafts[variant.shopify_variant_id] = {
         supplier_variant_label: supplierVariant.supplier_variant_label,
         supplier_color: supplierVariant.supplier_color,
@@ -391,7 +387,11 @@ export default function SuppliersPage() {
 
     setSupplierVariants(variantsToUse)
     setSupplierVariantDrafts(nextDrafts)
-    setMessage("Variantes reliées automatiquement. Vérifie seulement les exceptions, puis enregistre.")
+    setMessage(
+      supplierVariantSource === "shopify_fallback"
+        ? "Mode secours relié. Attention : ce sont les variantes Shopify, pas les vraies variantes AliExpress."
+        : "Variantes AliExpress reliées automatiquement. Vérifie seulement les exceptions, puis enregistre."
+    )
   }
 
   async function loadData() {
@@ -587,16 +587,20 @@ export default function SuppliersPage() {
             }))
           )
           setSupplierVariantDrafts({})
+          setSupplierVariantSource("aliexpress")
           setSupplierPreviewBlocked(false)
         } else {
+          setSupplierVariants([])
+          setSupplierVariantDrafts({})
+          setSupplierVariantSource("none")
           setSupplierPreviewBlocked(true)
         }
         setMessage(
           data.variants?.length
-            ? `${data.variants.length} variante(s) AliExpress récupérée(s) avec images.`
+            ? `${data.variants.length} vraie(s) variante(s) AliExpress récupérée(s) avec images.`
             : data.product?.image_urls?.length
-              ? "Fiche fournisseur récupérée."
-            : "Lien enregistré, mais AliExpress n'a pas laissé Boost lire les variantes automatiquement pour ce lien."
+              ? "Fiche fournisseur récupérée, mais aucune vraie variante AliExpress n'a été retournée."
+              : "Lien enregistré, mais AliExpress n'a pas laissé Boost lire les variantes automatiquement pour ce lien."
         )
         await loadData()
       } else {
@@ -635,8 +639,28 @@ export default function SuppliersPage() {
         return
       }
 
-      autoLinkSupplierVariants()
-      setMessage(`${data.message} ${data.variants_created || 0} variante(s) préparée(s).`)
+      const fallbackVariants = selectedVariants.map((variant, index) =>
+        supplierVariantFromShopifyVariant(variant, index)
+      )
+      const nextDrafts: Record<string, SupplierVariantDraft> = {}
+      selectedVariants.forEach((variant, index) => {
+        const supplierVariant = fallbackVariants[index]
+        if (!supplierVariant) return
+        nextDrafts[variant.shopify_variant_id] = {
+          supplier_variant_label: supplierVariant.supplier_variant_label,
+          supplier_color: supplierVariant.supplier_color,
+          supplier_size: supplierVariant.supplier_size,
+          supplier_shape: supplierVariant.supplier_shape,
+          supplier_sku: supplierVariant.supplier_sku,
+          supplier_price: supplierVariant.supplier_price,
+          supplier_image_url: supplierVariant.supplier_image_url,
+          supplier_note: supplierVariant.supplier_note,
+        }
+      })
+      setSupplierVariants(fallbackVariants)
+      setSupplierVariantDrafts(nextDrafts)
+      setSupplierVariantSource("shopify_fallback")
+      setMessage(`${data.message} Attention : ces variantes viennent de Shopify, pas d'AliExpress.`)
       await loadData()
     } catch {
       setMessage("Import express impossible.")
@@ -681,19 +705,8 @@ export default function SuppliersPage() {
       setVariantLabel("")
       setNotes("")
       setSupplierVariantDrafts({})
-      setSupplierVariants([
-        {
-          id: "supplier-1",
-          supplier_variant_label: "",
-          supplier_color: "",
-          supplier_size: "",
-          supplier_shape: "",
-          supplier_sku: "",
-          supplier_price: "",
-          supplier_image_url: "",
-          supplier_note: "",
-        },
-      ])
+      setSupplierVariants([])
+      setSupplierVariantSource("none")
       await loadData()
     } catch {
       setMessage("Mapping impossible.")
@@ -707,15 +720,12 @@ export default function SuppliersPage() {
   }, [])
 
   useEffect(() => {
-    if (selectedVariants.length === 0) return
-
-    setSupplierVariants(
-      selectedVariants.map((variant, index) =>
-        supplierVariantFromShopifyVariant(variant, index)
-      )
-    )
+    setSupplierVariants([])
     setSupplierVariantDrafts({})
-  }, [selectedProductId, shopifyVariants])
+    setSupplierVariantSource("none")
+    setSupplierPreviewBlocked(false)
+    setSupplierConnectorNote("")
+  }, [selectedProductId])
 
   return (
     <main style={styles.main}>
@@ -850,11 +860,19 @@ export default function SuppliersPage() {
         <div style={styles.sectionHeader}>
           <div>
             <span style={styles.eyebrow}>Mapping simple</span>
-            <h2>Relier les variantes en 2 minutes</h2>
+            <h2>
+              {supplierVariantSource === "aliexpress"
+                ? "Vraies variantes AliExpress récupérées"
+                : supplierVariantSource === "shopify_fallback"
+                  ? "Mode secours Shopify"
+                  : "En attente des variantes AliExpress"}
+            </h2>
             <p style={styles.muted}>
-              Boost prépare automatiquement une correspondance pour chaque
-              variante Shopify. Tu vérifies seulement les lignes qui ne sont
-              pas bonnes, puis tu enregistres.
+              {supplierVariantSource === "aliexpress"
+                ? "Ces variantes viennent du connecteur AliExpress. Tu peux les relier à tes variantes Shopify."
+                : supplierVariantSource === "shopify_fallback"
+                  ? "Ces variantes viennent de Shopify. Elles servent uniquement de secours, pas d'import AliExpress réel."
+                  : "Lance l'import détaillé. Boost affichera ici les variantes seulement si elles viennent réellement du fournisseur."}
             </p>
           </div>
           <span style={styles.badge}>
@@ -870,12 +888,33 @@ export default function SuppliersPage() {
               page. Ensuite Boost pourra préparer les variantes automatiquement.
             </p>
           </div>
+        ) : supplierVariantSource === "none" || supplierVariants.length === 0 ? (
+          <div style={styles.warningBox}>
+            <strong>Aucune vraie variante AliExpress récupérée.</strong>
+            <p>
+              Pour ce lien, le connecteur actuel n'a retourné aucune variante
+              fournisseur. Boost ne remplace plus ça par les variantes Shopify :
+              il faut connecter un fournisseur de scraping plus fiable
+              comme Oxylabs, puis relancer l'import détaillé.
+            </p>
+            {supplierConnectorNote && <code style={styles.inlineCode}>{supplierConnectorNote}</code>}
+          </div>
         ) : (
           <div style={styles.simpleMappingGrid}>
             {selectedVariants.map((variant, index) => {
               const draft =
                 supplierVariantDrafts[variant.shopify_variant_id] ||
-                supplierVariantFromShopifyVariant(variant, index)
+                supplierVariants[index] ||
+                {
+                  supplier_variant_label: "",
+                  supplier_color: "",
+                  supplier_size: "",
+                  supplier_shape: "",
+                  supplier_sku: "",
+                  supplier_price: "",
+                  supplier_image_url: "",
+                  supplier_note: "",
+                }
 
               return (
                 <article key={variant.shopify_variant_id} style={styles.simpleMappingCard}>
@@ -911,7 +950,13 @@ export default function SuppliersPage() {
                       <div>
                         <strong>{draft.supplier_variant_label || optionsLabel(variant)}</strong>
                         <p style={styles.muted}>
-                          {draft.supplier_sku ? `SKU : ${draft.supplier_sku}` : "Préparé automatiquement"}
+                          {supplierVariantSource === "aliexpress"
+                            ? draft.supplier_sku
+                              ? `SKU AliExpress : ${draft.supplier_sku}`
+                              : "Variante AliExpress"
+                            : draft.supplier_sku
+                              ? `SKU Shopify : ${draft.supplier_sku}`
+                              : "Secours Shopify"}
                         </p>
                       </div>
                     </div>
@@ -942,17 +987,21 @@ export default function SuppliersPage() {
         )}
 
         <div style={styles.actionRow}>
-          <button onClick={autoLinkSupplierVariants} style={styles.greenSmallButton}>
-            Refaire le lien automatique
-          </button>
+          {supplierVariantSource !== "none" && supplierVariants.length > 0 && (
+            <button onClick={autoLinkSupplierVariants} style={styles.greenSmallButton}>
+              Refaire le lien automatique
+            </button>
+          )}
           <button onClick={() => setShowAdvancedMapping((value) => !value)} style={styles.smallButton}>
             {showAdvancedMapping ? "Masquer les réglages avancés" : "Afficher les réglages avancés"}
           </button>
         </div>
 
-        <button onClick={saveMapping} disabled={saving} style={styles.button}>
-          {saving ? "Enregistrement..." : "Valider ce mapping fournisseur"}
-        </button>
+        {supplierVariantSource !== "none" && supplierVariants.length > 0 && (
+          <button onClick={saveMapping} disabled={saving} style={styles.button}>
+            {saving ? "Enregistrement..." : "Valider ce mapping fournisseur"}
+          </button>
+        )}
       </section>
 
       {showAdvancedMapping && (
