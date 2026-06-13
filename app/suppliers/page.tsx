@@ -134,6 +134,7 @@ export default function SuppliersPage() {
   const [orderMappingSelections, setOrderMappingSelections] = useState<Record<number, string>>({})
   const [supplierPreviewBlocked, setSupplierPreviewBlocked] = useState(false)
   const [supplierConnectorNote, setSupplierConnectorNote] = useState("")
+  const [showAdvancedMapping, setShowAdvancedMapping] = useState(false)
   const [supplierVariantDrafts, setSupplierVariantDrafts] = useState<Record<string, SupplierVariantDraft>>({})
   const [supplierVariants, setSupplierVariants] = useState<SupplierVariantOption[]>([
     {
@@ -165,6 +166,11 @@ export default function SuppliersPage() {
   const mappedVariantCount = savedVariantMappings.filter(
     (mapping) => String(mapping.product_db_id) === selectedProductId
   ).length
+
+  const readyVariantCount = selectedVariants.filter((variant, index) => {
+    const draft = supplierVariantDrafts[variant.shopify_variant_id] || supplierVariantFromShopifyVariant(variant, index)
+    return Boolean(draft.supplier_variant_label || draft.supplier_color || draft.supplier_sku)
+  }).length
 
   const pendingSupplierOrders = supplierOrders.filter((order) =>
     ["pending", "needs_mapping"].includes(order.status)
@@ -839,6 +845,117 @@ export default function SuppliersPage() {
 
       {message && <p style={styles.message}>{message}</p>}
 
+      <section style={styles.expressCard}>
+        <div style={styles.sectionHeader}>
+          <div>
+            <span style={styles.eyebrow}>Mapping simple</span>
+            <h2>Relier les variantes en 2 minutes</h2>
+            <p style={styles.muted}>
+              Boost prépare automatiquement une correspondance pour chaque
+              variante Shopify. Tu vérifies seulement les lignes qui ne sont
+              pas bonnes, puis tu enregistres.
+            </p>
+          </div>
+          <span style={styles.badge}>
+            {readyVariantCount}/{selectedVariants.length || 0} prête(s)
+          </span>
+        </div>
+
+        {selectedVariants.length === 0 ? (
+          <div style={styles.warningBox}>
+            <strong>Aucune variante Shopify trouvée.</strong>
+            <p>
+              Clique sur “Synchroniser les produits Shopify” en haut de la
+              page. Ensuite Boost pourra préparer les variantes automatiquement.
+            </p>
+          </div>
+        ) : (
+          <div style={styles.simpleMappingGrid}>
+            {selectedVariants.map((variant, index) => {
+              const draft =
+                supplierVariantDrafts[variant.shopify_variant_id] ||
+                supplierVariantFromShopifyVariant(variant, index)
+
+              return (
+                <article key={variant.shopify_variant_id} style={styles.simpleMappingCard}>
+                  <div style={styles.simpleMappingSide}>
+                    <span style={styles.sideLabel}>Ta boutique</span>
+                    <div style={styles.shopifyVariant}>
+                      {variant.image_url ? (
+                        <img src={variant.image_url} alt={variant.variant_title} style={styles.variantImage} />
+                      ) : (
+                        <div style={styles.variantImageEmpty}>Var.</div>
+                      )}
+                      <div>
+                        <strong>{optionsLabel(variant)}</strong>
+                        <p style={styles.muted}>SKU : {variant.sku || "N/A"} · Prix : {variant.price || "N/A"}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={styles.arrowBox}>→</div>
+
+                  <div style={styles.simpleMappingSide}>
+                    <span style={styles.sideLabel}>Fournisseur utilisé</span>
+                    <div style={styles.linkedSupplierPreview}>
+                      {draft.supplier_image_url ? (
+                        <img
+                          src={draft.supplier_image_url}
+                          alt={draft.supplier_variant_label}
+                          style={styles.linkedSupplierImage}
+                        />
+                      ) : (
+                        <div style={styles.linkedSupplierImageEmpty}>Ali</div>
+                      )}
+                      <div>
+                        <strong>{draft.supplier_variant_label || optionsLabel(variant)}</strong>
+                        <p style={styles.muted}>
+                          {draft.supplier_sku ? `SKU : ${draft.supplier_sku}` : "Préparé automatiquement"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <select
+                      style={styles.compactInput}
+                      value={
+                        supplierVariants.find((supplierVariant) =>
+                          supplierVariantName(supplierVariant) === draft.supplier_variant_label
+                        )?.id || ""
+                      }
+                      onChange={(event) =>
+                        applySupplierVariant(variant.shopify_variant_id, event.target.value)
+                      }
+                    >
+                      <option value="">Changer la variante fournisseur</option>
+                      {supplierVariants.map((supplierVariant) => (
+                        <option key={supplierVariant.id} value={supplierVariant.id}>
+                          {supplierVariantName(supplierVariant)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        )}
+
+        <div style={styles.actionRow}>
+          <button onClick={autoLinkSupplierVariants} style={styles.greenSmallButton}>
+            Refaire le lien automatique
+          </button>
+          <button onClick={() => setShowAdvancedMapping((value) => !value)} style={styles.smallButton}>
+            {showAdvancedMapping ? "Masquer les réglages avancés" : "Afficher les réglages avancés"}
+          </button>
+        </div>
+
+        <button onClick={saveMapping} disabled={saving} style={styles.button}>
+          {saving ? "Enregistrement..." : "Valider ce mapping fournisseur"}
+        </button>
+      </section>
+
+      {showAdvancedMapping && (
+        <>
       <section style={styles.cardWide}>
         <div style={styles.sectionHeader}>
           <div>
@@ -1217,6 +1334,8 @@ export default function SuppliersPage() {
           {saving ? "Enregistrement..." : "Enregistrer le produit et ses variantes"}
         </button>
       </section>
+        </>
+      )}
 
       <section style={styles.cardWide}>
         <div style={styles.sectionHeader}>
@@ -1334,6 +1453,15 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 24,
     background: "#111827",
     border: "1px solid #1f2937",
+  },
+  expressCard: {
+    maxWidth: 1380,
+    marginTop: 22,
+    padding: 24,
+    borderRadius: 28,
+    background: "linear-gradient(135deg, rgba(22, 163, 74, .14), rgba(30, 27, 75, .9))",
+    border: "1px solid rgba(74, 222, 128, .45)",
+    boxShadow: "0 18px 50px rgba(0, 0, 0, .22)",
   },
   sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 },
   badge: { borderRadius: 999, padding: "8px 11px", background: "#172554", color: "#bfdbfe", fontSize: 12, fontWeight: 900 },
@@ -1642,6 +1770,44 @@ const styles: Record<string, React.CSSProperties> = {
   variantInputs: {
     display: "grid",
     gap: 8,
+  },
+  simpleMappingGrid: {
+    display: "grid",
+    gap: 12,
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  simpleMappingCard: {
+    display: "grid",
+    gridTemplateColumns: "minmax(260px, 1fr) 54px minmax(300px, 1.15fr)",
+    gap: 14,
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 20,
+    background: "rgba(2, 6, 23, .82)",
+    border: "1px solid rgba(148, 163, 184, .18)",
+  },
+  simpleMappingSide: {
+    display: "grid",
+    gap: 8,
+  },
+  sideLabel: {
+    color: "#a78bfa",
+    fontSize: 11,
+    fontWeight: 900,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  arrowBox: {
+    display: "grid",
+    placeItems: "center",
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    background: "rgba(22, 163, 74, .2)",
+    color: "#bbf7d0",
+    fontWeight: 900,
+    fontSize: 22,
   },
   linkedSupplierPreview: {
     display: "grid",
