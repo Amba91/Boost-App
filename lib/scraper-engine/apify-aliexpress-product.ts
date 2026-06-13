@@ -183,8 +183,9 @@ async function runActor(productUrl: string, actorId: string) {
 
 async function waitForRun(runId: string) {
   const token = getApifyToken()
+  const maxAttempts = Number(process.env.APIFY_ALIEXPRESS_MAX_WAIT_ATTEMPTS || 10)
 
-  for (let attempt = 0; attempt < 96; attempt++) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const response = await fetch(
       `https://api.apify.com/v2/actor-runs/${runId}?token=${token}`,
       { cache: "no-store" }
@@ -202,7 +203,7 @@ async function waitForRun(runId: string) {
     await new Promise((resolve) => setTimeout(resolve, 2500))
   }
 
-  throw new Error("Le connecteur produit AliExpress prend trop de temps.")
+  throw new Error("Le connecteur produit AliExpress prend trop de temps pour un import instantané.")
 }
 
 async function readDatasetItems(datasetId: string) {
