@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { sql } from "@vercel/postgres"
 
+const SHOP = "kiidiiz.com"
+
 type ExtensionReview = {
   author?: string
   name?: string
@@ -109,7 +111,7 @@ export async function POST(request: Request) {
         updated_at
       )
       VALUES (
-        'kiidiiz.com',
+        ${SHOP},
         ${normalizeUrl(body.source_url)},
         ${cleanText(body.product_title, 260)},
         ${JSON.stringify(reviews)}::jsonb,
@@ -204,6 +206,7 @@ export async function PATCH(request: Request) {
     for (const review of reviews) {
       await sql`
         INSERT INTO product_reviews (
+          shop,
           product_handle,
           customer_first_name,
           customer_last_name,
@@ -215,9 +218,11 @@ export async function PATCH(request: Request) {
           verified_parent,
           verified_purchase,
           visible,
+          source,
           created_at
         )
         VALUES (
+          ${batch.shop || SHOP},
           ${productHandle},
           ${review.customer_first_name || "Client"},
           ${review.customer_last_name || ""},
@@ -229,6 +234,7 @@ export async function PATCH(request: Request) {
           true,
           true,
           true,
+          'aliexpress_extension',
           ${review.created_at || new Date().toISOString()}
         )
       `
