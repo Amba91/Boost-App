@@ -1,18 +1,53 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
+import { sql } from "@vercel/postgres"
 import { shopifyGraphQL } from "@/lib/shopify"
 
-export async function GET() {
+async function getShopConnectionFromCookies() {
   const cookieStore = await cookies()
 
   const shop = cookieStore.get("boost_shop")?.value
   const token = cookieStore.get("boost_token")?.value
 
-  if (!shop || !token) {
+  if (shop && token) {
+    return { shop, token }
+  }
+
+  return null
+}
+
+async function getShopConnectionFromDatabase() {
+  const result = await sql`
+    SELECT shop, access_token
+    FROM shop_connections
+    ORDER BY updated_at DESC
+    LIMIT 1
+  `
+
+  const connection = result.rows[0]
+
+  if (!connection?.shop || !connection?.access_token) {
+    return null
+  }
+
+  return {
+    shop: connection.shop as string,
+    token: connection.access_token as string,
+  }
+}
+
+export async function GET() {
+  const connection =
+    (await getShopConnectionFromCookies()) ||
+    (await getShopConnectionFromDatabase())
+
+  if (!connection) {
     return NextResponse.json({
       connected: false,
     })
   }
+
+  const { shop, token } = connection
 
   const query = `
     {
