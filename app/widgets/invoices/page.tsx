@@ -16,6 +16,7 @@ type InvoiceTotals = {
 
 type InvoicePreviewProps = {
   accentColor: string
+  logoUrl: string
   brandName: string
   companyName: string
   legalForm: string
@@ -82,6 +83,9 @@ export default function InvoicesPage() {
   const [template, setTemplate] = useState("modern")
   const [accentColor, setAccentColor] = useState("#7c3aed")
   const [fontFamily, setFontFamily] = useState("Inter / Arial")
+  const [logoUrl, setLogoUrl] = useState("")
+  const [syncingShopify, setSyncingShopify] = useState(false)
+  const [shopifyStatus, setShopifyStatus] = useState("Les informations peuvent être récupérées depuis Shopify.")
   const [brandName, setBrandName] = useState("Kiidiiz")
   const [companyName, setCompanyName] = useState("Kiidiiz")
   const [legalForm, setLegalForm] = useState("SAS")
@@ -154,6 +158,43 @@ export default function InvoicesPage() {
 
   function printInvoice() {
     window.print()
+  }
+
+  async function syncFromShopify() {
+    setSyncingShopify(true)
+    setShopifyStatus("Connexion à Shopify...")
+
+    try {
+      const res = await fetch("/api/shopify/store")
+      const data = await res.json()
+
+      if (!data.connected || !data.invoice_profile) {
+        setShopifyStatus("Shopify n'est pas connecté. Les champs restent modifiables à la main.")
+        return
+      }
+
+      const profile = data.invoice_profile
+
+      setLogoUrl(profile.logo_url || "")
+      setBrandName(profile.brand_name || brandName)
+      setCompanyName(profile.company_name || profile.brand_name || companyName)
+      setSellerAddress(profile.address || sellerAddress)
+      setSellerZip(profile.zip || sellerZip)
+      setSellerCity(profile.city || sellerCity)
+      setSellerCountry(profile.country || sellerCountry)
+      setSellerPhone(profile.phone || sellerPhone)
+      setSellerEmail(profile.email || sellerEmail)
+      setSellerWebsite(profile.website || sellerWebsite)
+      setShopifyStatus(
+        profile.logo_url
+          ? "Infos Shopify récupérées, logo inclus. Tu peux tout modifier ou supprimer."
+          : "Infos Shopify récupérées. Aucun logo boutique n'a été trouvé, tu peux coller une URL de logo."
+      )
+    } catch {
+      setShopifyStatus("Impossible de récupérer Shopify pour le moment. Tu peux continuer à la main.")
+    } finally {
+      setSyncingShopify(false)
+    }
   }
 
   useEffect(() => {
@@ -242,6 +283,15 @@ export default function InvoicesPage() {
           {section === "identity" && (
             <>
               <h2>Informations vendeur</h2>
+              <div style={styles.syncBox}>
+                <div>
+                  <strong>Préremplir depuis Shopify</strong>
+                  <p>{shopifyStatus}</p>
+                </div>
+                <button onClick={syncFromShopify} disabled={syncingShopify} style={styles.syncButton}>
+                  {syncingShopify ? "Récupération..." : "Récupérer"}
+                </button>
+              </div>
               <div style={styles.twoColumns}>
                 <Field label="Nom boutique" value={brandName} onChange={setBrandName} />
                 <Field label="Nom société" value={companyName} onChange={setCompanyName} />
@@ -281,6 +331,25 @@ export default function InvoicesPage() {
           {section === "template" && (
             <>
               <h2>Templates</h2>
+              <label style={styles.label}>
+                Logo de la boutique
+                <input
+                  value={logoUrl}
+                  onChange={(event) => setLogoUrl(event.target.value)}
+                  placeholder="URL du logo Shopify ou logo personnalisé"
+                  style={styles.input}
+                />
+              </label>
+              <div style={styles.logoTools}>
+                {logoUrl ? (
+                  <img src={logoUrl} alt="Logo boutique" style={styles.logoPreview} />
+                ) : (
+                  <div style={styles.logoPreviewEmpty}>Aucun logo</div>
+                )}
+                <button onClick={() => setLogoUrl("")} style={styles.smallButton}>
+                  Supprimer le logo de la facture
+                </button>
+              </div>
               <div style={styles.templateGrid}>
                 {templates.map((item) => (
                   <button
@@ -351,6 +420,7 @@ export default function InvoicesPage() {
 
         <InvoicePreview
           accentColor={accentColor}
+          logoUrl={logoUrl}
           brandName={brandName}
           companyName={companyName}
           legalForm={legalForm}
@@ -418,7 +488,11 @@ function InvoicePreview(props: InvoicePreviewProps) {
       <div className="boost-invoice-a4" style={{ ...styles.invoice, ...templateStyle }}>
         <div style={styles.invoiceTop}>
           <div>
-            <div style={{ ...styles.logoBox, background: props.accentColor }}>B</div>
+            {props.logoUrl ? (
+              <img src={props.logoUrl} alt={props.brandName} style={styles.invoiceLogoImage} />
+            ) : (
+              <div style={{ ...styles.logoBox, background: props.accentColor }}>B</div>
+            )}
             <strong style={{ ...styles.invoiceBrand, color: props.template === "luxury" ? "#fbbf24" : props.accentColor }}>
               {props.brandName}
             </strong>
@@ -597,11 +671,27 @@ const styles: Record<string, React.CSSProperties> = {
   tabActive: { display: "grid", gap: 5, textAlign: "left", border: "1px solid #7c3aed", borderRadius: 18, padding: 16, background: "rgba(124, 58, 237, .24)", color: "white", cursor: "pointer" },
   grid: { display: "grid", gridTemplateColumns: "minmax(360px, 520px) minmax(760px, 1fr)", gap: 22, maxWidth: 1500 },
   panel: { padding: 24, borderRadius: 24, background: "#111827", border: "1px solid #1f2937" },
+  syncBox: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 16,
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 18,
+    border: "1px solid #16a34a",
+    background: "rgba(22, 163, 74, .12)",
+    color: "#bbf7d0",
+    marginBottom: 18,
+  },
+  syncButton: { border: 0, borderRadius: 12, padding: "12px 16px", background: "#16a34a", color: "white", fontWeight: 900, cursor: "pointer" },
   label: { display: "grid", gap: 8, marginTop: 14, color: "#cbd5e1", fontWeight: 900 },
   input: { width: "100%", boxSizing: "border-box", padding: 13, borderRadius: 12, border: "1px solid #334155", background: "#020617", color: "white", font: "inherit" },
   textarea: { width: "100%", minHeight: 110, boxSizing: "border-box", padding: 13, borderRadius: 12, border: "1px solid #334155", background: "#020617", color: "white", font: "inherit" },
   twoColumns: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
   threeColumns: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 },
+  logoTools: { display: "flex", gap: 12, alignItems: "center", margin: "12px 0 18px" },
+  logoPreview: { width: 76, height: 76, borderRadius: 16, objectFit: "contain", background: "white", padding: 8 },
+  logoPreviewEmpty: { display: "grid", placeItems: "center", width: 76, height: 76, borderRadius: 16, background: "#020617", border: "1px dashed #475569", color: "#94a3b8", fontSize: 12 },
   templateGrid: { display: "grid", gap: 10 },
   template: { display: "grid", gap: 5, textAlign: "left", border: "1px solid #334155", borderRadius: 16, padding: 14, background: "#020617", color: "white", cursor: "pointer" },
   templateActive: { display: "grid", gap: 5, textAlign: "left", border: "1px solid #a78bfa", borderRadius: 16, padding: 14, background: "rgba(124, 58, 237, .22)", color: "white", cursor: "pointer" },
@@ -616,6 +706,7 @@ const styles: Record<string, React.CSSProperties> = {
   invoice: { minWidth: 760, borderRadius: 18, padding: 30, border: "1px solid #e5e7eb", boxShadow: "0 20px 60px rgba(0,0,0,.25)" },
   invoiceTop: { display: "grid", gridTemplateColumns: "1fr 330px", gap: 22, borderBottom: "1px solid #e5e7eb", paddingBottom: 20 },
   logoBox: { display: "grid", placeItems: "center", width: 48, height: 48, borderRadius: 14, color: "white", fontWeight: 900, marginBottom: 10 },
+  invoiceLogoImage: { width: 76, maxHeight: 76, objectFit: "contain", marginBottom: 10 },
   invoiceBrand: { display: "block", fontSize: 30, fontWeight: 900 },
   invoiceMuted: { color: "#64748b", lineHeight: 1.45 },
   invoiceMeta: { display: "grid", gap: 5, textAlign: "right", color: "#475569" },
