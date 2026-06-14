@@ -16,8 +16,8 @@
       </div>
 
       <p class="muted">
-        Ouvre une fiche produit AliExpress, puis clique sur le bouton pour envoyer le titre,
-        les images et les variantes vers Boost.
+        Ouvre une fiche produit AliExpress, puis envoie la fiche ou les avis vers Boost.
+        Pour les avis, tu choisiras le produit directement dans Boost.
       </p>
 
       <label>
@@ -25,13 +25,11 @@
         <input id="boostUrl" type="url" value="https://boost-app-9e6w.vercel.app" />
       </label>
 
-      <label>
-        Handle produit pour les avis
-        <input id="productHandle" type="text" placeholder="ex: adventuretrack-circuit..." />
-      </label>
-
       <button id="sendButton">Envoyer cette fiche vers Boost</button>
-      <button id="reviewsButton" class="secondary">Importer les avis AliExpress</button>
+      <button id="downloadMediaButton" class="secondary">
+        Télécharger photos, vidéos et description
+      </button>
+      <button id="reviewsButton" class="secondary">Envoyer les avis vers Boost</button>
       <button id="openBoostButton" class="secondary">Ouvrir Boost fournisseurs</button>
 
       <p id="status" class="status"></p>

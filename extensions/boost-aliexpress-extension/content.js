@@ -71,6 +71,41 @@ function collectImages() {
   return unique(images).slice(0, 40)
 }
 
+function collectVideos() {
+  const videos = []
+  document.querySelectorAll("video, source, a[href]").forEach((element) => {
+    const src =
+      element.getAttribute("src") ||
+      element.getAttribute("data-src") ||
+      element.getAttribute("href")
+    const normalized = normalizeImageUrl(src)
+    if (normalized && /\.(mp4|webm|mov)(?:\?|$)/i.test(normalized)) {
+      videos.push(normalized)
+    }
+  })
+
+  const html = document.documentElement.innerHTML
+  const matches = html.match(/https?:\\?\/\\?\/[^"'<>\\]+?\.(?:mp4|webm|mov)(?:\?[^"'<>\\]*)?/gi) || []
+  matches.forEach((value) => {
+    const normalized = normalizeImageUrl(value)
+    if (normalized) videos.push(normalized)
+  })
+
+  return unique(videos).slice(0, 20)
+}
+
+function collectDescription() {
+  const meta =
+    firstSelector(['meta[property="og:description"]', 'meta[name="description"]']) || ""
+  const details = text(
+    document.querySelector('[class*="description"], [class*="Description"], [id*="description"], [id*="product-description"]')
+      ?.textContent,
+    1800
+  )
+
+  return details || meta
+}
+
 function nearestUsefulText(element) {
   const values = [
     element.getAttribute("title"),
@@ -221,7 +256,7 @@ function isLikelyReviewText(value) {
   return /[.!?]|tr[eè]s|good|great|perfect|merci|qualit|livraison|produit|enfant|commande/i.test(clean)
 }
 
-function collectReviews(productHandle) {
+function collectReviews() {
   const reviews = []
   const cards = Array.from(
     document.querySelectorAll(
@@ -251,7 +286,6 @@ function collectReviews(productHandle) {
       .trim()
 
     reviews.push({
-      product_handle: productHandle,
       author,
       rating: ratingFromText(ratingText),
       review: text(reviewText, 900),
@@ -283,8 +317,7 @@ function collectProduct() {
       'meta[name="twitter:title"]',
       "title",
     ]) || "Produit AliExpress"
-  const description =
-    firstSelector(['meta[property="og:description"]', 'meta[name="description"]']) || ""
+  const description = collectDescription()
   const price = firstSelector([
     '[class*="price"]',
     '[data-pl*="price"]',
@@ -298,6 +331,7 @@ function collectProduct() {
     title,
     description,
     image_urls: collectImages(),
+    video_urls: collectVideos(),
     price,
     currency: "EUR",
     supplier_name: "AliExpress",
@@ -305,6 +339,18 @@ function collectProduct() {
     captured_at: new Date().toISOString(),
     user_agent: navigator.userAgent,
   }
+}
+
+function collectProductTitle() {
+  return (
+    firstSelector([
+      "h1",
+      '[data-pl="product-title"]',
+      'meta[property="og:title"]',
+      'meta[name="twitter:title"]',
+      "title",
+    ]) || "Produit AliExpress"
+  )
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -318,7 +364,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "BOOST_EXTRACT_ALIEXPRESS_REVIEWS") {
       sendResponse({
         success: true,
-        reviews: collectReviews(message.productHandle),
+        productTitle: collectProductTitle(),
+        reviews: collectReviews(),
       })
       return true
     }

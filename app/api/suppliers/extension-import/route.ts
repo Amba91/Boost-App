@@ -44,6 +44,18 @@ function normalizeImageUrls(value: unknown) {
   ).slice(0, 60)
 }
 
+function normalizeVideoUrls(value: unknown) {
+  if (!Array.isArray(value)) return []
+
+  return Array.from(
+    new Set(
+      value
+        .map((video) => normalizeUrl(video))
+        .filter((video) => video && /\.(mp4|webm|mov)(?:\?|$)/i.test(video))
+    )
+  ).slice(0, 30)
+}
+
 function getSource(url: string) {
   return url.includes("aliexpress.") ? "aliexpress" : "other"
 }
@@ -85,6 +97,7 @@ async function ensureExtensionTables() {
       title TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
       image_urls JSONB NOT NULL DEFAULT '[]',
+      video_urls JSONB NOT NULL DEFAULT '[]',
       price TEXT NOT NULL DEFAULT '',
       currency TEXT NOT NULL DEFAULT 'EUR',
       supplier_name TEXT NOT NULL DEFAULT '',
@@ -98,6 +111,11 @@ async function ensureExtensionTables() {
   await sql`
     CREATE UNIQUE INDEX IF NOT EXISTS supplier_products_shop_source_unique
     ON supplier_products (shop, source, source_url)
+  `
+
+  await sql`
+    ALTER TABLE supplier_products
+    ADD COLUMN IF NOT EXISTS video_urls JSONB NOT NULL DEFAULT '[]'
   `
 
   await sql`
@@ -139,6 +157,7 @@ export async function POST(request: Request) {
     }
 
     const imageUrls = normalizeImageUrls(body.image_urls)
+    const videoUrls = normalizeVideoUrls(body.video_urls)
     const variants = Array.isArray(body.variants)
       ? body.variants.map(normalizeVariant).filter(Boolean)
       : []
@@ -152,6 +171,7 @@ export async function POST(request: Request) {
         title,
         description,
         image_urls,
+        video_urls,
         price,
         currency,
         supplier_name,
@@ -166,6 +186,7 @@ export async function POST(request: Request) {
         ${cleanText(body.title, 260) || "Produit AliExpress importé par extension"},
         ${cleanText(body.description, 1200)},
         ${JSON.stringify(imageUrls)}::jsonb,
+        ${JSON.stringify(videoUrls)}::jsonb,
         ${cleanText(body.price, 80)},
         ${cleanText(body.currency, 12) || "EUR"},
         ${cleanText(body.supplier_name, 120) || "AliExpress"},
@@ -178,6 +199,7 @@ export async function POST(request: Request) {
         title = EXCLUDED.title,
         description = EXCLUDED.description,
         image_urls = EXCLUDED.image_urls,
+        video_urls = EXCLUDED.video_urls,
         price = EXCLUDED.price,
         currency = EXCLUDED.currency,
         supplier_name = EXCLUDED.supplier_name,
@@ -231,6 +253,7 @@ export async function POST(request: Request) {
       product: product.rows[0],
       variants_count: variants.length,
       images_count: imageUrls.length,
+      videos_count: videoUrls.length,
     })
   } catch (error) {
     return NextResponse.json(

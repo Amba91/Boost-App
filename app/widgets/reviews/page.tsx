@@ -48,6 +48,16 @@ type ImportJob = {
   updated_at: string
 }
 
+type ExtensionReviewImport = {
+  id: number
+  source_url: string
+  product_title: string
+  reviews: Review[]
+  status: string
+  product_handle?: string
+  imported_count?: number
+}
+
 type WidgetSettings = {
   title: string
   background_color: string
@@ -110,6 +120,10 @@ export default function ReviewsPage() {
   )
   const [savingWidgetSettings, setSavingWidgetSettings] = useState(false)
   const [widgetSettingsMessage, setWidgetSettingsMessage] = useState("")
+  const [extensionImport, setExtensionImport] =
+    useState<ExtensionReviewImport | null>(null)
+  const [extensionImporting, setExtensionImporting] = useState(false)
+  const [extensionImportMessage, setExtensionImportMessage] = useState("")
 
   const [form, setForm] = useState({
     product_handle: "",
@@ -319,6 +333,78 @@ export default function ReviewsPage() {
     }
 
     setProductsLoading(false)
+  }
+
+  async function loadExtensionImport(id: number) {
+    setExtensionImportMessage("")
+
+    try {
+      const res = await fetch(`/api/reviews/extension-import?id=${id}`, {
+        cache: "no-store",
+      })
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        setExtensionImportMessage(
+          data.error || "Impossible de retrouver les avis envoyés par l’extension."
+        )
+        return
+      }
+
+      setExtensionImport(data.import)
+      setExtensionImportMessage(
+        `${data.import.reviews?.length || 0} avis AliExpress récupéré(s). Choisis le produit Shopify puis importe.`
+      )
+    } catch (error) {
+      console.error("LOAD EXTENSION REVIEWS ERROR:", error)
+      setExtensionImportMessage(
+        "Impossible de charger les avis envoyés par l’extension."
+      )
+    }
+  }
+
+  async function confirmExtensionReviewsImport() {
+    if (!extensionImport?.id) return
+
+    if (!targetProductHandle) {
+      setExtensionImportMessage(
+        "Choisis d’abord le produit Shopify qui doit recevoir ces avis."
+      )
+      return
+    }
+
+    setExtensionImporting(true)
+    setExtensionImportMessage("Import des avis sur le produit sélectionné...")
+
+    try {
+      const res = await fetch("/api/reviews/extension-import", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: extensionImport.id,
+          product_handle: targetProductHandle,
+        }),
+      })
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        setExtensionImportMessage(
+          data.error || "Impossible d’importer ces avis."
+        )
+        return
+      }
+
+      setExtensionImport(null)
+      setExtensionImportMessage(
+        `${data.imported} avis importé(s) sur ${displayedProductTitle}.`
+      )
+      await loadReviews()
+    } catch (error) {
+      console.error("CONFIRM EXTENSION REVIEWS ERROR:", error)
+      setExtensionImportMessage("Impossible d’importer ces avis.")
+    } finally {
+      setExtensionImporting(false)
+    }
   }
 
   async function toggleWidget() {
@@ -748,6 +834,7 @@ export default function ReviewsPage() {
       const params = new URLSearchParams(window.location.search)
       const productHandle = params.get("product_handle") || ""
       const productTitle = params.get("product_title") || ""
+      const extensionReviewsId = Number(params.get("extension_reviews_id") || 0)
 
       if (productHandle) {
         setTargetProductHandle(productHandle)
@@ -762,6 +849,9 @@ export default function ReviewsPage() {
       await loadWidgetSettings()
       await loadReviews()
       await loadProducts()
+      if (extensionReviewsId) {
+        await loadExtensionImport(extensionReviewsId)
+      }
       await loadImportJobs()
       setLoading(false)
     }
@@ -799,6 +889,90 @@ export default function ReviewsPage() {
               <span>Mis en premier</span>
             </div>
           </div>
+        </div>
+      )}
+
+      {(extensionImport || extensionImportMessage) && (
+        <div style={styles.extensionImportCard}>
+          <p style={styles.pendingLabel}>AVIS ALIEXPRESS</p>
+          <h2 style={{ margin: "6px 0" }}>
+            Avis envoyés par l’extension Boost
+          </h2>
+          <p style={styles.muted}>
+            Choisis simplement le produit Shopify qui doit recevoir ces avis.
+            Boost s’occupe du reste.
+          </p>
+
+          {extensionImport && (
+            <>
+              <div style={styles.extensionImportInfo}>
+                <strong>{extensionImport.reviews?.length || 0} avis prêts</strong>
+                <span>
+                  Produit AliExpress :{" "}
+                  {extensionImport.product_title || "titre non détecté"}
+                </span>
+                {extensionImport.source_url && (
+                  <a
+                    href={extensionImport.source_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={styles.inlineLink}
+                  >
+                    Voir la page source
+                  </a>
+                )}
+              </div>
+
+              {products.length > 0 ? (
+                <select
+                  value={targetProductHandle}
+                  onChange={(e) => selectTargetProduct(e.target.value)}
+                  style={styles.input}
+                >
+                  <option value="">Choisir le produit Shopify à lier</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={product.handle}>
+                      {product.title} — {product.handle}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  placeholder={
+                    productsLoading
+                      ? "Chargement des produits Shopify..."
+                      : "Produit Shopify à lier"
+                  }
+                  value={targetProductHandle}
+                  onChange={(e) => selectTargetProduct(e.target.value)}
+                  style={styles.input}
+                />
+              )}
+
+              <button
+                onClick={confirmExtensionReviewsImport}
+                disabled={extensionImporting || !targetProductHandle}
+                style={styles.button}
+              >
+                {extensionImporting
+                  ? "Import en cours..."
+                  : "Importer ces avis sur ce produit"}
+              </button>
+            </>
+          )}
+
+          {extensionImportMessage && (
+            <p
+              style={
+                extensionImportMessage.toLowerCase().includes("impossible") ||
+                extensionImportMessage.toLowerCase().includes("choisis")
+                  ? styles.error
+                  : styles.success
+              }
+            >
+              {extensionImportMessage}
+            </p>
+          )}
         </div>
       )}
 
@@ -1786,6 +1960,29 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "24px",
     maxWidth: "900px",
     marginTop: "30px",
+  },
+  extensionImportCard: {
+    background: "linear-gradient(135deg, #052e25, #111827)",
+    border: "2px solid #22c55e",
+    padding: "28px",
+    borderRadius: "24px",
+    maxWidth: "900px",
+    marginTop: "30px",
+  },
+  extensionImportInfo: {
+    display: "grid",
+    gap: "8px",
+    background: "#050816",
+    color: "#cbd5e1",
+    border: "1px solid #1e293b",
+    padding: "16px",
+    borderRadius: "14px",
+    marginTop: "16px",
+  },
+  inlineLink: {
+    color: "#93c5fd",
+    fontWeight: "bold",
+    textDecoration: "none",
   },
   pendingReviewsHeader: {
     display: "flex",

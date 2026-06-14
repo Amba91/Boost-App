@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Boost Aliexpress extension",
-  "description": "Envoie une fiche produit AliExpress avec ses variantes vers Boost.",
+  "description": "Extrait les fiches AliExpress, variantes, avis, photos, vidéos et descriptions pour Boost.",
   "version": "0.2.0",
   "action": {
     "default_popup": "popup.html",
@@ -17,7 +17,7 @@
     "48": "icons/boost-48.png",
     "128": "icons/boost-128.png"
   },
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": ["activeTab", "scripting", "storage", "downloads"],
   "host_permissions": [
     "https://*.aliexpress.com/*",
     "https://boost-app-9e6w.vercel.app/*",
