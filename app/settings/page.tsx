@@ -5,38 +5,49 @@ import Link from "next/link"
 
 type MerchantSettings = {
   language: string
-  shopName: string
-  supportEmail: string
+  shop_name: string
+  support_email: string
   plan: string
-  notificationsEmail: boolean
-  notificationsReviews: boolean
-  notificationsOrders: boolean
+  notifications_email: boolean
+  notifications_reviews: boolean
+  notifications_orders: boolean
 }
 
 const defaultSettings: MerchantSettings = {
   language: "fr",
-  shopName: "Kiidiiz",
-  supportEmail: "contact@kiidiiz.com",
+  shop_name: "Kiidiiz",
+  support_email: "contact@kiidiiz.com",
   plan: "Boost Starter",
-  notificationsEmail: true,
-  notificationsReviews: true,
-  notificationsOrders: true,
+  notifications_email: true,
+  notifications_reviews: true,
+  notifications_orders: true,
 }
-
-const storageKey = "boost-merchant-settings"
 
 export default function MerchantSettingsPage() {
   const [settings, setSettings] = useState<MerchantSettings>(defaultSettings)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState("")
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(storageKey)
-      if (saved) setSettings({ ...defaultSettings, ...JSON.parse(saved) })
-    } catch {
-      setSettings(defaultSettings)
-    }
+    loadSettings()
   }, [])
+
+  async function loadSettings() {
+    try {
+      const res = await fetch("/api/merchant/settings", { cache: "no-store" })
+      const data = await res.json()
+      if (data.success && data.settings) {
+        setSettings({ ...defaultSettings, ...data.settings })
+      } else {
+        setMessage(data.error || "Impossible de charger les réglages.")
+      }
+    } catch {
+      setMessage("Impossible de charger les réglages.")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   function updateSetting<K extends keyof MerchantSettings>(
     key: K,
@@ -46,9 +57,27 @@ export default function MerchantSettingsPage() {
     setMessage("")
   }
 
-  function saveSettings() {
-    window.localStorage.setItem(storageKey, JSON.stringify(settings))
-    setMessage("Réglages enregistrés sur cet appareil. La prochaine étape sera de les synchroniser en base Boost.")
+  async function saveSettings() {
+    setSaving(true)
+    setMessage("")
+    try {
+      const res = await fetch("/api/merchant/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      })
+      const data = await res.json()
+      if (!data.success) {
+        setMessage(data.error || "Sauvegarde impossible.")
+        return
+      }
+      setSettings({ ...defaultSettings, ...data.settings })
+      setMessage("Réglages enregistrés dans Boost pour cette boutique.")
+    } catch {
+      setMessage("Sauvegarde impossible.")
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -78,8 +107,8 @@ export default function MerchantSettingsPage() {
           <label style={styles.label}>
             Nom boutique
             <input
-              value={settings.shopName}
-              onChange={(event) => updateSetting("shopName", event.target.value)}
+              value={settings.shop_name}
+              onChange={(event) => updateSetting("shop_name", event.target.value)}
               style={styles.input}
             />
           </label>
@@ -87,8 +116,8 @@ export default function MerchantSettingsPage() {
           <label style={styles.label}>
             E-mail support
             <input
-              value={settings.supportEmail}
-              onChange={(event) => updateSetting("supportEmail", event.target.value)}
+              value={settings.support_email}
+              onChange={(event) => updateSetting("support_email", event.target.value)}
               style={styles.input}
             />
           </label>
@@ -139,18 +168,18 @@ export default function MerchantSettingsPage() {
 
           <Toggle
             label="Nouveaux avis clients"
-            checked={settings.notificationsReviews}
-            onChange={(value) => updateSetting("notificationsReviews", value)}
+            checked={settings.notifications_reviews}
+            onChange={(value) => updateSetting("notifications_reviews", value)}
           />
           <Toggle
             label="E-mails prêts ou échoués"
-            checked={settings.notificationsEmail}
-            onChange={(value) => updateSetting("notificationsEmail", value)}
+            checked={settings.notifications_email}
+            onChange={(value) => updateSetting("notifications_email", value)}
           />
           <Toggle
             label="Commandes fournisseur à traiter"
-            checked={settings.notificationsOrders}
-            onChange={(value) => updateSetting("notificationsOrders", value)}
+            checked={settings.notifications_orders}
+            onChange={(value) => updateSetting("notifications_orders", value)}
           />
         </div>
 
@@ -176,12 +205,13 @@ export default function MerchantSettingsPage() {
         <div>
           <strong>Paramètres marchand</strong>
           <p style={styles.saveText}>
-            Version MVP : sauvegarde locale. Ensuite on les branchera au compte Shopify de chaque boutique.
+            Ces réglages sont sauvegardés dans la base Boost pour la boutique connectée.
           </p>
+          {loading && <p style={styles.loading}>Chargement des réglages...</p>}
           {message && <p style={styles.message}>{message}</p>}
         </div>
-        <button onClick={saveSettings} style={styles.saveButton}>
-          Enregistrer les réglages
+        <button onClick={saveSettings} disabled={saving || loading} style={styles.saveButton}>
+          {saving ? "Enregistrement..." : "Enregistrer les réglages"}
         </button>
       </div>
     </main>
@@ -387,6 +417,11 @@ const styles: Record<string, React.CSSProperties> = {
   message: {
     margin: "8px 0 0",
     color: "#86efac",
+    fontWeight: 900,
+  },
+  loading: {
+    margin: "8px 0 0",
+    color: "#c4b5fd",
     fontWeight: 900,
   },
   saveButton: {
