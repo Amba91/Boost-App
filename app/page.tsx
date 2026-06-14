@@ -34,6 +34,13 @@ const widgets: Array<{
     launchNote: "Prêt pour les tests sans paiement.",
   },
   {
+    name: "Factures pro",
+    slug: "invoices",
+    status: "partial",
+    description: "Modèle de facture personnalisable, aperçu imprimable et base PDF pour commandes Shopify.",
+    launchNote: "MVP visible, branchement automatique commandes à finir.",
+  },
+  {
     name: "Upsell",
     slug: "upsell",
     status: "partial",
@@ -268,6 +275,7 @@ export default function HomePage() {
           <span style={styles.stepNumber}>3</span>
           <strong>Factures pro</strong>
           <p>Générer des PDF personnalisables pour commandes Shopify.</p>
+          <Link href="/widgets/invoices" style={styles.stepLink}>Ouvrir Factures</Link>
         </div>
       </section>
 

@@ -269,6 +269,10 @@ export async function createSupplierOrdersFromShopifyOrder(
         supplier_sku = EXCLUDED.supplier_sku,
         supplier_price = EXCLUDED.supplier_price,
         supplier_message = EXCLUDED.supplier_message,
+        status = CASE
+          WHEN supplier_orders.status IN ('ordered', 'cancelled') THEN supplier_orders.status
+          ELSE EXCLUDED.status
+        END,
         internal_note = EXCLUDED.internal_note,
         updated_at = NOW()
     `

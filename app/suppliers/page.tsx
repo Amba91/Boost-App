@@ -117,6 +117,7 @@ type SupplierVariantOption = SupplierVariantDraft & {
 
 type SupplierVariantSource = "none" | "aliexpress" | "shopify_fallback" | "manual"
 type SupplierSection = "import" | "mapping" | "orders" | "suppliers" | "settings"
+type SupplierOrderFilter = "todo" | "needs_mapping" | "ordered" | "cancelled" | "all"
 
 const mappingLabels: Record<string, string> = {
   standard: "Produit simple",
@@ -157,6 +158,7 @@ export default function SuppliersPage() {
   const [supplierVariants, setSupplierVariants] = useState<SupplierVariantOption[]>([])
   const [supplierMessageText, setSupplierMessageText] = useState(defaultSupplierMessage)
   const [activeSection, setActiveSection] = useState<SupplierSection>("import")
+  const [orderFilter, setOrderFilter] = useState<SupplierOrderFilter>("todo")
 
   const selectedProduct = useMemo(
     () => shopifyProducts.find((product) => String(product.id) === selectedProductId),
@@ -182,6 +184,32 @@ export default function SuppliersPage() {
   const pendingSupplierOrders = supplierOrders.filter((order) =>
     ["pending", "needs_mapping"].includes(order.status)
   )
+
+  const orderFilters: { id: SupplierOrderFilter; label: string; count: number }[] = [
+    { id: "todo", label: "À traiter", count: pendingSupplierOrders.length },
+    {
+      id: "needs_mapping",
+      label: "Mapping manquant",
+      count: supplierOrders.filter((order) => order.status === "needs_mapping").length,
+    },
+    {
+      id: "ordered",
+      label: "Commandées",
+      count: supplierOrders.filter((order) => order.status === "ordered").length,
+    },
+    {
+      id: "cancelled",
+      label: "Annulées",
+      count: supplierOrders.filter((order) => order.status === "cancelled").length,
+    },
+    { id: "all", label: "Toutes", count: supplierOrders.length },
+  ]
+
+  const filteredSupplierOrders = supplierOrders.filter((order) => {
+    if (orderFilter === "all") return true
+    if (orderFilter === "todo") return ["pending", "needs_mapping"].includes(order.status)
+    return order.status === orderFilter
+  })
 
   const sectionTabs: { id: SupplierSection; label: string; help: string; count?: number }[] = [
     { id: "import", label: "Importer", help: "Ajouter un lien fournisseur", count: supplierProducts.length },
@@ -1088,6 +1116,11 @@ export default function SuppliersPage() {
               commander chez le fournisseur : produit, variante, quantité et
               message dropshipping à envoyer.
             </p>
+            <p style={styles.muted}>
+              Mode MVP : Boost ouvre la bonne plateforme, copie le message et
+              l’adresse, puis marque la commande comme commandée. L’envoi API
+              automatique sera branché plateforme par plateforme.
+            </p>
           </div>
           <div style={styles.actionRow}>
             <span style={styles.badge}>{pendingSupplierOrders.length} à traiter</span>
@@ -1095,6 +1128,19 @@ export default function SuppliersPage() {
               {syncingOrders ? "Lecture..." : "Récupérer les dernières commandes"}
             </button>
           </div>
+        </div>
+
+        <div style={styles.orderFilterRow}>
+          {orderFilters.map((filter) => (
+            <button
+              key={filter.id}
+              onClick={() => setOrderFilter(filter.id)}
+              style={orderFilter === filter.id ? styles.orderFilterActive : styles.orderFilter}
+            >
+              {filter.label}
+              <span>{filter.count}</span>
+            </button>
+          ))}
         </div>
 
         {supplierOrders.length === 0 ? (
@@ -1105,9 +1151,14 @@ export default function SuppliersPage() {
               aussi cliquer sur “Récupérer les dernières commandes”.
             </span>
           </div>
+        ) : filteredSupplierOrders.length === 0 ? (
+          <div style={styles.helpBox}>
+            <strong>Aucune commande dans ce filtre.</strong>
+            <span>Change de filtre ou récupère les dernières commandes Shopify.</span>
+          </div>
         ) : (
           <div style={styles.orderGrid}>
-            {supplierOrders.map((order) => (
+            {filteredSupplierOrders.map((order) => (
               <article key={order.id} style={styles.orderCard}>
                 {(() => {
                   const platform = supplierPlatformFromUrl(order.supplier_url, order.supplier_name)
@@ -1782,6 +1833,36 @@ const styles: Record<string, React.CSSProperties> = {
   },
   mappingGrid: { display: "grid", gap: 16 },
   orderGrid: { display: "grid", gap: 16, marginTop: 16 },
+  orderFilterRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 18,
+  },
+  orderFilter: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 9,
+    border: "1px solid #1f2937",
+    borderRadius: 999,
+    padding: "10px 13px",
+    background: "#020617",
+    color: "#cbd5e1",
+    fontWeight: 900,
+    cursor: "pointer",
+  },
+  orderFilterActive: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 9,
+    border: "1px solid rgba(74, 222, 128, .65)",
+    borderRadius: 999,
+    padding: "10px 13px",
+    background: "rgba(22, 163, 74, .2)",
+    color: "#bbf7d0",
+    fontWeight: 900,
+    cursor: "pointer",
+  },
   orderCard: {
     display: "grid",
     gridTemplateColumns: "minmax(190px, .7fr) minmax(220px, 1fr) minmax(220px, .8fr) minmax(260px, 1.1fr)",
