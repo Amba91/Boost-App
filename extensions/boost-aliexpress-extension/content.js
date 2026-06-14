@@ -2,6 +2,23 @@ function text(value, max = 240) {
   return String(value || "").replace(/\s+/g, " ").trim().slice(0, max)
 }
 
+function stripImageSuffix(value) {
+  return text(value, 240)
+    .replace(/https?:\/\/\S+/gi, "")
+    .replace(/[_-]?(?:\d+x\d+q\d+|\.jpe?g|\.png|\.webp|\.avif).*$/i, "")
+    .replace(/\b(?:jpg|jpeg|png|webp|avif)\b/gi, "")
+    .replace(/[_-]{2,}/g, "-")
+    .replace(/^shape[-_\s]*/i, "")
+    .replace(/[-_\s]+$/g, "")
+    .trim()
+}
+
+function cleanVariantLabel(value) {
+  const clean = stripImageSuffix(value)
+  if (!clean || /^(selected|couleur|color|taille|size|quantit|quantity)$/i.test(clean)) return ""
+  return clean
+}
+
 function normalizeImageUrl(value) {
   const raw = String(value || "").replace(/\\u002F/g, "/").replace(/\\/g, "").trim()
   if (!raw) return ""
@@ -66,7 +83,7 @@ function nearestUsefulText(element) {
     element.closest('[role="button"]')?.textContent,
   ]
 
-  return text(values.find((value) => text(value, 120)) || "", 120)
+  return cleanVariantLabel(values.find((value) => text(value, 120)) || "")
 }
 
 function inferVariantGroup(element) {
@@ -114,13 +131,14 @@ function collectVariantsFromDom() {
       if (/selected|couleur|color|taille|size|quantit/i.test(label) && !image) return
 
       const group = inferVariantGroup(element)
-      const id = `${group}-${label}-${image}`.slice(0, 240)
+      const cleanLabel = cleanVariantLabel(label) || "Variante AliExpress"
+      const id = `${group}-${cleanLabel}-${image}`.slice(0, 240)
       candidates.push({
         id,
-        label: label || "Variante AliExpress",
-        color: group === "color" ? label : "",
-        size: group === "size" ? label : "",
-        shape: group === "shape" ? label : "",
+        label: cleanLabel,
+        color: group === "color" ? cleanLabel : "",
+        size: group === "size" ? cleanLabel : "",
+        shape: group === "shape" ? cleanLabel : "",
         sku: "",
         price: "",
         image_url: image,
@@ -148,11 +166,12 @@ function collectVariantsFromScripts() {
   let match
 
   while ((match = valueRegex.exec(html)) !== null && variants.length < 160) {
-    const label = text(match[1], 120)
+    const label = cleanVariantLabel(match[1])
     const image = normalizeImageUrl(match[2])
+    if (!label && !image) continue
     variants.push({
       id: `script-${label}-${image}`.slice(0, 240),
-      label,
+      label: label || "Variante AliExpress",
       color: label,
       size: "",
       shape: "",
@@ -173,10 +192,86 @@ function collectVariants() {
   return variants.filter((variant) => {
     const key = `${variant.label}|${variant.image_url}`
     if (!variant.label && !variant.image_url) return false
+    if (/^variante aliexpress$/i.test(variant.label) && !variant.image_url) return false
     if (seen.has(key)) return false
     seen.add(key)
     return true
   })
+}
+
+function ratingFromText(value) {
+  const match = String(value || "").match(/([1-5](?:[.,]\d)?)/)
+  return match ? Number(match[1].replace(",", ".")) : 5
+}
+
+function collectReviewImages(element) {
+  const images = []
+  element.querySelectorAll('img[src*="alicdn"], img[src*="aliexpress"]').forEach((image) => {
+    const src = normalizeImageUrl(image.getAttribute("src") || image.getAttribute("data-src"))
+    if (src) images.push(src)
+  })
+  return unique(images).slice(0, 4)
+}
+
+function isLikelyReviewText(value) {
+  const clean = text(value, 800)
+  if (clean.length < 12) return false
+  if (/^(reviews?|avis|articles similaires|details?|présentation|vous aimerez aussi)$/i.test(clean)) return false
+  if (/due to our system upgrades/i.test(clean)) return false
+  return /[.!?]|tr[eè]s|good|great|perfect|merci|qualit|livraison|produit|enfant|commande/i.test(clean)
+}
+
+function collectReviews(productHandle) {
+  const reviews = []
+  const cards = Array.from(
+    document.querySelectorAll(
+      '[class*="review"], [class*="Review"], [data-pl*="review"], [class*="feedback"], [class*="Feedback"]'
+    )
+  )
+
+  for (const card of cards) {
+    const rawText = text(card.textContent, 1200)
+    if (!isLikelyReviewText(rawText)) continue
+
+    const author =
+      text(
+        card.querySelector('[class*="name"], [class*="Name"], [class*="user"], [class*="User"]')
+          ?.textContent,
+        120
+      ) || "Client AliExpress"
+    const ratingText =
+      card.getAttribute("aria-label") ||
+      card.querySelector('[aria-label*="star"], [aria-label*="étoile"], [class*="star"], [class*="Star"]')
+        ?.getAttribute("aria-label") ||
+      rawText
+    const images = collectReviewImages(card)
+    const reviewText = rawText
+      .replace(author, "")
+      .replace(/\b[1-5](?:[.,]\d)?\s*(?:stars?|étoiles?)\b/gi, "")
+      .trim()
+
+    reviews.push({
+      product_handle: productHandle,
+      author,
+      rating: ratingFromText(ratingText),
+      review: text(reviewText, 900),
+      image_url: images[0] || "",
+      verified: true,
+      verified_purchase: true,
+      visible: true,
+      date: new Date().toISOString(),
+    })
+  }
+
+  const seen = new Set()
+  return reviews
+    .filter((review) => {
+      const key = `${review.author}|${review.review}`
+      if (!review.review || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .slice(0, 50)
 }
 
 function collectProduct() {
@@ -213,14 +308,24 @@ function collectProduct() {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== "BOOST_EXTRACT_ALIEXPRESS_PRODUCT") return false
-
   try {
-    const payload = collectProduct()
-    sendResponse({ success: true, payload })
+    if (message?.type === "BOOST_EXTRACT_ALIEXPRESS_PRODUCT") {
+      const payload = collectProduct()
+      sendResponse({ success: true, payload })
+      return true
+    }
+
+    if (message?.type === "BOOST_EXTRACT_ALIEXPRESS_REVIEWS") {
+      sendResponse({
+        success: true,
+        reviews: collectReviews(message.productHandle),
+      })
+      return true
+    }
+
+    return false
   } catch (error) {
     sendResponse({ success: false, error: error.message || String(error) })
+    return true
   }
-
-  return true
 })

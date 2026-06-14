@@ -173,7 +173,7 @@ export default function SuppliersPage() {
   ).length
 
   const readyVariantCount = selectedVariants.filter((variant, index) => {
-    const draft = supplierVariantDrafts[variant.shopify_variant_id] || supplierVariants[index]
+    const draft = supplierVariantDrafts[variant.shopify_variant_id]
     return Boolean(draft?.supplier_variant_label || draft?.supplier_color || draft?.supplier_sku)
   }).length
 
@@ -372,40 +372,7 @@ export default function SuppliersPage() {
   }
 
   function autoLinkSupplierVariants() {
-    if (selectedVariants.length === 0) return
-    if (supplierVariants.length === 0) {
-      setMessage("Aucune vraie variante fournisseur à relier. Lance d'abord l'import détaillé AliExpress.")
-      return
-    }
-
-    const variantsToUse =
-      supplierVariants.some((variant) => supplierVariantName(variant) !== "Variante fournisseur")
-        ? supplierVariants
-        : supplierVariants
-
-    const nextDrafts: Record<string, SupplierVariantDraft> = {}
-    selectedVariants.forEach((variant, index) => {
-      const supplierVariant = variantsToUse[index]
-      if (!supplierVariant) return
-      nextDrafts[variant.shopify_variant_id] = {
-        supplier_variant_label: supplierVariant.supplier_variant_label,
-        supplier_color: supplierVariant.supplier_color,
-        supplier_size: supplierVariant.supplier_size,
-        supplier_shape: supplierVariant.supplier_shape,
-        supplier_sku: supplierVariant.supplier_sku,
-        supplier_price: supplierVariant.supplier_price,
-        supplier_image_url: supplierVariant.supplier_image_url,
-        supplier_note: supplierVariant.supplier_note,
-      }
-    })
-
-    setSupplierVariants(variantsToUse)
-    setSupplierVariantDrafts(nextDrafts)
-    setMessage(
-      supplierVariantSource === "shopify_fallback"
-        ? "Mode secours relié. Attention : ce sont les variantes Shopify, pas les vraies variantes AliExpress."
-        : "Variantes AliExpress reliées automatiquement. Vérifie seulement les exceptions, puis enregistre."
-    )
+    setMessage("Le matching automatique est désactivé. Choisis manuellement la variante fournisseur pour chaque variante Shopify.")
   }
 
   function supplierVariantFromImportedRow(row: SupplierProductVariantRow): SupplierVariantOption {
@@ -446,7 +413,7 @@ export default function SuppliersPage() {
       setSupplierVariantSource("aliexpress")
       setSupplierPreviewBlocked(false)
       setMessage(
-        `${variants.length} variante(s) AliExpress importée(s) par l'extension. Tu peux maintenant relier les variantes Shopify.`
+        `${variants.length} variante(s) AliExpress importée(s) par l'extension. Choisis maintenant manuellement la bonne variante fournisseur pour chaque variante Shopify.`
       )
     } else {
       setSupplierVariants([])
@@ -968,7 +935,6 @@ export default function SuppliersPage() {
             {selectedVariants.map((variant, index) => {
               const draft =
                 supplierVariantDrafts[variant.shopify_variant_id] ||
-                supplierVariants[index] ||
                 {
                   supplier_variant_label: "",
                   supplier_color: "",
@@ -1012,12 +978,12 @@ export default function SuppliersPage() {
                         <div style={styles.linkedSupplierImageEmpty}>Ali</div>
                       )}
                       <div>
-                        <strong>{draft.supplier_variant_label || optionsLabel(variant)}</strong>
+                        <strong>{draft.supplier_variant_label || "Choisis une variante fournisseur"}</strong>
                         <p style={styles.muted}>
                           {supplierVariantSource === "aliexpress"
                             ? draft.supplier_sku
                               ? `SKU AliExpress : ${draft.supplier_sku}`
-                              : "Variante AliExpress"
+                              : "Aucune variante liée pour le moment"
                             : draft.supplier_sku
                               ? `SKU Shopify : ${draft.supplier_sku}`
                               : "Secours Shopify"}
@@ -1051,11 +1017,6 @@ export default function SuppliersPage() {
         )}
 
         <div style={styles.actionRow}>
-          {supplierVariantSource !== "none" && supplierVariants.length > 0 && (
-            <button onClick={autoLinkSupplierVariants} style={styles.greenSmallButton}>
-              Refaire le lien automatique
-            </button>
-          )}
           <button onClick={() => setShowAdvancedMapping((value) => !value)} style={styles.smallButton}>
             {showAdvancedMapping ? "Masquer les réglages avancés" : "Afficher les réglages avancés"}
           </button>
@@ -1194,9 +1155,6 @@ export default function SuppliersPage() {
           <div style={styles.actionRow}>
             <button onClick={generateSupplierVariantsFromShopify} style={styles.smallButton}>
               Générer les variantes
-            </button>
-            <button onClick={autoLinkSupplierVariants} style={styles.greenSmallButton}>
-              Relier automatiquement
             </button>
           </div>
         </div>
