@@ -722,28 +722,11 @@ export default function SuppliersPage() {
         return
       }
 
-      const fallbackVariants = selectedVariants.map((variant, index) =>
-        supplierVariantFromShopifyVariant(variant, index)
-      )
-      const nextDrafts: Record<string, SupplierVariantDraft> = {}
-      selectedVariants.forEach((variant, index) => {
-        const supplierVariant = fallbackVariants[index]
-        if (!supplierVariant) return
-        nextDrafts[variant.shopify_variant_id] = {
-          supplier_variant_label: supplierVariant.supplier_variant_label,
-          supplier_color: supplierVariant.supplier_color,
-          supplier_size: supplierVariant.supplier_size,
-          supplier_shape: supplierVariant.supplier_shape,
-          supplier_sku: supplierVariant.supplier_sku,
-          supplier_price: supplierVariant.supplier_price,
-          supplier_image_url: supplierVariant.supplier_image_url,
-          supplier_note: supplierVariant.supplier_note,
-        }
-      })
-      setSupplierVariants(fallbackVariants)
-      setSupplierVariantDrafts(nextDrafts)
-      setSupplierVariantSource("shopify_fallback")
-      setMessage(`${data.message} Attention : ces variantes viennent de Shopify, pas d'AliExpress.`)
+      setSupplierVariants([])
+      setSupplierVariantDrafts({})
+      setSupplierVariantSource("none")
+      setSupplierPreviewBlocked(false)
+      setMessage(`${data.message} Lien fournisseur enregistré. Utilise ensuite l'import détaillé ou l'extension pour récupérer les vraies variantes.`)
       await loadData()
     } catch {
       setMessage("Import express impossible.")
@@ -895,8 +878,8 @@ export default function SuppliersPage() {
             <span>
               Import détaillé = Boost essaie de lire les vraies variantes
               AliExpress avec Oxylabs puis Apify. Import express = secours
-              rapide : Boost garde le lien et prépare le mapping depuis Shopify,
-              mais ce n'est pas une vraie lecture AliExpress complète.
+              rapide : Boost garde seulement le lien fournisseur, sans inventer
+              de variantes.
             </span>
           </div>
           <input
@@ -912,7 +895,7 @@ export default function SuppliersPage() {
             onChange={(event) => setSupplierTitle(event.target.value)}
           />
           <button onClick={fastImportSupplier} disabled={saving} style={styles.greenButton}>
-            {saving ? "Import..." : "Import express + mapping automatique"}
+            {saving ? "Import..." : "Enregistrer le lien fournisseur"}
           </button>
           <button onClick={previewSupplier} disabled={saving} style={styles.secondaryButton}>
             Import détaillé AliExpress avec vraies variantes
@@ -1227,11 +1210,6 @@ export default function SuppliersPage() {
               chaque variante Shopify à la bonne variante fournisseur.
             </p>
           </div>
-          <div style={styles.actionRow}>
-            <button onClick={generateSupplierVariantsFromShopify} style={styles.smallButton}>
-              Générer les variantes
-            </button>
-          </div>
         </div>
 
         <div style={styles.helpBox}>
@@ -1239,7 +1217,7 @@ export default function SuppliersPage() {
           <span>1. Choisis ton produit Shopify.</span>
           <span>2. Colle le lien AliExpress ou fournisseur.</span>
           <span>3. Clique d'abord sur Import détaillé pour récupérer les vraies variantes AliExpress.</span>
-          <span>4. Utilise Import express seulement si AliExpress bloque la lecture ou si tu veux avancer vite.</span>
+          <span>4. Relie ensuite chaque variante Shopify à la bonne variante fournisseur.</span>
         </div>
 
         {supplierPreviewBlocked && (
