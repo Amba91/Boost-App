@@ -116,6 +116,7 @@ type SupplierVariantOption = SupplierVariantDraft & {
 }
 
 type SupplierVariantSource = "none" | "aliexpress" | "shopify_fallback" | "manual"
+type SupplierSection = "import" | "mapping" | "orders" | "suppliers" | "settings"
 
 const mappingLabels: Record<string, string> = {
   standard: "Produit simple",
@@ -155,6 +156,7 @@ export default function SuppliersPage() {
   const [supplierVariantDrafts, setSupplierVariantDrafts] = useState<Record<string, SupplierVariantDraft>>({})
   const [supplierVariants, setSupplierVariants] = useState<SupplierVariantOption[]>([])
   const [supplierMessageText, setSupplierMessageText] = useState(defaultSupplierMessage)
+  const [activeSection, setActiveSection] = useState<SupplierSection>("import")
 
   const selectedProduct = useMemo(
     () => shopifyProducts.find((product) => String(product.id) === selectedProductId),
@@ -180,6 +182,29 @@ export default function SuppliersPage() {
   const pendingSupplierOrders = supplierOrders.filter((order) =>
     ["pending", "needs_mapping"].includes(order.status)
   )
+
+  const sectionTabs: { id: SupplierSection; label: string; help: string; count?: number }[] = [
+    { id: "import", label: "Importer", help: "Ajouter un lien fournisseur", count: supplierProducts.length },
+    { id: "mapping", label: "Mapping variantes", help: "Relier Shopify au fournisseur", count: readyVariantCount },
+    { id: "orders", label: "Commandes", help: "Traiter les commandes fournisseur", count: pendingSupplierOrders.length },
+    { id: "suppliers", label: "Fournisseurs", help: "Voir, remplacer, supprimer", count: mappings.length },
+    { id: "settings", label: "Réglages", help: "Message dropshipping", count: undefined },
+  ]
+
+  function supplierPlatformFromUrl(url = "", name = "") {
+    const value = `${url} ${name}`.toLowerCase()
+    if (value.includes("temu")) return "temu"
+    if (value.includes("alibaba")) return "alibaba"
+    if (value.includes("aliexpress") || value.includes("ali express")) return "aliexpress"
+    return "other"
+  }
+
+  function supplierPlatformLabel(platform: string) {
+    if (platform === "temu") return "Temu"
+    if (platform === "alibaba") return "Alibaba"
+    if (platform === "aliexpress") return "AliExpress"
+    return "Autre fournisseur"
+  }
 
   function parseAddress(address: SupplierOrder["shipping_address"]) {
     if (!address) return {}
@@ -412,6 +437,7 @@ export default function SuppliersPage() {
       setSupplierVariantDrafts({})
       setSupplierVariantSource("aliexpress")
       setSupplierPreviewBlocked(false)
+      setActiveSection("mapping")
       setMessage(
         `${variants.length} variante(s) AliExpress importée(s) par l'extension. Choisis maintenant manuellement la bonne variante fournisseur pour chaque variante Shopify.`
       )
@@ -535,6 +561,32 @@ export default function SuppliersPage() {
     } catch {
       setMessage("Copie impossible. Tu peux copier le message affiché.")
     }
+  }
+
+  async function handleSendOrderToSupplier(order: SupplierOrder) {
+    if (order.status === "needs_mapping") {
+      setMessage("Relie d'abord cette commande à un fournisseur avant de l'envoyer.")
+      return
+    }
+    if (!order.supplier_url) {
+      setMessage("Cette commande n'a pas encore de lien fournisseur. Relie-la d'abord à un fournisseur.")
+      return
+    }
+
+    const platform = supplierPlatformLabel(
+      supplierPlatformFromUrl(order.supplier_url, order.supplier_name)
+    )
+    const confirmed = confirm(
+      `Boost va ouvrir ${platform}, copier le message fournisseur et marquer la commande comme commandée. Continuer ?`
+    )
+    if (!confirmed) return
+
+    await copySupplierMessage(order)
+    window.open(order.supplier_url, "_blank", "noopener,noreferrer")
+    await updateSupplierOrder(order.id, "ordered")
+    setMessage(
+      `Commande ouverte chez ${platform}. Le message est copié : colle-le au fournisseur avant de valider.`
+    )
   }
 
   async function updateMapping(mappingId: number, action: string, payload: Record<string, string> = {}) {
@@ -775,7 +827,21 @@ export default function SuppliersPage() {
         <img src="/logo.png" alt="Boost" style={styles.logo} />
       </div>
 
-      <section style={styles.workflow}>
+      <nav style={styles.sectionTabs}>
+        {sectionTabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveSection(tab.id)}
+            style={activeSection === tab.id ? styles.sectionTabActive : styles.sectionTab}
+          >
+            <strong>{tab.label}</strong>
+            <span>{tab.help}</span>
+            {typeof tab.count === "number" && <em>{tab.count}</em>}
+          </button>
+        ))}
+      </nav>
+
+      <section style={{ ...styles.workflow, display: activeSection === "import" ? "grid" : "none" }}>
         <div style={styles.card}>
           <div style={styles.sectionHeader}>
             <h2>1. Produit de ta boutique</h2>
@@ -887,7 +953,7 @@ export default function SuppliersPage() {
 
       {message && <p style={styles.message}>{message}</p>}
 
-      <section style={styles.expressCard}>
+      <section style={{ ...styles.expressCard, display: activeSection === "mapping" ? "block" : "none" }}>
         <div style={styles.sectionHeader}>
           <div>
             <span style={styles.eyebrow}>Mapping simple</span>
@@ -1029,8 +1095,7 @@ export default function SuppliersPage() {
         )}
       </section>
 
-      {showAdvancedMapping && (
-        <>
+      {activeSection === "orders" && (
       <section style={styles.cardWide}>
         <div style={styles.sectionHeader}>
           <div>
@@ -1061,6 +1126,10 @@ export default function SuppliersPage() {
           <div style={styles.orderGrid}>
             {supplierOrders.map((order) => (
               <article key={order.id} style={styles.orderCard}>
+                {(() => {
+                  const platform = supplierPlatformFromUrl(order.supplier_url, order.supplier_name)
+                  return <span style={styles.orderPlatformBadge}>{supplierPlatformLabel(platform)}</span>
+                })()}
                 <div>
                   <span style={order.status === "needs_mapping" ? styles.orangeBadge : styles.statusBadge}>
                     {order.status === "needs_mapping"
@@ -1124,7 +1193,10 @@ export default function SuppliersPage() {
 
                 <pre style={styles.smallMessage}>{order.supplier_message || order.internal_note}</pre>
 
-                <div style={styles.actionRow}>
+                <div style={styles.orderActionRow}>
+                  <button onClick={() => handleSendOrderToSupplier(order)} style={styles.primaryOrderButton}>
+                    Envoyer vers {supplierPlatformLabel(supplierPlatformFromUrl(order.supplier_url, order.supplier_name))}
+                  </button>
                   <button onClick={() => copySupplierMessage(order)} style={styles.smallButton}>
                     Copier message
                   </button>
@@ -1140,7 +1212,10 @@ export default function SuppliersPage() {
           </div>
         )}
       </section>
+      )}
 
+      {activeSection === "mapping" && showAdvancedMapping && (
+        <>
       <section style={styles.cardWide}>
         <div style={styles.sectionHeader}>
           <div>
@@ -1409,6 +1484,7 @@ export default function SuppliersPage() {
         </>
       )}
 
+      {activeSection === "settings" && (
       <section style={styles.cardWide}>
         <div style={styles.sectionHeader}>
           <h2>Message fournisseur automatique</h2>
@@ -1420,7 +1496,9 @@ export default function SuppliersPage() {
           onChange={(event) => setSupplierMessageText(event.target.value)}
         />
       </section>
+      )}
 
+      {activeSection === "suppliers" && (
       <section style={styles.cardWide}>
         <div style={styles.sectionHeader}>
           <h2>Mappings actifs</h2>
@@ -1466,7 +1544,9 @@ export default function SuppliersPage() {
           </div>
         )}
       </section>
+      )}
 
+      {activeSection === "suppliers" && (
       <section style={styles.cardWide}>
         <div style={styles.sectionHeader}>
           <h2>Liens fournisseurs enregistrés</h2>
@@ -1477,6 +1557,7 @@ export default function SuppliersPage() {
           lien pour que tu puisses l'associer à un produit.
         </p>
       </section>
+      )}
     </main>
   )
 }
@@ -1506,6 +1587,36 @@ const styles: Record<string, React.CSSProperties> = {
   title: { margin: "10px 0", fontSize: 46 },
   lead: { margin: 0, color: "#cbd5e1", lineHeight: 1.55, maxWidth: 980 },
   logo: { width: 82, height: 82, borderRadius: 22 },
+  sectionTabs: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+    gap: 12,
+    maxWidth: 1380,
+    marginBottom: 22,
+  },
+  sectionTab: {
+    display: "grid",
+    gap: 5,
+    textAlign: "left",
+    border: "1px solid #1f2937",
+    borderRadius: 18,
+    padding: 16,
+    background: "#0f172a",
+    color: "white",
+    cursor: "pointer",
+  },
+  sectionTabActive: {
+    display: "grid",
+    gap: 5,
+    textAlign: "left",
+    border: "1px solid rgba(74, 222, 128, .55)",
+    borderRadius: 18,
+    padding: 16,
+    background: "linear-gradient(135deg, rgba(22, 163, 74, .2), rgba(124, 58, 237, .24))",
+    color: "white",
+    cursor: "pointer",
+    boxShadow: "0 12px 30px rgba(0, 0, 0, .22)",
+  },
   workflow: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
@@ -1702,6 +1813,32 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#020617",
     border: "1px solid #1f2937",
     alignItems: "start",
+  },
+  orderPlatformBadge: {
+    gridColumn: "1 / -1",
+    width: "fit-content",
+    borderRadius: 999,
+    padding: "8px 12px",
+    background: "rgba(59, 130, 246, .16)",
+    color: "#bfdbfe",
+    fontSize: 12,
+    fontWeight: 900,
+  },
+  orderActionRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+  primaryOrderButton: {
+    border: "none",
+    borderRadius: 14,
+    padding: "12px 15px",
+    background: "linear-gradient(135deg, #16a34a, #2563eb)",
+    color: "white",
+    fontWeight: 900,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
   },
   addressBox: {
     margin: "10px 0 0",
