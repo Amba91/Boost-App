@@ -9,10 +9,14 @@ export async function GET() {
     await ensureReviewPriorityColumn()
 
     const result = await sql`
-      SELECT *
+      SELECT
+        product_reviews.*,
+        COALESCE(product_reviews.source, review_import_jobs.platform, 'manual') AS source
       FROM product_reviews
-      WHERE shop = ${SHOP}
-      ORDER BY featured DESC, created_at DESC
+      LEFT JOIN review_import_jobs
+        ON review_import_jobs.id = product_reviews.import_job_id
+      WHERE product_reviews.shop = ${SHOP}
+      ORDER BY product_reviews.featured DESC, product_reviews.created_at DESC
     `
 
     return NextResponse.json({

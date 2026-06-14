@@ -109,6 +109,9 @@ export default function ReviewsPage() {
   const [visibilityFilter, setVisibilityFilter] = useState("all")
   const [ratingFilter, setRatingFilter] = useState("all")
   const [mediaFilter, setMediaFilter] = useState("all")
+  const [activeSection, setActiveSection] = useState<
+    "reviews" | "sources" | "customize"
+  >("reviews")
   const [reviews, setReviews] = useState<Review[]>([])
   const [products, setProducts] = useState<ShopifyProduct[]>([])
   const [importJobs, setImportJobs] = useState<ImportJob[]>([])
@@ -183,6 +186,44 @@ export default function ReviewsPage() {
     (item) => item.source === "storefront" && !item.visible
   )
 
+  const platformOrder = [
+    "storefront",
+    "aliexpress",
+    "amazon",
+    "loox",
+    "judge_me",
+    "ryviu",
+    "manual",
+    "other",
+  ]
+
+  function getPlatformKey(item: Review) {
+    const source = String(item.source || "").toLowerCase()
+    if (source.includes("storefront")) return "storefront"
+    if (source.includes("aliexpress")) return "aliexpress"
+    if (source.includes("amazon")) return "amazon"
+    if (source.includes("loox")) return "loox"
+    if (source.includes("judge")) return "judge_me"
+    if (source.includes("ryviu")) return "ryviu"
+    if (source.includes("manual")) return "manual"
+    return "other"
+  }
+
+  function platformLabel(platform: string) {
+    const labels: Record<string, string> = {
+      storefront: "Avis boutique",
+      aliexpress: "AliExpress",
+      amazon: "Amazon",
+      loox: "Loox",
+      judge_me: "Judge.me",
+      ryviu: "Ryviu",
+      manual: "Ajout manuel / CSV",
+      other: "Autres imports",
+    }
+
+    return labels[platform] || platform
+  }
+
   const filteredReviews = numberedProductReviews.filter((item) => {
     const query = search.toLowerCase().trim()
 
@@ -211,6 +252,15 @@ export default function ReviewsPage() {
 
     return matchesSearch
   })
+
+  const groupedFilteredReviews = platformOrder
+    .map((platform) => ({
+      platform,
+      reviews: filteredReviews.filter(
+        (review) => getPlatformKey(review) === platform
+      ),
+    }))
+    .filter((group) => group.reviews.length > 0)
 
   const filteredImportJobs = importJobs.filter((job) => {
     if (!targetProductHandle) return true
@@ -850,6 +900,7 @@ export default function ReviewsPage() {
       await loadReviews()
       await loadProducts()
       if (extensionReviewsId) {
+        setActiveSection("sources")
         await loadExtensionImport(extensionReviewsId)
       }
       await loadImportJobs()
@@ -866,6 +917,25 @@ export default function ReviewsPage() {
       </Link>
 
       <h1 style={styles.title}>Avis clients</h1>
+
+      <div style={styles.sectionTabs}>
+        {[
+          ["reviews", "Avis"],
+          ["sources", "Sources / imports"],
+          ["customize", "Personnalisation"],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setActiveSection(key as typeof activeSection)}
+            style={{
+              ...styles.sectionTab,
+              ...(activeSection === key ? styles.sectionTabActive : {}),
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {targetProductHandle && (
         <div style={styles.selectedProductCard}>
@@ -892,7 +962,7 @@ export default function ReviewsPage() {
         </div>
       )}
 
-      {(extensionImport || extensionImportMessage) && (
+      {activeSection === "sources" && (extensionImport || extensionImportMessage) && (
         <div style={styles.extensionImportCard}>
           <p style={styles.pendingLabel}>AVIS ALIEXPRESS</p>
           <h2 style={{ margin: "6px 0" }}>
@@ -976,6 +1046,7 @@ export default function ReviewsPage() {
         </div>
       )}
 
+      {activeSection === "reviews" && (
       <div style={styles.pendingReviewsCard}>
         <div style={styles.pendingReviewsHeader}>
           <div>
@@ -1046,7 +1117,9 @@ export default function ReviewsPage() {
           ))
         )}
       </div>
+      )}
 
+      {activeSection === "customize" && (
       <div style={styles.card}>
         <p style={styles.muted}>
           Active ou désactive l’affichage des avis sur les fiches produits.
@@ -1071,7 +1144,9 @@ export default function ReviewsPage() {
             : "Activer Reviews"}
         </button>
       </div>
+      )}
 
+      {activeSection === "customize" && (
       <div style={styles.cardWide}>
         <h2>Personnaliser l’affichage</h2>
         <p style={styles.muted}>
@@ -1219,7 +1294,9 @@ export default function ReviewsPage() {
           </p>
         )}
       </div>
+      )}
 
+      {activeSection === "sources" && (
       <div style={styles.card}>
         <h2>Import / Export CSV</h2>
 
@@ -1283,7 +1360,9 @@ export default function ReviewsPage() {
 
         {importing && <p style={styles.muted}>Import en cours...</p>}
       </div>
+      )}
 
+      {activeSection === "sources" && (
       <div style={styles.card}>
         <h2>Import intelligent JSON</h2>
 
@@ -1316,7 +1395,9 @@ export default function ReviewsPage() {
           <p style={styles.muted}>Import intelligent en cours...</p>
         )}
       </div>
+      )}
 
+      {activeSection === "sources" && (
       <div style={styles.card}>
         <h2>Import par lien</h2>
 
@@ -1358,7 +1439,9 @@ export default function ReviewsPage() {
           <p style={styles.error}>{urlImportMessage}</p>
         )}
       </div>
+      )}
 
+      {activeSection === "sources" && (
       <div style={styles.cardWide}>
         <h2>Historique des imports par lien</h2>
 
@@ -1495,7 +1578,9 @@ export default function ReviewsPage() {
           </div>
         ))}
       </div>
+      )}
 
+      {activeSection === "reviews" && (
       <div style={styles.card}>
         <h2>Ajouter un avis</h2>
 
@@ -1579,7 +1664,9 @@ export default function ReviewsPage() {
           {uploading ? "Upload en cours..." : "Ajouter l’avis"}
         </button>
       </div>
+      )}
 
+      {activeSection === "reviews" && (
       <div style={styles.cardWide}>
         <h2>
           Avis existants{" "}
@@ -1668,7 +1755,16 @@ export default function ReviewsPage() {
           <p style={styles.muted}>Aucun avis trouvé pour ce produit.</p>
         )}
 
-        {filteredReviews.map((item) => (
+        {groupedFilteredReviews.map((group) => (
+          <section key={group.platform} style={styles.platformSection}>
+            <div style={styles.platformHeader}>
+              <h3 style={styles.platformTitle}>{platformLabel(group.platform)}</h3>
+              <span style={styles.platformCount}>
+                {group.reviews.length} avis
+              </span>
+            </div>
+
+            {group.reviews.map((item) => (
           <div key={item.id} style={styles.reviewCard}>
             <div style={styles.reviewHeader}>
               <span>
@@ -1883,8 +1979,11 @@ export default function ReviewsPage() {
               Supprimer l’avis
             </button>
           </div>
+            ))}
+          </section>
         ))}
       </div>
+      )}
     </main>
   )
 }
@@ -1905,6 +2004,29 @@ const styles: Record<string, React.CSSProperties> = {
   title: {
     fontSize: "48px",
     marginTop: "30px",
+  },
+  sectionTabs: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "12px",
+    maxWidth: "900px",
+    marginTop: "18px",
+  },
+  sectionTab: {
+    width: "auto",
+    marginTop: 0,
+    background: "#111827",
+    border: "1px solid #1f2937",
+    color: "#cbd5e1",
+    padding: "12px 18px",
+    borderRadius: "999px",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  sectionTabActive: {
+    background: "linear-gradient(135deg, #7c3aed, #2563eb)",
+    color: "white",
+    borderColor: "#7c3aed",
   },
   selectedProductCard: {
     background: "linear-gradient(135deg, #111827, #064e3b)",
@@ -2267,6 +2389,32 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "24px",
     borderRadius: "18px",
     marginTop: "18px",
+  },
+  platformSection: {
+    marginTop: "24px",
+    paddingTop: "8px",
+  },
+  platformHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+    padding: "14px 16px",
+    borderRadius: "16px",
+    background: "linear-gradient(135deg, #1e1b4b, #111827)",
+    border: "1px solid #312e81",
+  },
+  platformTitle: {
+    margin: 0,
+    fontSize: "22px",
+  },
+  platformCount: {
+    background: "#312e81",
+    color: "#ddd6fe",
+    padding: "7px 12px",
+    borderRadius: "999px",
+    fontWeight: "bold",
+    fontSize: "13px",
   },
   reviewHeader: {
     display: "flex",

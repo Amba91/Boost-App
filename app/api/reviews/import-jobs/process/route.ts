@@ -148,6 +148,7 @@ export async function POST(request: Request) {
           verified_purchase,
           visible,
           merchant_reply,
+          source,
           import_job_id
         )
         VALUES (
@@ -164,6 +165,7 @@ export async function POST(request: Request) {
           ${review.verified_purchase ?? true},
           false,
           '',
+          ${job.platform},
           ${jobId}
         )
       `
