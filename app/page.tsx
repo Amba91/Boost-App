@@ -131,6 +131,49 @@ const statusColors: Record<WidgetStatus, { background: string; color: string; bo
   soon: { background: "#111827", color: "#cbd5e1", border: "#334155" },
 }
 
+const onboardingSteps = [
+  {
+    title: "1. Connecter Shopify",
+    text: "Synchronise les produits, les commandes et les infos boutique.",
+    href: "/products",
+    action: "Voir les produits",
+    status: "Base prête",
+    tone: "ready",
+  },
+  {
+    title: "2. Activer les avis",
+    text: "Importe les avis, publie ceux de la boutique et affiche le widget sur la fiche produit.",
+    href: "/widgets/reviews",
+    action: "Configurer Reviews",
+    status: "Priorité vente",
+    tone: "ready",
+  },
+  {
+    title: "3. Mettre le suivi commande",
+    text: "Ajoute la page rassurante où le client suit sa commande avec son numéro.",
+    href: "/widgets/tracking",
+    action: "Configurer Tracking",
+    status: "Prêt",
+    tone: "ready",
+  },
+  {
+    title: "4. Brancher les e-mails",
+    text: "Resend, Klaviyo, paniers abandonnés, confirmation et demandes d’avis.",
+    href: "/widgets/mail-automations",
+    action: "Ouvrir Boost Mail",
+    status: "Prêt",
+    tone: "ready",
+  },
+  {
+    title: "5. Préparer factures et fournisseurs",
+    text: "Factures pro, AliExpress, mapping variantes et traitement des commandes.",
+    href: "/suppliers",
+    action: "Ouvrir Fournisseurs",
+    status: "À finaliser",
+    tone: "partial",
+  },
+]
+
 export default function HomePage() {
   const [statuses, setStatuses] = useState<Record<string, boolean>>({})
   const [pendingReviewsCount, setPendingReviewsCount] = useState(0)
@@ -256,6 +299,46 @@ export default function HomePage() {
             <strong>{soonCount}</strong>
             <span>bientôt</span>
           </div>
+        </div>
+      </section>
+
+      <section style={styles.onboardingPanel}>
+        <div style={styles.sectionHeader}>
+          <div>
+            <span style={styles.eyebrow}>Mise en route marchand</span>
+            <h2 style={styles.sectionTitle}>Démarrer avec Boost en 5 étapes</h2>
+            <p style={styles.sectionText}>
+              Cette zone servira de guide simple pour chaque nouvelle boutique :
+              le marchand voit quoi connecter, quoi tester et où cliquer.
+            </p>
+          </div>
+          <Link href="/admin" style={styles.secondaryLink}>
+            Vue admin →
+          </Link>
+        </div>
+
+        <div style={styles.onboardingGrid}>
+          {onboardingSteps.map((step) => (
+            <div key={step.title} style={styles.onboardingCard}>
+              <div style={styles.onboardingTop}>
+                <span
+                  style={{
+                    ...styles.onboardingStatus,
+                    ...(step.tone === "ready"
+                      ? styles.onboardingStatusReady
+                      : styles.onboardingStatusPartial),
+                  }}
+                >
+                  {step.status}
+                </span>
+              </div>
+              <h3 style={styles.onboardingTitle}>{step.title}</h3>
+              <p style={styles.onboardingText}>{step.text}</p>
+              <Link href={step.href} style={styles.onboardingAction}>
+                {step.action}
+              </Link>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -486,6 +569,94 @@ const styles: Record<string, React.CSSProperties> = {
     gap: "16px",
     maxWidth: "1180px",
     marginBottom: "26px",
+  },
+  onboardingPanel: {
+    maxWidth: "1180px",
+    marginBottom: "26px",
+    padding: "26px",
+    borderRadius: "26px",
+    background: "#0f172a",
+    border: "1px solid #1e293b",
+  },
+  sectionHeader: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: "20px",
+    marginBottom: "20px",
+  },
+  sectionTitle: {
+    margin: "10px 0 8px",
+    fontSize: "30px",
+  },
+  sectionText: {
+    margin: 0,
+    color: "#cbd5e1",
+    lineHeight: 1.55,
+    maxWidth: "760px",
+  },
+  secondaryLink: {
+    flexShrink: 0,
+    color: "#c4b5fd",
+    border: "1px solid #4c1d95",
+    background: "#1e1b4b",
+    textDecoration: "none",
+    padding: "12px 14px",
+    borderRadius: "14px",
+    fontWeight: 900,
+  },
+  onboardingGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+    gap: "14px",
+  },
+  onboardingCard: {
+    display: "grid",
+    alignContent: "start",
+    gap: "10px",
+    minHeight: "210px",
+    borderRadius: "18px",
+    padding: "18px",
+    background: "#020617",
+    border: "1px solid #1f2937",
+  },
+  onboardingTop: {
+    display: "flex",
+    justifyContent: "flex-end",
+  },
+  onboardingStatus: {
+    borderRadius: "999px",
+    padding: "6px 9px",
+    fontSize: "12px",
+    fontWeight: 900,
+    border: "1px solid",
+  },
+  onboardingStatusReady: {
+    color: "#bbf7d0",
+    background: "#052e16",
+    borderColor: "#16a34a",
+  },
+  onboardingStatusPartial: {
+    color: "#fde68a",
+    background: "#451a03",
+    borderColor: "#f59e0b",
+  },
+  onboardingTitle: {
+    margin: 0,
+    fontSize: "18px",
+  },
+  onboardingText: {
+    margin: 0,
+    color: "#94a3b8",
+    lineHeight: 1.45,
+  },
+  onboardingAction: {
+    alignSelf: "end",
+    marginTop: "auto",
+    width: "fit-content",
+    color: "#a78bfa",
+    fontWeight: 900,
+    textDecoration: "none",
   },
   stepCard: {
     display: "grid",
