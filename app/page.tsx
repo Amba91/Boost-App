@@ -272,9 +272,14 @@ export default function HomePage() {
           <h1 style={styles.logo}>Boost</h1>
           <p style={styles.tagline}>More sales. Less effort.</p>
         </div>
-        <Link href="/admin" style={styles.adminLink}>
-          Admin Boost
-        </Link>
+        <div style={styles.headerActions}>
+          <Link href="/settings" style={styles.settingsLink}>
+            Paramètres marchand
+          </Link>
+          <Link href="/admin" style={styles.adminLink}>
+            Admin Boost
+          </Link>
+        </div>
       </div>
 
       <section style={styles.launchPanel}>
@@ -312,8 +317,8 @@ export default function HomePage() {
               le marchand voit quoi connecter, quoi tester et où cliquer.
             </p>
           </div>
-          <Link href="/admin" style={styles.secondaryLink}>
-            Vue admin →
+          <Link href="/settings" style={styles.secondaryLink}>
+            Réglages marchand →
           </Link>
         </div>
 
@@ -494,9 +499,23 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: "50px",
   },
   adminLink: {
-    marginLeft: "auto",
     color: "white",
     background: "#7c3aed",
+    textDecoration: "none",
+    padding: "13px 16px",
+    borderRadius: 14,
+    fontWeight: 900,
+  },
+  headerActions: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    marginLeft: "auto",
+  },
+  settingsLink: {
+    color: "#c4b5fd",
+    border: "1px solid #4c1d95",
+    background: "#1e1b4b",
     textDecoration: "none",
     padding: "13px 16px",
     borderRadius: 14,
