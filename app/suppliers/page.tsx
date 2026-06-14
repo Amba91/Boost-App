@@ -234,6 +234,20 @@ export default function SuppliersPage() {
     return "Autre fournisseur"
   }
 
+  function orderStatusLabel(status: string) {
+    if (status === "needs_mapping") return "Mapping manquant"
+    if (status === "ordered") return "Commandée"
+    if (status === "cancelled") return "Annulée"
+    return "À commander"
+  }
+
+  function orderStatusStyle(status: string) {
+    if (status === "needs_mapping") return styles.orangeBadge
+    if (status === "ordered") return styles.blueBadge
+    if (status === "cancelled") return styles.redBadge
+    return styles.statusBadge
+  }
+
   function parseAddress(address: SupplierOrder["shipping_address"]) {
     if (!address) return {}
     if (typeof address === "object") return address
@@ -258,6 +272,15 @@ export default function SuppliersPage() {
     ]
       .filter(Boolean)
       .join("\n")
+  }
+
+  function shortAddress(order: SupplierOrder) {
+    const address = parseAddress(order.shipping_address)
+    return [
+      address.address1,
+      [address.zip, address.city].filter(Boolean).join(" "),
+      address.country,
+    ].filter(Boolean).join(" · ")
   }
 
   function mappingsForOrder(order: SupplierOrder) {
@@ -591,6 +614,46 @@ export default function SuppliersPage() {
     }
   }
 
+  async function copyOrderAddress(order: SupplierOrder) {
+    try {
+      await navigator.clipboard.writeText(formatAddress(order) || "Adresse non disponible")
+      setMessage("Adresse client copiée.")
+    } catch {
+      setMessage("Copie impossible. Tu peux copier l’adresse affichée.")
+    }
+  }
+
+  async function copyFullSupplierOrder(order: SupplierOrder) {
+    const text = [
+      `Commande Shopify : ${order.order_name}`,
+      `Client : ${order.customer_name || order.customer_email}`,
+      `Email : ${order.customer_email || "N/A"}`,
+      "",
+      "Adresse de livraison :",
+      formatAddress(order) || "Adresse non disponible",
+      "",
+      "Produit à commander :",
+      `Produit boutique : ${order.product_title}`,
+      `Variante boutique : ${order.shopify_variant_title || "N/A"}`,
+      `Variante fournisseur : ${order.supplier_variant_label || "N/A"}`,
+      `Couleur : ${order.supplier_color || "N/A"}`,
+      `Taille : ${order.supplier_size || "N/A"}`,
+      `Pack / forme : ${order.supplier_shape || "N/A"}`,
+      `SKU fournisseur : ${order.supplier_sku || "N/A"}`,
+      `Quantité : ${order.quantity}`,
+      "",
+      "Message au fournisseur :",
+      order.supplier_message || "",
+    ].join("\n")
+
+    try {
+      await navigator.clipboard.writeText(text)
+      setMessage("Commande fournisseur complète copiée.")
+    } catch {
+      setMessage("Copie impossible. Tu peux copier les blocs affichés.")
+    }
+  }
+
   async function handleSendOrderToSupplier(order: SupplierOrder) {
     if (order.status === "needs_mapping") {
       setMessage("Relie d'abord cette commande à un fournisseur avant de l'envoyer.")
@@ -605,15 +668,14 @@ export default function SuppliersPage() {
       supplierPlatformFromUrl(order.supplier_url, order.supplier_name)
     )
     const confirmed = confirm(
-      `Boost va ouvrir ${platform}, copier le message fournisseur et marquer la commande comme commandée. Continuer ?`
+      `Boost va ouvrir ${platform} et copier toutes les informations utiles. Tu marqueras la commande comme commandée après validation chez le fournisseur. Continuer ?`
     )
     if (!confirmed) return
 
-    await copySupplierMessage(order)
+    await copyFullSupplierOrder(order)
     window.open(order.supplier_url, "_blank", "noopener,noreferrer")
-    await updateSupplierOrder(order.id, "ordered")
     setMessage(
-      `Commande ouverte chez ${platform}. Le message est copié : colle-le au fournisseur avant de valider.`
+      `Commande prête chez ${platform}. Les infos sont copiées : colle-les au fournisseur, puis reviens cliquer sur “Marquer commandée”.`
     )
   }
 
@@ -1160,79 +1222,118 @@ export default function SuppliersPage() {
           <div style={styles.orderGrid}>
             {filteredSupplierOrders.map((order) => (
               <article key={order.id} style={styles.orderCard}>
-                {(() => {
-                  const platform = supplierPlatformFromUrl(order.supplier_url, order.supplier_name)
-                  return <span style={styles.orderPlatformBadge}>{supplierPlatformLabel(platform)}</span>
-                })()}
-                <div>
-                  <span style={order.status === "needs_mapping" ? styles.orangeBadge : styles.statusBadge}>
-                    {order.status === "needs_mapping"
-                      ? "Mapping manquant"
-                      : order.status === "ordered"
-                        ? "Commandée"
-                        : order.status === "cancelled"
-                          ? "Annulée"
-                          : "À commander"}
+                <div style={styles.orderCardHeader}>
+                  <div>
+                    <span style={orderStatusStyle(order.status)}>
+                      {orderStatusLabel(order.status)}
+                    </span>
+                    <h3>{order.order_name || "Commande Shopify"}</h3>
+                    <p style={styles.muted}>
+                      {order.customer_name || order.customer_email || "Client non renseigné"} · {shortAddress(order) || "adresse à vérifier"}
+                    </p>
+                  </div>
+                  <div style={styles.orderHeaderRight}>
+                    <span style={styles.orderPlatformBadge}>
+                      {supplierPlatformLabel(supplierPlatformFromUrl(order.supplier_url, order.supplier_name))}
+                    </span>
+                    <span style={styles.quantityBadge}>x{order.quantity}</span>
+                  </div>
+                </div>
+
+                <div style={styles.orderSteps}>
+                  <span style={order.status === "needs_mapping" ? styles.stepMissing : styles.stepDone}>
+                    1. Fournisseur lié
                   </span>
-                  <h3>{order.order_name || "Commande Shopify"}</h3>
-                  <p style={styles.muted}>{order.customer_name || order.customer_email}</p>
-                  <pre style={styles.addressBox}>{formatAddress(order) || "Adresse non disponible"}</pre>
+                  <span style={order.supplier_variant_label || order.shopify_variant_title ? styles.stepDone : styles.stepMissing}>
+                    2. Variante identifiée
+                  </span>
+                  <span style={formatAddress(order) ? styles.stepDone : styles.stepMissing}>
+                    3. Adresse client prête
+                  </span>
+                  <span style={order.status === "ordered" ? styles.stepDone : styles.stepTodo}>
+                    4. Commande fournisseur validée
+                  </span>
                 </div>
 
-                <div>
-                  <strong>{order.product_title}</strong>
-                  <p style={styles.muted}>
-                    Variante : {order.supplier_variant_label || order.shopify_variant_title || "N/A"}
-                  </p>
-                  <p style={styles.muted}>Quantité : {order.quantity}</p>
+                <div style={styles.orderDetailGrid}>
+                  <div style={styles.orderBlock}>
+                    <span style={styles.source}>Client</span>
+                    <strong>{order.customer_name || "Client Shopify"}</strong>
+                    <p style={styles.muted}>{order.customer_email || "Email non disponible"}</p>
+                    <pre style={styles.addressBox}>{formatAddress(order) || "Adresse non disponible"}</pre>
+                    <button onClick={() => copyOrderAddress(order)} style={styles.smallButton}>
+                      Copier adresse
+                    </button>
+                  </div>
+
+                  <div style={styles.orderBlock}>
+                    <span style={styles.source}>Produit boutique</span>
+                    <strong>{order.product_title}</strong>
+                    <p style={styles.muted}>Variante Shopify : {order.shopify_variant_title || "N/A"}</p>
+                    <p style={styles.muted}>Quantité : {order.quantity}</p>
+                    <p style={styles.muted}>Handle : {order.product_handle || "N/A"}</p>
+                  </div>
+
+                  <div style={styles.orderBlock}>
+                    <span style={styles.source}>Fournisseur</span>
+                    <strong>{order.supplier_name || "Fournisseur à choisir"}</strong>
+                    <p style={styles.muted}>Variante fournisseur : {order.supplier_variant_label || "N/A"}</p>
+                    <p style={styles.muted}>
+                      Couleur : {order.supplier_color || "N/A"} · Taille : {order.supplier_size || "N/A"} · Pack : {order.supplier_shape || "N/A"}
+                    </p>
+                    <p style={styles.muted}>
+                      SKU : {order.supplier_sku || "N/A"} · Prix : {order.supplier_price || "N/A"}
+                    </p>
+                    {order.supplier_url ? (
+                      <a href={order.supplier_url} target="_blank" style={styles.link}>
+                        Ouvrir le lien source
+                      </a>
+                    ) : (
+                      <p style={styles.muted}>Aucun lien fournisseur lié.</p>
+                    )}
+                    {order.status === "needs_mapping" && (
+                      <div style={styles.mappingSelectBox}>
+                        <select
+                          style={styles.compactInput}
+                          value={orderMappingSelections[order.id] || ""}
+                          onChange={(event) =>
+                            setOrderMappingSelections((current) => ({
+                              ...current,
+                              [order.id]: event.target.value,
+                            }))
+                          }
+                        >
+                          <option value="">Choisir un fournisseur existant</option>
+                          {mappingsForOrder(order).map((mapping) => (
+                            <option key={mapping.id} value={mapping.id}>
+                              {mapping.product_title} · {mapping.supplier_name} · {mapping.variant_label || "Toutes variantes"}
+                            </option>
+                          ))}
+                        </select>
+                        <button onClick={() => assignMappingToOrder(order)} style={styles.greenSmallButton}>
+                          Relier cette commande
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div>
-                  <strong>{order.supplier_name || "Fournisseur à choisir"}</strong>
-                  <p style={styles.muted}>
-                    SKU : {order.supplier_sku || "N/A"} · Prix : {order.supplier_price || "N/A"}
-                  </p>
-                  {order.supplier_url ? (
-                    <a href={order.supplier_url} target="_blank" style={styles.link}>
-                      Ouvrir le fournisseur
-                    </a>
-                  ) : (
-                    <p style={styles.muted}>Aucun fournisseur lié.</p>
-                  )}
-                  {order.status === "needs_mapping" && (
-                    <div style={styles.mappingSelectBox}>
-                      <select
-                        style={styles.compactInput}
-                        value={orderMappingSelections[order.id] || ""}
-                        onChange={(event) =>
-                          setOrderMappingSelections((current) => ({
-                            ...current,
-                            [order.id]: event.target.value,
-                          }))
-                        }
-                      >
-                        <option value="">Choisir un fournisseur existant</option>
-                        {mappingsForOrder(order).map((mapping) => (
-                          <option key={mapping.id} value={mapping.id}>
-                            {mapping.product_title} · {mapping.supplier_name} · {mapping.variant_label || "Toutes variantes"}
-                          </option>
-                        ))}
-                      </select>
-                      <button onClick={() => assignMappingToOrder(order)} style={styles.greenSmallButton}>
-                        Relier
-                      </button>
-                    </div>
-                  )}
+                <div style={styles.supplierMessagePanel}>
+                  <div style={styles.messageHeader}>
+                    <strong>Message dropshipping à transmettre</strong>
+                    <button onClick={() => copySupplierMessage(order)} style={styles.smallButton}>
+                      Copier message
+                    </button>
+                  </div>
+                  <pre style={styles.smallMessage}>{order.supplier_message || order.internal_note}</pre>
                 </div>
-
-                <pre style={styles.smallMessage}>{order.supplier_message || order.internal_note}</pre>
 
                 <div style={styles.orderActionRow}>
                   <button onClick={() => handleSendOrderToSupplier(order)} style={styles.primaryOrderButton}>
-                    Envoyer vers {supplierPlatformLabel(supplierPlatformFromUrl(order.supplier_url, order.supplier_name))}
+                    Préparer sur {supplierPlatformLabel(supplierPlatformFromUrl(order.supplier_url, order.supplier_name))}
                   </button>
-                  <button onClick={() => copySupplierMessage(order)} style={styles.smallButton}>
-                    Copier message
+                  <button onClick={() => copyFullSupplierOrder(order)} style={styles.smallButton}>
+                    Copier toute la commande
                   </button>
                   <button onClick={() => updateSupplierOrder(order.id, "ordered")} style={styles.greenSmallButton}>
                     Marquer commandée
@@ -1865,16 +1966,23 @@ const styles: Record<string, React.CSSProperties> = {
   },
   orderCard: {
     display: "grid",
-    gridTemplateColumns: "minmax(190px, .7fr) minmax(220px, 1fr) minmax(220px, .8fr) minmax(260px, 1.1fr)",
-    gap: 16,
-    padding: 18,
-    borderRadius: 20,
+    gap: 18,
+    padding: 20,
+    borderRadius: 24,
     background: "#020617",
     border: "1px solid #1f2937",
     alignItems: "start",
   },
+  orderCardHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 14,
+    paddingBottom: 14,
+    borderBottom: "1px solid #1f2937",
+  },
+  orderHeaderRight: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" },
   orderPlatformBadge: {
-    gridColumn: "1 / -1",
     width: "fit-content",
     borderRadius: 999,
     padding: "8px 12px",
@@ -1882,6 +1990,72 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#bfdbfe",
     fontSize: 12,
     fontWeight: 900,
+  },
+  quantityBadge: {
+    width: "fit-content",
+    borderRadius: 999,
+    padding: "8px 12px",
+    background: "rgba(124, 58, 237, .2)",
+    color: "#ddd6fe",
+    fontSize: 12,
+    fontWeight: 900,
+  },
+  orderSteps: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+    gap: 10,
+  },
+  stepDone: {
+    borderRadius: 14,
+    padding: "11px 12px",
+    background: "rgba(22, 163, 74, .15)",
+    color: "#bbf7d0",
+    fontSize: 13,
+    fontWeight: 900,
+  },
+  stepMissing: {
+    borderRadius: 14,
+    padding: "11px 12px",
+    background: "rgba(245, 158, 11, .15)",
+    color: "#fde68a",
+    fontSize: 13,
+    fontWeight: 900,
+  },
+  stepTodo: {
+    borderRadius: 14,
+    padding: "11px 12px",
+    background: "rgba(148, 163, 184, .1)",
+    color: "#cbd5e1",
+    fontSize: 13,
+    fontWeight: 900,
+  },
+  orderDetailGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: 14,
+  },
+  orderBlock: {
+    display: "grid",
+    gap: 8,
+    padding: 16,
+    borderRadius: 18,
+    background: "#0f172a",
+    border: "1px solid #1f2937",
+  },
+  supplierMessagePanel: {
+    display: "grid",
+    gap: 10,
+    padding: 16,
+    borderRadius: 18,
+    background: "rgba(15, 23, 42, .82)",
+    border: "1px solid #1f2937",
+  },
+  messageHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+    flexWrap: "wrap",
   },
   orderActionRow: {
     display: "flex",
@@ -1933,6 +2107,26 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "7px 10px",
     background: "rgba(245, 158, 11, .16)",
     color: "#fde68a",
+    fontSize: 12,
+    fontWeight: 900,
+  },
+  blueBadge: {
+    display: "inline-flex",
+    width: "fit-content",
+    borderRadius: 999,
+    padding: "7px 10px",
+    background: "rgba(59, 130, 246, .16)",
+    color: "#bfdbfe",
+    fontSize: 12,
+    fontWeight: 900,
+  },
+  redBadge: {
+    display: "inline-flex",
+    width: "fit-content",
+    borderRadius: 999,
+    padding: "7px 10px",
+    background: "rgba(220, 38, 38, .16)",
+    color: "#fecaca",
     fontSize: 12,
     fontWeight: 900,
   },
